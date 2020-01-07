@@ -1,3 +1,3 @@
-# BASE_MODULE_NAME
+# process_cuwb_data
 
-SHORT_DESCRIPTION
+Tools for reading, processing, and writing CUWB data

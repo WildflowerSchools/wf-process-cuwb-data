@@ -5,9 +5,11 @@ BASEDIR = os.path.dirname(os.path.abspath(__file__))
 VERSION = open(os.path.join(BASEDIR, 'VERSION')).read().strip()
 
 # Dependencies (format is 'PYPI_PACKAGE_NAME[>=]=VERSION_NUMBER')
-# BASE_DEPENDENCIES = [
-# ]
-
+BASE_DEPENDENCIES = [
+    'wf-database-connection-honeycomb>=0.3.0',
+    'wf-minimal-honeycomb-python>=0.3.1'
+    'pandas>=0.25.3'
+]
 # TEST_DEPENDENCIES = [
 # ]
 #
@@ -18,16 +20,16 @@ VERSION = open(os.path.join(BASEDIR, 'VERSION')).read().strip()
 os.chdir(os.path.normpath(BASEDIR))
 
 setup(
-    name='PYPI_PACKAGE_NAME',
+    name='wf-process-cuwb-data',
     packages=find_packages(),
     version=VERSION,
     include_package_data=True,
-    description='SHORT_DESCRIPTION',
+    description='Tools for reading, processing, and writing CUWB data',
     long_description=open('README.md').read(),
-    url='https://github.com/WildflowerSchools/PYPI_PACKAGE_NAME',
-    author='AUTHOR_NAME',
-    author_email='AUTHOR_EMAIL',
-    # install_requires=BASE_DEPENDENCIES,
+    url='https://github.com/WildflowerSchools/wf-process-cuwb-data',
+    author='Theodore Quinn',
+    author_email='ted.quinn@wildflowerschools.org',
+    install_requires=BASE_DEPENDENCIES,
     # tests_require=TEST_DEPENDENCIES,
     # extras_require = {
     #     'test': TEST_DEPENDENCIES,
