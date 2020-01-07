@@ -7,7 +7,7 @@ VERSION = open(os.path.join(BASEDIR, 'VERSION')).read().strip()
 # Dependencies (format is 'PYPI_PACKAGE_NAME[>=]=VERSION_NUMBER')
 BASE_DEPENDENCIES = [
     'wf-database-connection-honeycomb>=0.3.0',
-    'wf-minimal-honeycomb-python>=0.3.1'
+    'wf-minimal-honeycomb-python>=0.3.1',
     'pandas>=0.25.3'
 ]
 # TEST_DEPENDENCIES = [
