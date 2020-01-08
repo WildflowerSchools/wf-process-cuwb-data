@@ -1,5 +1,5 @@
 from database_connection_honeycomb import DatabaseConnectionHoneycomb
-import minimal_honeycomb
+from minimal_honeycomb import MinimalHoneycombClient
 import pandas as pd
 
 def fetch_cuwb_data(
@@ -52,4 +52,33 @@ def fetch_cuwb_data(
     df.dropna(subset=['timestamp'], inplace=True)
     df.set_index('timestamp', inplace=True)
     df.sort_index(inplace=True)
+    return df
+
+def add_device_metadata(
+    df,
+    device_type='UWBTAG'
+):
+    client = MinimalHoneycombClient()
+    result = client.request(
+        request_type="query",
+        request_name='findDevices',
+        arguments={
+            'device_type': {
+                'type': 'DeviceType',
+                'value': device_type
+            }
+        },
+        return_object = [
+            {'data': [
+                'device_id',
+                'part_number',
+                'serial_number',
+                'name',
+                'tag_id',
+                'mac_address'
+            ]}
+        ]
+    )
+    metadata_df = pd.DataFrame(result.get('data'))
+    df = df.join(metadata_df.set_index('serial_number'), on='serial_number')
     return df
