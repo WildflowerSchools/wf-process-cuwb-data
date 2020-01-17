@@ -26,6 +26,56 @@ def fetch_cuwb_data(
         object_ids = object_ids
     )
     df = pd.DataFrame(data)
+    df.drop(
+        columns = [
+            'timestamp',
+            'environment_name',
+            'object_id',
+            'memory',
+            'flags',
+            'minutes_remaining',
+            'processor_usage',
+            'network_time',
+            'object_id_secondary'
+        ],
+        inplace=True
+    )
+    df.rename(
+        columns = {
+            'timestamp_secondary': 'timestamp',
+            'serial_number': 'device_serial_number'
+        },
+        inplace=True
+    )
+    df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True)
+    df.dropna(subset=['timestamp'], inplace=True)
+    df.set_index('timestamp', inplace=True)
+    df.sort_index(inplace=True)
+    return df
+
+def fetch_cuwb_position_data(
+    environment_name,
+    start_time,
+    end_time,
+    read_chunk_size=2,
+    object_type_honeycomb='DEVICE',
+    object_id_field_name_honeycomb='device_type',
+    object_ids=['UWBTAG']
+):
+    dbc = DatabaseConnectionHoneycomb(
+        environment_name_honeycomb = environment_name,
+        time_series_database = True,
+        object_database = True,
+        object_type_honeycomb = object_type_honeycomb,
+        object_id_field_name_honeycomb = object_id_field_name_honeycomb,
+        read_chunk_size=read_chunk_size
+    )
+    data = dbc.fetch_data_object_time_series(
+        start_time = start_time,
+        end_time = end_time,
+        object_ids = object_ids
+    )
+    df = pd.DataFrame(data)
     df = df.loc[df['type'] == 'position'].copy()
     df = df.reindex(columns=[
         'serial_number',
@@ -56,7 +106,7 @@ def fetch_cuwb_data(
     df.sort_index(inplace=True)
     return df
 
-def fetch_cuwb_tag_devices(
+def fetch_cuwb_tag_device_data(
     device_type='UWBTAG'
 ):
     client = MinimalHoneycombClient()
