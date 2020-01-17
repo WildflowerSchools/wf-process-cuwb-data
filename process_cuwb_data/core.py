@@ -295,3 +295,99 @@ def add_assignment_ids(
                     assignment_field_name
                 ] = assignment[assignment_field_name]
     return df
+
+def fetch_tray_ids():
+    client = MinimalHoneycombClient()
+    result = client.request(
+        request_type="query",
+        request_name='entityAssignments',
+        arguments=None,
+        return_object = [
+            {'data': [
+                'entity_assignment_id',
+                {'entity': [
+                    {'... on Tray': [
+                        'tray_id'
+                    ]}
+                ]}
+            ]}
+        ]
+    )
+    df = json_normalize(result.get('data'))
+    df.rename(
+        columns={
+            'entity.tray_id': 'tray_id',
+        },
+        inplace=True
+    )
+    df.set_index('entity_assignment_id', inplace=True)
+    return df
+
+def fetch_material_assignments(
+):
+    client = MinimalHoneycombClient()
+    result = client.request(
+        request_type="query",
+        request_name='materialAssignments',
+        arguments=None,
+        return_object = [
+            {'data': [
+                'material_assignment_id',
+                {'tray': [
+                    'tray_id'
+                ]},
+                'start',
+                'end'
+            ]}
+        ]
+    )
+    if len(result.get('data')) == 0:
+        raise ValueError('No material assignments found')
+    assignments_dict = dict()
+    for material_assignment in result.get('data'):
+        tray_id = material_assignment['tray']['tray_id']
+        assignment = {
+            'material_assignment_id': material_assignment['material_assignment_id'],
+            'start': material_assignment['start'],
+            'end': material_assignment['end']
+        }
+        if tray_id in assignments_dict.keys():
+            assignments_dict[tray_id].append(assignment)
+        else:
+            assignments_dict[tray_id] = [assignment]
+    for tray_id in assignments_dict.keys():
+        num_assignments = len(assignments_dict[tray_id])
+        # Convert timestamp strings to Pandas datetime objects
+        for assignment_index in range(num_assignments):
+            assignments_dict[tray_id][assignment_index]['start'] = pd.to_datetime(
+                assignments_dict[tray_id][assignment_index]['start'],
+                utc=True
+            )
+            assignments_dict[tray_id][assignment_index]['end'] = pd.to_datetime(
+                assignments_dict[tray_id][assignment_index]['end'],
+                utc=True
+            )
+        # Sort assignment list by start time
+        assignments_dict[tray_id] = sorted(
+            assignments_dict[tray_id],
+            key = lambda assignment: assignment['start']
+        )
+        # Check integrity of assignment list
+        if num_assignments > 1:
+            for assignment_index in range(1, num_assignments):
+                if pd.isna(assignments_dict[tray_id][assignment_index - 1]['end']):
+                    raise ValueError('Assignment {} starts at {} but previous assignment for this device {} starts at {} and has no end time'.format(
+                        assignments_dict[tray_id][assignment_index][assignment_id_field_name],
+                        assignments_dict[tray_id][assignment_index]['start'],
+                        assignments_dict[tray_id][assignment_index - 1][assignment_id_field_name],
+                        assignments_dict[tray_id][assignment_index - 1]['start']
+                    ))
+                if assignments_dict[tray_id][assignment_index]['start'] < assignments_dict[tray_id][assignment_index - 1]['end']:
+                    raise ValueError('Assignment {} starts at {} but previous assignment for this device {} starts at {} and ends at {}'.format(
+                        assignments_dict[tray_id][assignment_index][assignment_id_field_name],
+                        assignments_dict[tray_id][assignment_index]['start'],
+                        assignments_dict[tray_id][assignment_index - 1][assignment_id_field_name],
+                        assignments_dict[tray_id][assignment_index - 1]['start'],
+                        assignments_dict[tray_id][assignment_index - 1]['end']
+                    ))
+    return assignments_dict
