@@ -204,8 +204,10 @@ def fetch_cuwb_status_data(
     )
     return df
 
-def fetch_cuwb_tag_entity_assignments(
-    device_type='UWBTAG'
+def fetch_cuwb_tag_assignments(
+    device_type='UWBTAG',
+    assignment_field_name='assignments',
+    assignment_id_field_name='assignment_id'
 ):
     client = MinimalHoneycombClient()
     result = client.request(
@@ -220,129 +222,50 @@ def fetch_cuwb_tag_entity_assignments(
         return_object = [
             {'data': [
                 'device_id',
-                {'entity_assignments': [
-                    'entity_assignment_id',
+                {assignment_field_name: [
+                    assignment_id_field_name,
                     'start',
                     'end',
-                    {'entity':[
-                        '__typename',
-                        {'... on Person': [
-                            'id:person_id',
-                            'name'
-                        ]},
-                        {'... on Material': [
-                            'id:material_id',
-                            'name'
-                        ]},
-                        {'... on Tray': [
-                            'id:tray_id',
-                            'name'
-                        ]},
-                    ]}
                 ]}
             ]}
         ]
     )
-    df = json_normalize(
-        result.get('data'),
-        record_path='entity_assignments',
-        meta='device_id'
-    )
-    df.rename(
-        columns = {
-            'entity.__typename': 'entity_type',
-            'entity.id': 'entity_id',
-            'entity.name': 'entity_name'
-        },
-        inplace=True
-    )
-    df['start'] = pd.to_datetime(df['start'], utc=True)
-    df['end'] = pd.to_datetime(df['end'], utc=True)
-    df = df.reindex(columns=[
-        'entity_assignment_id',
-        'start',
-        'end',
-        'device_id',
-        'entity_type',
-        'entity_id',
-        'entity_name'
-    ])
-    df.set_index('entity_assignment_id', inplace=True)
-    return df
-
-def fetch_cuwb_tag_entity_assignments_lookup_list(
-    device_type='UWBTAG'
-):
-    entity_assignments_df = fetch_cuwb_tag_entity_assignments(device_type)
-    lookup_list = []
-    for entity_assignment_id, row in entity_assignments_df.iterrows():
-        lookup_list.append({
-            'entity_assignment_id': entity_assignment_id,
-            'device_id': row['device_id'],
-            'start': row['start'],
-            'end': row['end']
-        })
-    return lookup_list
-
-def fetch_cuwb_tag_entity_assignments_lookup_dict(
-    device_type='UWBTAG'
-):
-    entity_assignments_df = fetch_cuwb_tag_entity_assignments(device_type)
-    lookup_dict = dict()
-    for entity_assignment_id, row in entity_assignments_df.iterrows():
-        device_id = row['device_id']
-        assignment = {
-            'entity_assignment_id': entity_assignment_id,
-            'start': row['start'],
-            'end': row['end']
-        }
-        if device_id in lookup_dict.keys():
-            lookup_dict[device_id].append(assignment)
-        else:
-            lookup_dict[device_id] = [assignment]
-    return lookup_dict
-
-def lookup_entity_assignment_from_list(
-    lookup_list,
-    device_id,
-    timestamp,
-):
-    matched_entity_assignments = list(filter(
-        lambda assignment: (
-            assignment['device_id'] == device_id and
-            (pd.isna(assignment['start']) or assignment['start'] < timestamp) and
-            (pd.isna(assignment['end']) or assignment['end'] > timestamp)
-        ),
-        lookup_list
-    ))
-    if len(matched_entity_assignments) == 0:
-        return None
-    if len(matched_entity_assignments) > 1:
-        raise ValueError('Multiple assignments matched device ID {} and timestamp {}'.format(
-            device_id,
-            timestamp
-        ))
-    return matched_entity_assignments[0]['entity_assignment_id']
-
-def lookup_entity_assignment_from_dict(
-    lookup_dict,
-    device_id,
-    timestamp,
-):
-    if device_id not in lookup_dict.keys():
-        return None
-    matched_entity_assignments = list(filter(
-        lambda assignment: (
-            (pd.isna(assignment['start']) or assignment['start'] < timestamp) and
-            (pd.isna(assignment['end']) or assignment['end'] > timestamp)
-        ),
-        lookup_dict[device_id]
-    ))
-    if len(matched_entity_assignments) == 0:
-        return None
-    if len(matched_entity_assignments) > 1:
-        raise ValueError('Multiple assignments matched device ID {} and timestamp {}'.format(
-            device_id,
-            timestamp
-        ))
-    return matched_entity_assignments[0]['entity_assignment_id']
+    if len(result.get('data')) == 0:
+        raise ValueError('No devices of type {} found'.format(device_type))
+    assignments_dict = {device['device_id']: device[assignment_field_name] for device in result.get('data')}
+    for device_id in assignments_dict.keys():
+        num_assignments = len(assignments_dict[device_id])
+        # Convert timestamp strings to Pandas datetime objects
+        for assignment_index in range(num_assignments):
+            assignments_dict[device_id][assignment_index]['start'] = pd.to_datetime(
+                assignments_dict[device_id][assignment_index]['start'],
+                utc=True
+            )
+            assignments_dict[device_id][assignment_index]['end'] = pd.to_datetime(
+                assignments_dict[device_id][assignment_index]['end'],
+                utc=True
+            )
+        # Sort assignment list by start time
+        assignments_dict[device_id] = sorted(
+            assignments_dict[device_id],
+            key = lambda assignment: assignment['start']
+        )
+        # Check integrity of assignment list
+        if num_assignments > 1:
+            for assignment_index in range(1, num_assignments):
+                if pd.isna(assignments_dict[device_id][assignment_index - 1]['end']):
+                    raise ValueError('Assignment {} starts at {} but previous assignment for this device {} starts at {} and has no end time'.format(
+                        assignments_dict[device_id][assignment_index][assignment_id_field_name],
+                        assignments_dict[device_id][assignment_index]['start'],
+                        assignments_dict[device_id][assignment_index - 1][assignment_id_field_name],
+                        assignments_dict[device_id][assignment_index - 1]['start']
+                    ))
+                if assignments_dict[device_id][assignment_index]['start'] < assignments_dict[device_id][assignment_index - 1]['end']:
+                    raise ValueError('Assignment {} starts at {} but previous assignment for this device {} starts at {} and ends at {}'.format(
+                        assignments_dict[device_id][assignment_index][assignment_id_field_name],
+                        assignments_dict[device_id][assignment_index]['start'],
+                        assignments_dict[device_id][assignment_index - 1][assignment_id_field_name],
+                        assignments_dict[device_id][assignment_index - 1]['start'],
+                        assignments_dict[device_id][assignment_index - 1]['end']
+                    ))
+    return assignments_dict
