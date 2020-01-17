@@ -269,3 +269,29 @@ def fetch_cuwb_tag_assignments(
                         assignments_dict[device_id][assignment_index - 1]['end']
                     ))
     return assignments_dict
+
+def add_assignment_ids(
+    df,
+    assignments_dict,
+    lookup_field_name='device_id',
+    assignment_field_name='assignment_id'
+):
+    df = df.copy()
+    df[assignment_field_name] = None
+    for lookup_value, assignments in assignments_dict.items():
+        if len(assignments) > 0:
+            lookup_boolean = (df[lookup_field_name] == lookup_value)
+            for assignment in assignments:
+                if pd.isnull(assignment['start']):
+                    start_boolean = True
+                else:
+                    start_boolean = (df.index > assignment['start'])
+                if pd.isnull(assignment['end']):
+                    end_boolean = True
+                else:
+                    end_boolean = (df.index < assignment['end'])
+                df.loc[
+                    lookup_boolean & start_boolean & end_boolean,
+                    assignment_field_name
+                ] = assignment[assignment_field_name]
+    return df
