@@ -8,10 +8,11 @@ def fetch_cuwb_data(
     start_time,
     end_time,
     read_chunk_size=2,
-    object_type_honeycomb='DEVICE',
-    object_id_field_name_honeycomb='device_type',
-    object_ids=['UWBTAG']
+    device_type='UWBTAG'
 ):
+    object_type_honeycomb = 'DEVICE'
+    object_id_field_name_honeycomb ='device_type'
+    object_ids=[device_type]
     dbc = DatabaseConnectionHoneycomb(
         environment_name_honeycomb = environment_name,
         time_series_database = True,
@@ -51,6 +52,64 @@ def fetch_cuwb_data(
     df.dropna(subset=['timestamp'], inplace=True)
     df.set_index('timestamp', inplace=True)
     df.sort_index(inplace=True)
+    device_data = fetch_cuwb_tag_device_data(device_type=device_type)
+    df = df.join(device_data.reset_index().set_index('device_serial_number'), on='device_serial_number')
+    df = df.reindex(columns=[
+        'type',
+        'device_id',
+        'device_part_number',
+        'device_serial_number',
+        'device_name',
+        'device_tag_id',
+        'device_mac_address',
+        'battery_percentage',
+        'temperature',
+        'x',
+        'y',
+        'z',
+        'scale',
+        'anchor_count',
+        'quality',
+        'smoothing'
+    ])
+    return df
+
+def fetch_cuwb_tag_device_data(
+    device_type='UWBTAG'
+):
+    client = MinimalHoneycombClient()
+    result = client.request(
+        request_type="query",
+        request_name='findDevices',
+        arguments={
+            'device_type': {
+                'type': 'DeviceType',
+                'value': device_type
+            }
+        },
+        return_object = [
+            {'data': [
+                'device_id',
+                'part_number',
+                'serial_number',
+                'name',
+                'tag_id',
+                'mac_address'
+            ]}
+        ]
+    )
+    df = pd.DataFrame(result.get('data'))
+    df.rename(
+        columns={
+            'part_number': 'device_part_number',
+            'serial_number': 'device_serial_number',
+            'name': 'device_name',
+            'tag_id': 'device_tag_id',
+            'mac_address': 'device_mac_address'
+        },
+        inplace=True
+    )
+    df.set_index('device_id', inplace=True)
     return df
 
 def fetch_cuwb_position_data(
@@ -106,43 +165,6 @@ def fetch_cuwb_position_data(
     df.sort_index(inplace=True)
     return df
 
-def fetch_cuwb_tag_device_data(
-    device_type='UWBTAG'
-):
-    client = MinimalHoneycombClient()
-    result = client.request(
-        request_type="query",
-        request_name='findDevices',
-        arguments={
-            'device_type': {
-                'type': 'DeviceType',
-                'value': device_type
-            }
-        },
-        return_object = [
-            {'data': [
-                'device_id',
-                'part_number',
-                'serial_number',
-                'name',
-                'tag_id',
-                'mac_address'
-            ]}
-        ]
-    )
-    df = pd.DataFrame(result.get('data'))
-    df.rename(
-        columns={
-            'part_number': 'device_part_number',
-            'serial_number': 'device_serial_number',
-            'name': 'device_name',
-            'tag_id': 'device_tag_id',
-            'mac_address': 'device_mac_address'
-        },
-        inplace=True
-    )
-    df.set_index('device_id', inplace=True)
-    return df
 
 def fetch_cuwb_tag_entity_assignments(
     device_type='UWBTAG'
