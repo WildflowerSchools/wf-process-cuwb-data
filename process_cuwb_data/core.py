@@ -1,6 +1,7 @@
 from database_connection_honeycomb import DatabaseConnectionHoneycomb
 from minimal_honeycomb import MinimalHoneycombClient
 import pandas as pd
+from pandas.io.json import json_normalize
 
 def fetch_cuwb_data(
     environment_name,
@@ -55,7 +56,7 @@ def fetch_cuwb_data(
     df.sort_index(inplace=True)
     return df
 
-def fetch_cuwb_tag_metadata(
+def fetch_cuwb_tag_devices(
     device_type='UWBTAG'
 ):
     client = MinimalHoneycombClient()
@@ -90,106 +91,148 @@ def fetch_cuwb_tag_metadata(
         },
         inplace=True
     )
+    df.set_index('device_id', inplace=True)
     return df
 
-def fetch_entity_assignments(
-    device_ids
+def fetch_cuwb_tag_entity_assignments(
+    device_type='UWBTAG'
 ):
     client = MinimalHoneycombClient()
     result = client.request(
         request_type="query",
-        request_name='searchEntityAssignments',
+        request_name='findDevices',
         arguments={
-            'query': {
-                'type': 'QueryExpression!',
-                'value': {
-                    'field': 'device',
-                    'operator': 'IN',
-                    'values': device_ids
-                }
+            'device_type': {
+                'type': 'DeviceType',
+                'value': device_type
             }
         },
         return_object = [
             {'data': [
-                'entity_assignment_id',
-                'entity_type',
-                {'entity': [
-                    {'... on Person': [
-                        'person_id',
-                        'name',
-                        'first_name',
-                        'last_name',
-                        'nickname',
-                        'short_name',
-                        'person_type'
-                    ]},
-                    {'... on Tray': [
-                        'tray_id',
-                        'name',
-                        'part_number',
-                        'serial_number'
+                'device_id',
+                {'entity_assignments': [
+                    'entity_assignment_id',
+                    'start',
+                    'end',
+                    {'entity':[
+                        '__typename',
+                        {'... on Person': [
+                            'id:person_id',
+                            'name'
+                        ]},
+                        {'... on Material': [
+                            'id:material_id',
+                            'name'
+                        ]},
+                        {'... on Tray': [
+                            'id:tray_id',
+                            'name'
+                        ]},
                     ]}
-                ]},
-                {'device': [
-                    'device_id'
-                ]},
-                'start',
-                'end'
+                ]}
             ]}
         ]
     )
-    df = pd.DataFrame(result.get('data'))
-    df['entity_id'] = df['entity'].apply(lambda x: x.get('tray_id', x.get('person_id')))
-    df['entity_name'] = df['entity'].apply(lambda x: x.get('name'))
-    df['entity_first_name'] = df['entity'].apply(lambda x: x.get('first_name'))
-    df['entity_last_name'] = df['entity'].apply(lambda x: x.get('last_name'))
-    df['entity_nickname'] = df['entity'].apply(lambda x: x.get('nickname'))
-    df['entity_short_name'] = df['entity'].apply(lambda x: x.get('short_name'))
-    df['entity_person_type'] = df['entity'].apply(lambda x: x.get('person_type'))
-    df['entity_part_number'] = df['entity'].apply(lambda x: x.get('part_number'))
-    df['entity_serial_number'] = df['entity'].apply(lambda x: x.get('serial_number'))
-    df['device_id'] = df['device'].apply(lambda x: x.get('device_id'))
-    df['start'] = pd.to_datetime(df['start'])
-    df['end'] = pd.to_datetime(df['end'])
+    df = json_normalize(
+        result.get('data'),
+        record_path='entity_assignments',
+        meta='device_id'
+    )
+    df.rename(
+        columns = {
+            'entity.__typename': 'entity_type',
+            'entity.id': 'entity_id',
+            'entity.name': 'entity_name'
+        },
+        inplace=True
+    )
+    df['start'] = pd.to_datetime(df['start'], utc=True)
+    df['end'] = pd.to_datetime(df['end'], utc=True)
     df = df.reindex(columns=[
         'entity_assignment_id',
-        'device_id',
-        'entity_id',
         'start',
         'end',
+        'device_id',
         'entity_type',
-        'entity_name',
-        'entity_first_name',
-        'entity_last_name',
-        'entity_nickname',
-        'entity_short_name',
-        'entity_person_type',
-        'entity_part_number',
-        'entity_serial_number'
+        'entity_id',
+        'entity_name'
     ])
+    df.set_index('entity_assignment_id', inplace=True)
     return df
 
-def lookup_assignment(
-    assignments_df,
-    lookup_value,
-    timestamp,
-    lookup_value_field_name,
-    assignment_id_field_name
+def fetch_cuwb_tag_entity_assignments_lookup_list(
+    device_type='UWBTAG'
 ):
-    assignment_ids=[]
-    for index, row in assignments_df.iterrows():
-        if row[lookup_value_field_name] != lookup_value:
-            continue
-        if row['start'] > timestamp:
-            continue
-        if row['end'] < timestamp:
-            continue
-        assignment_ids.append(row[assignment_id_field_name])
-    if len(assignment_ids) > 1:
-        raise ValueError('More than one assignment found for obect {} at timestamp {}'.format(
-            lookup_value,
+    entity_assignments_df = fetch_cuwb_tag_entity_assignments(device_type)
+    lookup_list = []
+    for entity_assignment_id, row in entity_assignments_df.iterrows():
+        lookup_list.append({
+            'entity_assignment_id': entity_assignment_id,
+            'device_id': row['device_id'],
+            'start': row['start'],
+            'end': row['end']
+        })
+    return lookup_list
+
+def fetch_cuwb_tag_entity_assignments_lookup_dict(
+    device_type='UWBTAG'
+):
+    entity_assignments_df = fetch_cuwb_tag_entity_assignments(device_type)
+    lookup_dict = dict()
+    for entity_assignment_id, row in entity_assignments_df.iterrows():
+        device_id = row['device_id']
+        assignment = {
+            'entity_assignment_id': entity_assignment_id,
+            'start': row['start'],
+            'end': row['end']
+        }
+        if device_id in lookup_dict.keys():
+            lookup_dict[device_id].append(assignment)
+        else:
+            lookup_dict[device_id] = [assignment]
+    return lookup_dict
+
+def lookup_entity_assignment_from_list(
+    lookup_list,
+    device_id,
+    timestamp,
+):
+    matched_entity_assignments = list(filter(
+        lambda assignment: (
+            assignment['device_id'] == device_id and
+            (pd.isna(assignment['start']) or assignment['start'] < timestamp) and
+            (pd.isna(assignment['end']) or assignment['end'] > timestamp)
+        ),
+        lookup_list
+    ))
+    if len(matched_entity_assignments) == 0:
+        return None
+    if len(matched_entity_assignments) > 1:
+        raise ValueError('Multiple assignments matched device ID {} and timestamp {}'.format(
+            device_id,
             timestamp
         ))
-    if len(assignment_ids) == 0:
+    return matched_entity_assignments[0]['entity_assignment_id']
+
+def lookup_entity_assignment_from_dict(
+    lookup_dict,
+    device_id,
+    timestamp,
+):
+    if device_id not in lookup_dict.keys():
         return None
-    return assignment_ids[0]
+    matched_entity_assignments = list(filter(
+        lambda assignment: (
+            (pd.isna(assignment['start']) or assignment['start'] < timestamp) and
+            (pd.isna(assignment['end']) or assignment['end'] > timestamp)
+        ),
+        lookup_dict[device_id]
+    ))
+    if len(matched_entity_assignments) == 0:
+        return None
+    if len(matched_entity_assignments) > 1:
+        raise ValueError('Multiple assignments matched device ID {} and timestamp {}'.format(
+            device_id,
+            timestamp
+        ))
+    return matched_entity_assignments[0]['entity_assignment_id']
