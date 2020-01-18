@@ -2,7 +2,9 @@ from database_connection_honeycomb import DatabaseConnectionHoneycomb
 from minimal_honeycomb import MinimalHoneycombClient
 import pandas as pd
 from pandas.io.json import json_normalize
+import datetime
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -546,3 +548,77 @@ def fetch_material_names(
         df['material_id'].notna().sum()
     ))
     return df
+
+def write_cuwb_data_pkl(
+    df,
+    environment_name,
+    start_time,
+    end_time,
+    environment_assignment_info=False,
+    entity_assignment_info=False,
+    directory='.'
+):
+    path = cuwb_data_path(
+        environment_name,
+        start_time,
+        end_time,
+        environment_assignment_info,
+        entity_assignment_info,
+        directory
+    )
+    logger.info('Writing CUWB data to {}'.format(path))
+    df.to_pickle(path)
+
+def read_cuwb_data_pkl(
+    environment_name,
+    start_time,
+    end_time,
+    environment_assignment_info=False,
+    entity_assignment_info=False,
+    directory='.'
+):
+    path = cuwb_data_path(
+        environment_name,
+        start_time,
+        end_time,
+        environment_assignment_info,
+        entity_assignment_info,
+        directory
+    )
+    logger.info('Reading CUWB data from {}'.format(path))
+    df = pd.read_pickle(path)
+    return df
+
+def cuwb_data_path(
+    environment_name,
+    start_time,
+    end_time,
+    environment_assignment_info=False,
+    entity_assignment_info=False,
+    directory='.'
+):
+    start_time_string = "None"
+    if start_time is not None:
+        start_time_string = datetime_filename_format(start_time)
+    end_time_string = "None"
+    if end_time is not None:
+        end_time_string = datetime_filename_format(end_time)
+    filename = '-'.join([
+        'cuwb_data',
+        environment_name,
+        start_time_string,
+        end_time_string
+    ])
+    if environment_assignment_info:
+        filename = filename + '(env_assignments)'
+    if entity_assignment_info:
+        filename = filename + '(entity_assignments)'
+    filename = filename + '.pkl'
+    path = os.path.join(
+        directory,
+        filename
+    )
+    return path
+
+def datetime_filename_format(timestamp):
+    return timestamp.astimezone(datetime.timezone.utc).strftime('%Y%m%d-%H%M%S')
