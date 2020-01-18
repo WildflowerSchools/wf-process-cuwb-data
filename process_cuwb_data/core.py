@@ -8,7 +8,9 @@ def fetch_cuwb_data(
     start_time,
     end_time,
     read_chunk_size=2,
-    device_type='UWBTAG'
+    device_type='UWBTAG',
+    environment_assignment_info=False,
+    entity_assignment_info=False
 ):
     object_type_honeycomb = 'DEVICE'
     object_id_field_name_honeycomb ='device_type'
@@ -72,6 +74,10 @@ def fetch_cuwb_data(
         'quality',
         'smoothing'
     ])
+    if environment_assignment_info:
+        df = add_environment_assignment_info(df)
+    if entity_assignment_info:
+        df = add_entity_assignment_info(df)
     return df
 
 def fetch_cuwb_tag_device_data(
@@ -164,14 +170,18 @@ def fetch_cuwb_position_data(
     start_time,
     end_time,
     read_chunk_size=2,
-    device_type='UWBTAG'
+    device_type='UWBTAG',
+    environment_assignment_info=False,
+    entity_assignment_info=False
 ):
     df = fetch_cuwb_data(
         environment_name,
         start_time,
         end_time,
         read_chunk_size,
-        device_type
+        device_type,
+        environment_assignment_info,
+        entity_assignment_info
     )
     df = df.loc[df['type'] == 'position'].copy()
     df['x_meters'] = df['x']/1000.0
@@ -196,14 +206,18 @@ def fetch_cuwb_accelerometer_data(
     start_time,
     end_time,
     read_chunk_size=2,
-    device_type='UWBTAG'
+    device_type='UWBTAG',
+    environment_assignment_info=False,
+    entity_assignment_info=False
 ):
     df = fetch_cuwb_data(
         environment_name,
         start_time,
         end_time,
         read_chunk_size,
-        device_type
+        device_type,
+        environment_assignment_info,
+        entity_assignment_info
     )
     df = df.loc[df['type'] == 'accelerometer'].copy()
     df.drop(
@@ -225,14 +239,18 @@ def fetch_cuwb_status_data(
     start_time,
     end_time,
     read_chunk_size=2,
-    device_type='UWBTAG'
+    device_type='UWBTAG',
+    environment_assignment_info=False,
+    entity_assignment_info=False
 ):
     df = fetch_cuwb_data(
         environment_name,
         start_time,
         end_time,
         read_chunk_size,
-        device_type
+        device_type,
+        environment_assignment_info,
+        entity_assignment_info
     )
     df = df.loc[df['type'] == 'status'].copy()
     df.drop(
