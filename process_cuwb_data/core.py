@@ -112,6 +112,53 @@ def fetch_cuwb_tag_device_data(
     df.set_index('device_id', inplace=True)
     return df
 
+def add_environment_assignment_info(df):
+    # Fetch environment assignment IDs (devices to environment)
+    environment_assignments = fetch_cuwb_tag_assignments(
+        assignment_field_name='assignments',
+        assignment_id_field_name='assignment_id'
+    )
+    # Add environment assignment IDs to dataframe
+    df = add_assignment_ids(
+        df=df,
+        assignments_dict=environment_assignments,
+        lookup_field_name='device_id',
+        assignment_field_name='assignment_id'
+    )
+    return df
+
+def add_entity_assignment_info(df):
+    # Fetch entity assignment IDs (trays and people to devices)
+    entity_assignments = fetch_cuwb_tag_assignments(
+        assignment_field_name='entity_assignments',
+        assignment_id_field_name='entity_assignment_id'
+    )
+    # Add entity assignments IDs to dataframe
+    df = add_assignment_ids(
+        df=df,
+        assignments_dict=entity_assignments,
+        lookup_field_name='device_id',
+        assignment_field_name='entity_assignment_id'
+    )
+    # Fetch entity info (tray and person info)
+    entity_info = fetch_entity_info()
+    # Add entity info to dataframe
+    df = df.join(entity_info, on = 'entity_assignment_id')
+    # Fetch material assignment IDs (trays to materials)
+    material_assignments = fetch_material_assignments()
+    # Add material assignment IDs to dataframe
+    df = add_assignment_ids(
+        df=df,
+        assignments_dict=material_assignments,
+        lookup_field_name='tray_id',
+        assignment_field_name='material_assignment_id'
+    )
+    # Fetch material names
+    material_names = fetch_material_names()
+    # Add material names to dataframe
+    df = df.join(material_names, on = 'material_assignment_id')
+    return df
+
 def fetch_cuwb_position_data(
     environment_name,
     start_time,
