@@ -2,6 +2,9 @@ from database_connection_honeycomb import DatabaseConnectionHoneycomb
 from minimal_honeycomb import MinimalHoneycombClient
 import pandas as pd
 from pandas.io.json import json_normalize
+import logging
+
+logger = logging.getLogger(__name__)
 
 def fetch_cuwb_data(
     environment_name,
@@ -83,6 +86,7 @@ def fetch_cuwb_data(
 def fetch_cuwb_tag_device_data(
     device_type='UWBTAG'
 ):
+    logger.info('Fetching CUWB tag device data')
     client = MinimalHoneycombClient()
     result = client.request(
         request_type="query",
@@ -104,6 +108,7 @@ def fetch_cuwb_tag_device_data(
             ]}
         ]
     )
+    logger.info('Found CUWB device data for {} devices'.format(len(result.get('data'))))
     df = pd.DataFrame(result.get('data'))
     df.rename(
         columns={
@@ -274,6 +279,7 @@ def fetch_cuwb_tag_assignments(
     assignment_field_name='assignments',
     assignment_id_field_name='assignment_id'
 ):
+    logger.info('Fetching CUWB tag assignment IDs for {}'.format(assignment_field_name))
     client = MinimalHoneycombClient()
     result = client.request(
         request_type="query",
@@ -295,6 +301,10 @@ def fetch_cuwb_tag_assignments(
             ]}
         ]
     )
+    logger.info('Found {} {}'.format(
+        len(result.get('data')),
+        assignment_field_name
+    ))
     if len(result.get('data')) == 0:
         raise ValueError('No devices of type {} found'.format(device_type))
     assignments_dict = {device['device_id']: device[assignment_field_name] for device in result.get('data')}
@@ -362,6 +372,7 @@ def add_assignment_ids(
     return df
 
 def fetch_tray_ids():
+    logger.info('Fetching entity assignment info to extract tray IDs')
     client = MinimalHoneycombClient()
     result = client.request(
         request_type="query",
@@ -385,11 +396,13 @@ def fetch_tray_ids():
         },
         inplace=True
     )
+    logger.info('Found {} entity assignments for trays'.format(df['tray_id'].notna().sum()))
     df.set_index('entity_assignment_id', inplace=True)
     return df
 
 def fetch_material_assignments(
 ):
+    logger.info('Fetching material assignment IDs')
     client = MinimalHoneycombClient()
     result = client.request(
         request_type="query",
@@ -408,6 +421,7 @@ def fetch_material_assignments(
     )
     if len(result.get('data')) == 0:
         raise ValueError('No material assignments found')
+    logger.info('Found {} material assignments'.format(len(result.get('data'))))
     assignments_dict = dict()
     for material_assignment in result.get('data'):
         tray_id = material_assignment['tray']['tray_id']
@@ -458,6 +472,7 @@ def fetch_material_assignments(
     return assignments_dict
 
 def fetch_entity_info():
+    logger.info('Fetching entity assignment info to extract tray and person names')
     client = MinimalHoneycombClient()
     result = client.request(
         request_type="query",
@@ -494,10 +509,15 @@ def fetch_entity_info():
         inplace=True
     )
     df.set_index('entity_assignment_id', inplace=True)
+    logger.info('Found {} entity assignments for trays and {} entity assignments for people'.format(
+        df['tray_id'].notna().sum(),
+        df['person_id'].notna().sum()
+    ))
     return df
 
 def fetch_material_names(
 ):
+    logger.info('Fetching material assignment info to extract material names')
     client = MinimalHoneycombClient()
     result = client.request(
         request_type="query",
@@ -522,4 +542,7 @@ def fetch_material_names(
         inplace=True
     )
     df.set_index('material_assignment_id', inplace=True)
+    logger.info('Found {} material assignments'.format(
+        df['material_id'].notna().sum()
+    ))
     return df
