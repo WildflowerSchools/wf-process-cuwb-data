@@ -458,16 +458,16 @@ def fetch_material_assignments(
             for assignment_index in range(1, num_assignments):
                 if pd.isna(assignments_dict[tray_id][assignment_index - 1]['end']):
                     raise ValueError('Assignment {} starts at {} but previous assignment for this device {} starts at {} and has no end time'.format(
-                        assignments_dict[tray_id][assignment_index][assignment_id_field_name],
+                        assignments_dict[tray_id][assignment_index]['material_assignment_id'],
                         assignments_dict[tray_id][assignment_index]['start'],
-                        assignments_dict[tray_id][assignment_index - 1][assignment_id_field_name],
+                        assignments_dict[tray_id][assignment_index - 1]['material_assignment_id'],
                         assignments_dict[tray_id][assignment_index - 1]['start']
                     ))
                 if assignments_dict[tray_id][assignment_index]['start'] < assignments_dict[tray_id][assignment_index - 1]['end']:
                     raise ValueError('Assignment {} starts at {} but previous assignment for this device {} starts at {} and ends at {}'.format(
-                        assignments_dict[tray_id][assignment_index][assignment_id_field_name],
+                        assignments_dict[tray_id][assignment_index]['material_assignment_id'],
                         assignments_dict[tray_id][assignment_index]['start'],
-                        assignments_dict[tray_id][assignment_index - 1][assignment_id_field_name],
+                        assignments_dict[tray_id][assignment_index - 1]['material_assignment_id'],
                         assignments_dict[tray_id][assignment_index - 1]['start'],
                         assignments_dict[tray_id][assignment_index - 1]['end']
                     ))
