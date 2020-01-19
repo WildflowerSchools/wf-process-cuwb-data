@@ -8,7 +8,9 @@ VERSION = open(os.path.join(BASEDIR, 'VERSION')).read().strip()
 BASE_DEPENDENCIES = [
     'wf-database-connection-honeycomb>=0.3.0',
     'wf-minimal-honeycomb-python>=0.3.1',
-    'pandas>=0.25.3'
+    'pandas>=0.25.3',
+    'matplotlib>=3.1.2',
+    'python-slugify>=4.0.0'
 ]
 # TEST_DEPENDENCIES = [
 # ]
