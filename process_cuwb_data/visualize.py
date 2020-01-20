@@ -1,3 +1,4 @@
+import numpy as np
 from pandas.plotting import register_matplotlib_converters
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -67,7 +68,7 @@ def plot_positions(
     output_directory = '.',
     filename_extension = 'png',
     y_axis_labels = ['$x$ position (meters)', '$y$ position (meters)'],
-    quality_axis_label = 'Quality',
+    color_axis_label = 'Quality',
     position_column_names = ['x_meters', 'y_meters'],
     quality_column_name = 'quality'
 ):
@@ -83,15 +84,15 @@ def plot_positions(
             alpha=alpha,
             c=df[quality_column_name],
             cmap=plt.get_cmap(colormap_name),
-            vmin = quality_lims[0],
-            vmax = quality_lims[1]
+            vmin=quality_lims[0],
+            vmax=quality_lims[1]
         )
         axes[axis_index].set_ylim(room_corners[0][axis_index], room_corners[1][axis_index])
         axes[axis_index].set_ylabel(y_axis_labels[axis_index])
     axes[1].set_xlim(time_min, time_max)
     axes[1].set_xlabel('Time (UTC)')
     axes[1].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-    fig.colorbar(plots[1], ax=axes).set_label(quality_axis_label)
+    fig.colorbar(plots[1], ax=axes).set_label(color_axis_label)
     fig.suptitle('{} ({})'.format(
         entity_name,
         device_serial_number
@@ -120,6 +121,7 @@ def plot_positions_topdown(
     room_corners,
     marker = '.',
     alpha = 1.0,
+    color_axis='quality',
     colormap_name = 'hot_r',
     quality_lims = [0, 10000],
     figure_size_inches = [10.5, 8],
@@ -128,29 +130,40 @@ def plot_positions_topdown(
     output_directory = '.',
     filename_extension = 'png',
     axis_labels = ['$x$ position (meters)', '$y$ position (meters)'],
-    quality_axis_label = 'Quality',
+    color_axis_label = 'Quality',
     position_column_names = ['x_meters', 'y_meters'],
     quality_column_name = 'quality'
 ):
     time_min = df.index.min()
     time_max = df.index.max()
+    if color_axis == 'quality':
+        color_data = df[quality_column_name]
+        vmin = quality_lims[0]
+        vmax = quality_lims[1]
+    elif color_axis == 'time':
+        color_data = df.index
+        vmin = time_min
+        vmax = time_max
+    else:
+        raise ValueError('Color axis specification not recognized')
     fig, axes = plt.subplots(1, 1)
     plot = axes.scatter(
         df[position_column_names[0]],
         df[position_column_names[1]],
         marker=marker,
         alpha=alpha,
-        c=df[quality_column_name],
-        cmap=plt.get_cmap(colormap_name),
-        vmin = quality_lims[0],
-        vmax = quality_lims[1]
+        c=color_data,
+        cmap=plt.get_cmap(colormap_name)
+        # vmin=vmin,
+        # vmax=vmax
     )
     axes.set_xlim(room_corners[0][0], room_corners[1][0])
     axes.set_ylim(room_corners[0][1], room_corners[1][1])
     axes.set_aspect('equal')
     axes.set_xlabel(axis_labels[0])
     axes.set_ylabel(axis_labels[1])
-    fig.colorbar(plot, ax=axes).set_label(quality_axis_label)
+    cbar = fig.colorbar(plot, ax=axes)
+    cbar.set_label(color_axis_label)
     fig.suptitle('{} ({})'.format(
         entity_name,
         device_serial_number
