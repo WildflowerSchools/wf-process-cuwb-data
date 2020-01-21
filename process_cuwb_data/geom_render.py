@@ -25,7 +25,8 @@ def create_geom_collection_3d(
         'Person': '#ff0000',
         'Tray': '#00ff00'
     },
-    progress_bar=False
+    progress_bar=False,
+    notebook=False
 ):
     # Create dictionary of 3D geom collections, one for each object in data
     logger.info('Creating dictionary of 3D geom collections, for each sensor in data: {}'.format(
@@ -82,7 +83,8 @@ def create_geom_collection_3d(
     logger.info('Combining 3D geom collections into single 3D geom collection')
     combined_geom_collection_3d = geom_render.GeomCollection3D.from_geom_list(
         list(geom_collection_3d_dict.values()),
-        progress_bar=progress_bar
+        progress_bar=progress_bar,
+        notebook=notebook
     )
     return combined_geom_collection_3d
 
