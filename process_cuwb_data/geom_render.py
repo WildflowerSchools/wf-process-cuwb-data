@@ -142,10 +142,22 @@ def write_json(
             fp.write(geom_info['geom'].to_json(indent=indent))
 
 def fetch_camera_info(
-    device_ids,
+    environment_name,
     start_time,
-    end_time
+    end_time,
+    camera_device_types=['PI3WITHCAMERA', 'PIZEROWITHCAMERA']
 ):
+    logger.info('Fetching camera info between start time {} and end time {} for environment {}'.format(
+        start_time.isoformat(),
+        end_time.isoformat(),
+        environment_name
+    ))
+    device_ids = fetch_camera_device_ids(
+        environment_name=environment_name,
+        start_time=start_time,
+        end_time=end_time,
+        camera_device_types=camera_device_types
+    )
     logger.info('Fetching camera info between start time {} and end time {} for the following device_ids: {}'.format(
         start_time.isoformat(),
         end_time.isoformat(),
@@ -256,16 +268,12 @@ def fetch_camera_device_ids(
     camera_device_ids = list()
     for assignment in assignments:
         if assignment.get('start') is not None and (pd.to_datetime(assignment.get('start')).to_pydatetime() > end_time):
-            print(assignment.get('start'))
             continue
         if assignment.get('end') is not None and (pd.to_datetime(assignment.get('end')).to_pydatetime() < start_time):
-            print(assignment.get('end'))
             continue
         if assignment.get('assigned').get('__typename') != 'Device':
-            print(assignment.get('assigned').get('__typename'))
             continue
         if assignment.get('assigned').get('device_type') not in camera_device_types:
-            print(assignment.get('assigned').get('device_type'))
             continue
         camera_device_ids.append(assignment.get('assigned').get('device_id'))
     return camera_device_ids
