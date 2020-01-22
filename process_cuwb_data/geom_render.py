@@ -131,6 +131,11 @@ def resample_geom(
     progress_bar=False,
     notebook=False
 ):
+    logger.info('Resampling geom to match start time {}, end time {}, and {} frames per second'.format(
+        start_time.isoformat(),
+        end_time.isoformat(),
+        frames_per_second
+    ))
     time_between_frames = datetime.timedelta(microseconds = int(round(10**6/frames_per_second)))
     num_frames = int(round((end_time - start_time)/time_between_frames))
     geom_resampled = geom.resample(
