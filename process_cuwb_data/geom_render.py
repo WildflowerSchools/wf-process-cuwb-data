@@ -97,21 +97,20 @@ def resample_geom(
     return geom_resampled
 
 def project_onto_camera_views(
-    geom_collection_3d,
+    geom_3d,
     camera_info_dict
 ):
-    ## Create 2D geom collections
-    logger.info('Creating 2D geom collections from 3D geom collection, one for each camera: {}'.format(
+    logger.info('Creating 2D geoms from 3D geom, one for each camera: {}'.format(
         [camera_info['device_name'] for camera_info in camera_info_dict.values()]
     ))
-    geom_collection_2d_dict = dict()
+    geom_2d_dict = dict()
     for device_id, camera_info in camera_info_dict.items():
-        logger.info('Creating 2D geom collection for camera {}'.format(
+        logger.info('Creating 2D geom for camera {}'.format(
             camera_info['device_name']
         ))
-        geom_collection_2d_dict[device_id] = dict()
-        geom_collection_2d_dict[device_id]['device_name'] = camera_info['device_name']
-        geom_collection_2d_dict[device_id]['geom'] = geom_collection_3d.project(
+        geom_2d_dict[device_id] = dict()
+        geom_2d_dict[device_id]['device_name'] = camera_info['device_name']
+        geom_2d_dict[device_id]['geom'] = geom_3d.project(
             rotation_vector=camera_info['rotation_vector'],
             translation_vector=camera_info['translation_vector'],
             camera_matrix=camera_info['camera_matrix'],
@@ -119,7 +118,7 @@ def project_onto_camera_views(
             frame_width=camera_info['image_width'],
             frame_height=camera_info['image_height']
         )
-    return geom_collection_2d_dict
+    return geom_2d_dict
 
 def write_json(
     geom_dict,
