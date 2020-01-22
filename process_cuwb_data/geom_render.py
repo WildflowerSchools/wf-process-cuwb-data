@@ -8,17 +8,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-## Resample combined 3D geom collection
-# frames_per_second = 10.0
-# time_between_frames = datetime.timedelta(microseconds = int(round(10**6/frames_per_second)))
-# num_frames = int(round((end_time - start_time)/time_between_frames))
-# combined_geom_collection_3d_resampled = combined_geom_collection_3d.resample(
-#     new_start_time=start_time,
-#     new_frames_per_second=frames_per_second,
-#     new_num_frames=num_frames,
-#     progress_bar=True
-# )
-
 def create_geom_collection_3d(
     df,
     colors = {
@@ -88,6 +77,24 @@ def create_geom_collection_3d(
     )
     return combined_geom_collection_3d
 
+def resample_geom(
+    geom,
+    start_time,
+    end_time,
+    frames_per_second = 10.0,
+    progress_bar=False,
+    notebook=False
+):
+    time_between_frames = datetime.timedelta(microseconds = int(round(10**6/frames_per_second)))
+    num_frames = int(round((end_time - start_time)/time_between_frames))
+    geom_resampled = geom.resample(
+        new_start_time=start_time,
+        new_frames_per_second=frames_per_second,
+        new_num_frames=num_frames,
+        progress_bar=progress_bar,
+        notebook=notebook
+    )
+    return geom_resampled
 
 def project_onto_camera_views(
     geom_collection_3d,
