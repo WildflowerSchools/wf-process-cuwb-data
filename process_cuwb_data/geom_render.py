@@ -122,15 +122,15 @@ def project_onto_camera_views(
     return geom_collection_2d_dict
 
 def write_json(
-    geom_collection_2d_dict,
+    geom_dict,
     output_directory='.',
     prefix='geom_2d',
     indent=None
 ):
-    logger.info('Writing geom data to local JSON file for, one file for each camera: {}'.format(
-        [geom_info['device_name'] for geom_info in geom_collection_2d_dict.values()]
+    logger.info('Writing geom data to local JSON file for: {}'.format(
+        [geom_info['device_name'] for geom_info in geom_dict.values()]
     ))
-    for device_id, geom_info in geom_collection_2d_dict.items():
+    for device_id, geom_info in geom_dict.items():
         logger.info('Writing geom data to local JSON file for {}'.format(
             geom_info['device_name']
         ))
