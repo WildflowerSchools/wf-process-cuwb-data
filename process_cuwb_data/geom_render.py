@@ -1,3 +1,5 @@
+
+import process_cuwb_data
 import geom_render
 from minimal_honeycomb import MinimalHoneycombClient
 import pandas as pd
@@ -7,6 +9,50 @@ import os
 import logging
 
 logger = logging.getLogger(__name__)
+
+def fetch_geoms_2d(
+    environment_name,
+    start_time,
+    end_time,
+    frames_per_second=10.0,
+    progress_bar=False,
+    notebook=False
+):
+    ## Fetch CUWB position data
+    df_position = process_cuwb_data.fetch_cuwb_position_data(
+        environment_name=environment_name,
+        start_time=start_time,
+        end_time=end_time,
+        environment_assignment_info=False,
+        entity_assignment_info=True
+    )
+    ## Create 3D geom collection from data
+    geom_collection_3d = create_geom_collection_3d(
+        df_position,
+        progress_bar=progress_bar,
+        notebook=notebook
+    )
+    ## Resample 3D geom collection
+    geom_collection_3d_resampled = resample_geom(
+        geom_collection_3d,
+        start_time=start_time,
+        end_time=end_time,
+        frames_per_second=frames_per_second,
+        progress_bar=progress_bar,
+        notebook=notebook
+    )
+    ## Fetch camera info
+    camera_info_dict = fetch_camera_info(
+        environment_name=environment_name,
+        start_time=start_time,
+        end_time=end_time
+    )
+    ## Project onto camera views
+    geom_collection_2d_dict = project_onto_camera_views(
+        geom_collection_3d_resampled,
+        camera_info_dict
+    )
+    return geom_collection_2d_dict
 
 def create_geom_collection_3d(
     df,
