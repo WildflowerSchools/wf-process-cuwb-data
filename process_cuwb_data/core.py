@@ -551,6 +551,7 @@ def fetch_material_names(
 
 def write_cuwb_data_pkl(
     df,
+    filename_prefix,
     environment_name,
     start_time,
     end_time,
@@ -559,6 +560,7 @@ def write_cuwb_data_pkl(
     directory='.'
 ):
     path = cuwb_data_path(
+        filename_prefix,
         environment_name,
         start_time,
         end_time,
@@ -570,6 +572,7 @@ def write_cuwb_data_pkl(
     df.to_pickle(path)
 
 def read_cuwb_data_pkl(
+    filename_prefix,
     environment_name,
     start_time,
     end_time,
@@ -578,6 +581,7 @@ def read_cuwb_data_pkl(
     directory='.'
 ):
     path = cuwb_data_path(
+    filename_prefix,
         environment_name,
         start_time,
         end_time,
@@ -590,6 +594,7 @@ def read_cuwb_data_pkl(
     return df
 
 def cuwb_data_path(
+    filename_prefix,
     environment_name,
     start_time,
     end_time,
@@ -604,7 +609,7 @@ def cuwb_data_path(
     if end_time is not None:
         end_time_string = datetime_filename_format(end_time)
     filename = '-'.join([
-        'cuwb_data',
+        filename_prefix,
         environment_name,
         start_time_string,
         end_time_string
