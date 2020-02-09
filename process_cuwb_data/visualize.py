@@ -53,6 +53,27 @@ def plot_positions_topdown_multiple_devices(
             **kwargs
         )
 
+def plot_accelerations_multiple_devices(
+    df,
+    **kwargs
+):
+    for (device_id, device_serial_number, entity_type, person_short_name, material_name), group_df in df.fillna('NA').groupby([
+        'device_id',
+        'device_serial_number',
+        'entity_type',
+        'person_short_name',
+        'material_name'
+    ]):
+        entity_name = material_name
+        if entity_type == 'Person':
+            entity_name = person_short_name
+        plot_accelerations(
+            df=group_df,
+            entity_name=entity_name,
+            device_serial_number=device_serial_number,
+            **kwargs
+        )
+
 def plot_positions(
     df,
     entity_name,
@@ -174,6 +195,58 @@ def plot_positions_topdown(
     if plot_save:
         filename = '_'.join([
             'cuwb_positions_topdown',
+            slugify.slugify(device_serial_number),
+            time_min.strftime('%Y%m%d-%H%M%S'),
+            time_max.strftime('%Y%m%d-%H%M%S')
+        ])
+        filename += '.' + filename_extension
+        path = os.path.join(
+            output_directory,
+            filename
+        )
+        fig.savefig(path)
+
+def plot_accelerations(
+    df,
+    entity_name,
+    device_serial_number,
+    marker = '.',
+    acceleration_max = 2.0,
+    alpha = 1.0,
+    figure_size_inches = [10.5, 8],
+    plot_show=True,
+    plot_save=False,
+    output_directory = '.',
+    filename_extension = 'png',
+    y_axis_labels = ['$x$ acceleration (g\'s)', '$y$ acceleration (g\'s)', '$z$ acceleration (g\'s)'],
+    acceleration_column_names = ['x_gs', 'y_gs', 'z_gs']
+):
+    time_min = df.index.min()
+    time_max = df.index.max()
+    fig, axes = plt.subplots(3, 1, sharex=True)
+    plots = [None, None, None]
+    for axis_index in range(3):
+        plots[axis_index] = axes[axis_index].scatter(
+            df.index.values,
+            df[acceleration_column_names[axis_index]],
+            marker=marker,
+            alpha=alpha
+        )
+        axes[axis_index].set_ylim(-acceleration_max, acceleration_max)
+        axes[axis_index].set_ylabel(y_axis_labels[axis_index])
+    axes[2].set_xlim(time_min, time_max)
+    axes[2].set_xlabel('Time (UTC)')
+    axes[2].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+    fig.suptitle('{} ({})'.format(
+        entity_name,
+        device_serial_number
+    ))
+    fig.set_size_inches(figure_size_inches[0],figure_size_inches[1])
+    if plot_show:
+        plt.show()
+    if plot_save:
+        filename = '_'.join([
+            'cuwb_accelerations',
             slugify.slugify(device_serial_number),
             time_min.strftime('%Y%m%d-%H%M%S'),
             time_max.strftime('%Y%m%d-%H%M%S')
