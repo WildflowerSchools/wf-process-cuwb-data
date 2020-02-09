@@ -77,6 +77,41 @@ def fetch_cuwb_accelerometer_data(
     )
     return df
 
+def fetch_cuwb_status_data(
+    environment_name,
+    start_time,
+    end_time,
+    read_chunk_size=2,
+    device_type='UWBTAG',
+    environment_assignment_info=False,
+    entity_assignment_info=False
+):
+    df = fetch_cuwb_data(
+        environment_name,
+        start_time,
+        end_time,
+        read_chunk_size,
+        device_type,
+        environment_assignment_info,
+        entity_assignment_info
+    )
+    df = df.loc[df['type'] == 'status'].copy()
+    df.drop(
+        columns=[
+            'type',
+            'x',
+            'y',
+            'z',
+            'scale',
+            'anchor_count',
+            'quality',
+            'smoothing',
+
+        ],
+        inplace=True
+    )
+    return df
+
 def fetch_cuwb_data(
     environment_name,
     start_time,
@@ -239,41 +274,6 @@ def add_entity_assignment_info(df):
     material_names = fetch_material_names()
     # Add material names to dataframe
     df = df.join(material_names, on = 'material_assignment_id')
-    return df
-
-def fetch_cuwb_status_data(
-    environment_name,
-    start_time,
-    end_time,
-    read_chunk_size=2,
-    device_type='UWBTAG',
-    environment_assignment_info=False,
-    entity_assignment_info=False
-):
-    df = fetch_cuwb_data(
-        environment_name,
-        start_time,
-        end_time,
-        read_chunk_size,
-        device_type,
-        environment_assignment_info,
-        entity_assignment_info
-    )
-    df = df.loc[df['type'] == 'status'].copy()
-    df.drop(
-        columns=[
-            'type',
-            'x',
-            'y',
-            'z',
-            'scale',
-            'anchor_count',
-            'quality',
-            'smoothing',
-
-        ],
-        inplace=True
-    )
     return df
 
 def fetch_cuwb_tag_assignments(
