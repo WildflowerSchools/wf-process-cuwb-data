@@ -8,6 +8,16 @@ import os
 
 logger = logging.getLogger(__name__)
 
+# CUWB Data Protocol: Byte size for accelerometer values
+ACCELEROMETER_BYTE_SIZE = 4
+
+# CUWB Data Protocol: Maximum integer for each byte size
+CUWB_DATA_MAX_INT = {
+    1: 127,
+    2: 32767,
+    4: 2147483647
+}
+
 def fetch_cuwb_position_data(
     environment_name,
     start_time,
@@ -96,11 +106,18 @@ def extract_accelerometer_data(
     df
 ):
     df = df.loc[df['type'] == 'accelerometer'].copy()
+    df['x_gs'] = df['x']*df['scale']/CUWB_DATA_MAX_INT[ACCELEROMETER_BYTE_SIZE]
+    df['y_gs'] = df['y']*df['scale']/CUWB_DATA_MAX_INT[ACCELEROMETER_BYTE_SIZE]
+    df['z_gs'] = df['z']*df['scale']/CUWB_DATA_MAX_INT[ACCELEROMETER_BYTE_SIZE]
     df.drop(
         columns=[
             'type',
             'battery_percentage',
             'temperature',
+            'x',
+            'y',
+            'z',
+            'scale',
             'anchor_count',
             'quality',
             'smoothing',
