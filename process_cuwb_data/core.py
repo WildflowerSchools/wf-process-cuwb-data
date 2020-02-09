@@ -26,22 +26,7 @@ def fetch_cuwb_position_data(
         environment_assignment_info,
         entity_assignment_info
     )
-    df = df.loc[df['type'] == 'position'].copy()
-    df['x_meters'] = df['x']/1000.0
-    df['y_meters'] = df['y']/1000.0
-    df['z_meters'] = df['z']/1000.0
-    df.drop(
-        columns=[
-            'type',
-            'battery_percentage',
-            'temperature',
-            'scale',
-            'x',
-            'y',
-            'z'
-        ],
-        inplace=True
-    )
+    df = extract_position_data(df)
     return df
 
 def fetch_cuwb_accelerometer_data(
@@ -62,19 +47,7 @@ def fetch_cuwb_accelerometer_data(
         environment_assignment_info,
         entity_assignment_info
     )
-    df = df.loc[df['type'] == 'accelerometer'].copy()
-    df.drop(
-        columns=[
-            'type',
-            'battery_percentage',
-            'temperature',
-            'anchor_count',
-            'quality',
-            'smoothing',
-
-        ],
-        inplace=True
-    )
+    df = extract_accelerometer_data(df)
     return df
 
 def fetch_cuwb_status_data(
@@ -95,6 +68,51 @@ def fetch_cuwb_status_data(
         environment_assignment_info,
         entity_assignment_info
     )
+    df = extract_status_data(df)
+    return df
+
+def extract_position_data(
+    df
+):
+    df = df.loc[df['type'] == 'position'].copy()
+    df['x_meters'] = df['x']/1000.0
+    df['y_meters'] = df['y']/1000.0
+    df['z_meters'] = df['z']/1000.0
+    df.drop(
+        columns=[
+            'type',
+            'battery_percentage',
+            'temperature',
+            'scale',
+            'x',
+            'y',
+            'z'
+        ],
+        inplace=True
+    )
+    return df
+
+def extract_accelerometer_data(
+    df
+):
+    df = df.loc[df['type'] == 'accelerometer'].copy()
+    df.drop(
+        columns=[
+            'type',
+            'battery_percentage',
+            'temperature',
+            'anchor_count',
+            'quality',
+            'smoothing',
+
+        ],
+        inplace=True
+    )
+    return df
+
+def extract_status_data(
+    df
+):
     df = df.loc[df['type'] == 'status'].copy()
     df.drop(
         columns=[
