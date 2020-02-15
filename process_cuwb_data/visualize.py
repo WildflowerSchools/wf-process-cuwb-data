@@ -216,6 +216,7 @@ def plot_positions_topdown(
         device_serial_number
     ))
     fig.set_size_inches(figure_size_inches[0],figure_size_inches[1])
+    fig.autofmt_xdate()
     if plot_show:
         plt.show()
     if plot_save:
@@ -357,3 +358,65 @@ def plot_positions_and_accelerations(
             filename
         )
         fig.savefig(path)
+
+def plot_tray_motion_features(
+    df_position,
+    df_features,
+    entity_name,
+    device_serial_number,
+    room_corners,
+    figure_size_inches = [8, 10.5],
+    plot_show=True,
+    plot_save=False,
+    output_directory = '.',
+    filename_extension = 'png',
+):
+    time_min = np.min([df_position.index.min(), df_features.index.min()])
+    time_max = np.max([df_position.index.max(), df_features.index.max()])
+    fig, axes = plt.subplots(7, 1, sharex=True)
+    extra_artists = []
+    for axis_index, axis_name in enumerate(['x', 'y']):
+        axes[axis_index].plot(
+            df_position.index,
+            df_position['{}_meters'.format(axis_name)],
+            'g-',
+            label='${}$ position (m)'.format(axis_name)
+        )
+        extra_artists.append(axes[axis_index].legend(loc='upper left', bbox_to_anchor=(1.0, 1.0)))
+    for axis_index, axis_name in enumerate(['x', 'y']):
+        axes[2 + axis_index].plot(
+            df_features.index,
+            df_features['{}_velocity_smoothed'.format(axis_name)],
+            'b-',
+            label='Smoothed ${}$ velocity (m/s)'.format(axis_name)
+        )
+        extra_artists.append(axes[2 + axis_index].legend(loc='upper left', bbox_to_anchor=(1.0, 1.0)))
+    for axis_index, axis_name in enumerate(['x', 'y', 'z']):
+        axes[4 + axis_index].plot(
+            df_features.index,
+            df_features['{}_acceleration_normalized'.format(axis_name)],
+            'b-',
+            label=r'Normalized ${}$ acceleration (m/$\mathrm{{s}}^2$)'.format(axis_name)
+        )
+        extra_artists.append(axes[4 + axis_index].legend(loc='upper left', bbox_to_anchor=(1.0, 1.0)))
+    axes[6].set_xlabel('Time (UTC)')
+    extra_artists.append(fig.suptitle('{} ({})'.format(
+        entity_name,
+        device_serial_number
+    )))
+    fig.set_size_inches(figure_size_inches[0],figure_size_inches[1])
+    if plot_show:
+        plt.show()
+    if plot_save:
+        filename = '_'.join([
+            'tray_motion_features',
+            slugify.slugify(device_serial_number),
+            time_min.strftime('%Y%m%d-%H%M%S'),
+            time_max.strftime('%Y%m%d-%H%M%S')
+        ])
+        filename += '.' + filename_extension
+        path = os.path.join(
+            output_directory,
+            filename
+        )
+        fig.savefig(path, bbox_extra_artists=extra_artists, bbox_inches='tight')
