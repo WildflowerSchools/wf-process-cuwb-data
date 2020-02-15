@@ -5,6 +5,49 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def extract_velocity_features(
+    df,
+    N,
+    Wn,
+    fs,
+    freq='100ms'
+):
+    df = df.copy()
+    df = regularize_index(
+        df,
+        freq=freq
+    )
+    df = calculate_velocity_features(
+        df=df,
+        N=N,
+        Wn=Wn,
+        fs=fs
+    )
+    df = df.reindex(columns = [
+        'x_velocity_smoothed',
+        'y_velocity_smoothed'
+    ])
+    return df
+
+def extract_acceleration_features(
+    df,
+    freq='100ms'
+):
+    df = df.copy()
+    df = regularize_index(
+        df,
+        freq=freq
+    )
+    df = calculate_acceleration_features(
+        df=df,
+    )
+    df = df.reindex(columns = [
+        'x_acceleration_normalized',
+        'y_acceleration_normalized',
+        'z_acceleration_normalized',
+    ])
+    return df
+
 def regularize_index(
     df,
     freq='100ms'
@@ -62,3 +105,24 @@ def filter_butter_filtfilt(
     butter_b, butter_a = scipy.signal.butter(N=N, Wn=Wn, btype=btype, fs=fs)
     series_filtered = scipy.signal.filtfilt(butter_b, butter_a, series)
     return series_filtered
+
+def calculate_acceleration_features(
+    df,
+    inplace=False
+):
+    if not inplace:
+        df = df.copy()
+    df['x_acceleration_normalized'] = np.subtract(
+        df['x_gs'],
+        df['x_gs'].mean()
+    )
+    df['y_acceleration_normalized'] = np.subtract(
+        df['y_gs'],
+        df['y_gs'].mean()
+    )
+    df['z_acceleration_normalized'] = np.subtract(
+        df['z_gs'],
+        df['z_gs'].mean()
+    )
+    if not inplace:
+        return df
