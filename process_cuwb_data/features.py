@@ -5,6 +5,64 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def extract_tray_motion_features_multiple_devices(
+    df_position,
+    df_acceleration,
+    N,
+    Wn,
+    fs,
+    freq='100ms'
+):
+    position_device_ids = df_position.loc[
+        df_position['entity_type'] == 'Tray',
+        'device_id'
+    ].unique().tolist()
+    logger.info('Position data contains {} tray device IDs: {}'.format(
+        len(position_device_ids),
+        position_device_ids,
+    ))
+    acceleration_device_ids = df_acceleration.loc[
+        df_acceleration['entity_type'] == 'Tray',
+        'device_id'
+    ].unique().tolist()
+    logger.info('Acceleration data contains {} tray device IDs: {}'.format(
+        len(acceleration_device_ids),
+        acceleration_device_ids,
+    ))
+    device_ids = list(set(position_device_ids) & set(acceleration_device_ids))
+    logger.info('Position and acceleration data contain {} common tray device IDs: {}'.format(
+        len(device_ids),
+        device_ids
+    ))
+    df_dict = dict()
+    for device_id in device_ids:
+        logger.info('Calculating features for device ID {}'.format(device_id))
+        df_position_reduced = df_position.loc[
+            df_position['device_id'] == device_id
+        ].copy().sort_index()
+        df_acceleration_reduced = df_acceleration.loc[
+            df_acceleration['device_id'] == device_id
+        ].copy().sort_index()
+        df_features = extract_tray_motion_features(
+            df_position=df_position_reduced,
+            df_acceleration=df_acceleration_reduced,
+            N=N,
+            Wn=Wn,
+            fs=fs
+        )
+        df_features['device_id'] = device_id
+        df_features = df_features.reindex(columns=[
+            'device_id',
+            'x_velocity_smoothed',
+            'y_velocity_smoothed',
+            'x_acceleration_normalized',
+            'y_acceleration_normalized',
+            'z_acceleration_normalized'
+        ])
+        df_dict[device_id] = df_features
+    df_all = pd.concat(df_dict.values())
+    return df_all
+
 def extract_tray_motion_features(
     df_position,
     df_acceleration,
