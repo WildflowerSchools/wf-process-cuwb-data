@@ -111,6 +111,28 @@ def plot_tray_motion_features_multiple_devices(
     output_directory = '.',
     filename_extension = 'png',
 ):
+    if velocity_limits is None:
+        velocity_min = np.min([
+            df_features['x_velocity_smoothed'].min(),
+            df_features['y_velocity_smoothed'].min()
+        ])
+        velocity_max = np.max([
+            df_features['x_velocity_smoothed'].max(),
+            df_features['y_velocity_smoothed'].max()
+        ])
+        velocity_limits = [velocity_min, velocity_max]
+    if acceleration_limits is None:
+        acceleration_min = np.min([
+            df_features['x_acceleration_normalized'].min(),
+            df_features['y_acceleration_normalized'].min(),
+            df_features['z_acceleration_normalized'].min(),
+        ])
+        acceleration_max = np.max([
+            df_features['x_acceleration_normalized'].max(),
+            df_features['y_acceleration_normalized'].max(),
+            df_features['z_acceleration_normalized'].max(),
+        ])
+        acceleration_limits = [acceleration_min, acceleration_max]
     for device_id in df_features['device_id'].unique().tolist():
         df_position_reduced = df_position[df_position['device_id'] == device_id]
         df_features_reduced = df_features[df_features['device_id'] == device_id]
