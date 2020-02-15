@@ -8,6 +8,145 @@ import os
 
 logger = logging.getLogger(__name__)
 
+# CUWB Data Protocol: Byte size for accelerometer values
+ACCELEROMETER_BYTE_SIZE = 4
+
+# CUWB Data Protocol: Maximum integer for each byte size
+CUWB_DATA_MAX_INT = {
+    1: 127,
+    2: 32767,
+    4: 2147483647
+}
+
+def fetch_cuwb_position_data(
+    environment_name,
+    start_time,
+    end_time,
+    read_chunk_size=2,
+    device_type='UWBTAG',
+    environment_assignment_info=False,
+    entity_assignment_info=False
+):
+    df = fetch_cuwb_data(
+        environment_name,
+        start_time,
+        end_time,
+        read_chunk_size,
+        device_type,
+        environment_assignment_info,
+        entity_assignment_info
+    )
+    df = extract_position_data(df)
+    return df
+
+def fetch_cuwb_accelerometer_data(
+    environment_name,
+    start_time,
+    end_time,
+    read_chunk_size=2,
+    device_type='UWBTAG',
+    environment_assignment_info=False,
+    entity_assignment_info=False
+):
+    df = fetch_cuwb_data(
+        environment_name,
+        start_time,
+        end_time,
+        read_chunk_size,
+        device_type,
+        environment_assignment_info,
+        entity_assignment_info
+    )
+    df = extract_accelerometer_data(df)
+    return df
+
+def fetch_cuwb_status_data(
+    environment_name,
+    start_time,
+    end_time,
+    read_chunk_size=2,
+    device_type='UWBTAG',
+    environment_assignment_info=False,
+    entity_assignment_info=False
+):
+    df = fetch_cuwb_data(
+        environment_name,
+        start_time,
+        end_time,
+        read_chunk_size,
+        device_type,
+        environment_assignment_info,
+        entity_assignment_info
+    )
+    df = extract_status_data(df)
+    return df
+
+def extract_position_data(
+    df
+):
+    df = df.loc[df['type'] == 'position'].copy()
+    df['x_meters'] = df['x']/1000.0
+    df['y_meters'] = df['y']/1000.0
+    df['z_meters'] = df['z']/1000.0
+    df.drop(
+        columns=[
+            'type',
+            'battery_percentage',
+            'temperature',
+            'scale',
+            'x',
+            'y',
+            'z'
+        ],
+        inplace=True
+    )
+    return df
+
+def extract_accelerometer_data(
+    df
+):
+    df = df.loc[df['type'] == 'accelerometer'].copy()
+    df['x_gs'] = df['x']*df['scale']/CUWB_DATA_MAX_INT[ACCELEROMETER_BYTE_SIZE]
+    df['y_gs'] = df['y']*df['scale']/CUWB_DATA_MAX_INT[ACCELEROMETER_BYTE_SIZE]
+    df['z_gs'] = df['z']*df['scale']/CUWB_DATA_MAX_INT[ACCELEROMETER_BYTE_SIZE]
+    df.drop(
+        columns=[
+            'type',
+            'battery_percentage',
+            'temperature',
+            'x',
+            'y',
+            'z',
+            'scale',
+            'anchor_count',
+            'quality',
+            'smoothing',
+
+        ],
+        inplace=True
+    )
+    return df
+
+def extract_status_data(
+    df
+):
+    df = df.loc[df['type'] == 'status'].copy()
+    df.drop(
+        columns=[
+            'type',
+            'x',
+            'y',
+            'z',
+            'scale',
+            'anchor_count',
+            'quality',
+            'smoothing',
+
+        ],
+        inplace=True
+    )
+    return df
+
 def fetch_cuwb_data(
     environment_name,
     start_time,
@@ -170,110 +309,6 @@ def add_entity_assignment_info(df):
     material_names = fetch_material_names()
     # Add material names to dataframe
     df = df.join(material_names, on = 'material_assignment_id')
-    return df
-
-def fetch_cuwb_position_data(
-    environment_name,
-    start_time,
-    end_time,
-    read_chunk_size=2,
-    device_type='UWBTAG',
-    environment_assignment_info=False,
-    entity_assignment_info=False
-):
-    df = fetch_cuwb_data(
-        environment_name,
-        start_time,
-        end_time,
-        read_chunk_size,
-        device_type,
-        environment_assignment_info,
-        entity_assignment_info
-    )
-    df = df.loc[df['type'] == 'position'].copy()
-    df['x_meters'] = df['x']/1000.0
-    df['y_meters'] = df['y']/1000.0
-    df['z_meters'] = df['z']/1000.0
-    df.drop(
-        columns=[
-            'type',
-            'battery_percentage',
-            'temperature',
-            'scale',
-            'x',
-            'y',
-            'z'
-        ],
-        inplace=True
-    )
-    return df
-
-def fetch_cuwb_accelerometer_data(
-    environment_name,
-    start_time,
-    end_time,
-    read_chunk_size=2,
-    device_type='UWBTAG',
-    environment_assignment_info=False,
-    entity_assignment_info=False
-):
-    df = fetch_cuwb_data(
-        environment_name,
-        start_time,
-        end_time,
-        read_chunk_size,
-        device_type,
-        environment_assignment_info,
-        entity_assignment_info
-    )
-    df = df.loc[df['type'] == 'accelerometer'].copy()
-    df.drop(
-        columns=[
-            'type',
-            'battery_percentage',
-            'temperature',
-            'anchor_count',
-            'quality',
-            'smoothing',
-
-        ],
-        inplace=True
-    )
-    return df
-
-def fetch_cuwb_status_data(
-    environment_name,
-    start_time,
-    end_time,
-    read_chunk_size=2,
-    device_type='UWBTAG',
-    environment_assignment_info=False,
-    entity_assignment_info=False
-):
-    df = fetch_cuwb_data(
-        environment_name,
-        start_time,
-        end_time,
-        read_chunk_size,
-        device_type,
-        environment_assignment_info,
-        entity_assignment_info
-    )
-    df = df.loc[df['type'] == 'status'].copy()
-    df.drop(
-        columns=[
-            'type',
-            'x',
-            'y',
-            'z',
-            'scale',
-            'anchor_count',
-            'quality',
-            'smoothing',
-
-        ],
-        inplace=True
-    )
     return df
 
 def fetch_cuwb_tag_assignments(
