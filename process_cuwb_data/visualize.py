@@ -102,7 +102,9 @@ def plot_positions_and_accelerations_multiple_devices(
 def plot_tray_motion_features_multiple_devices(
     df_position,
     df_features,
-    room_corners,
+    room_corners=None,
+    velocity_limits=None,
+    acceleration_limits=None,
     figure_size_inches = [8, 10.5],
     plot_show=True,
     plot_save=False,
@@ -138,6 +140,8 @@ def plot_tray_motion_features_multiple_devices(
             entity_name=entity_name,
             device_serial_number=device_serial_number,
             room_corners=room_corners,
+            velocity_limits=velocity_limits,
+            acceleration_limits=acceleration_limits,
             figure_size_inches=figure_size_inches,
             plot_show=plot_show,
             plot_save=plot_save,
@@ -409,7 +413,9 @@ def plot_tray_motion_features(
     df_features,
     entity_name,
     device_serial_number,
-    room_corners,
+    room_corners=None,
+    velocity_limits=None,
+    acceleration_limits=None,
     figure_size_inches = [8, 10.5],
     plot_show=True,
     plot_save=False,
@@ -428,6 +434,11 @@ def plot_tray_motion_features(
             label='${}$ position (m)'.format(axis_name)
         )
         axes[axis_index].set_ylabel(r'${}$ (m)'.format(axis_name))
+        if room_corners is not None:
+            axes[axis_index].set_ylim(
+                room_corners[0][axis_index],
+                room_corners[1][axis_index]
+            )
     for axis_index, axis_name in enumerate(['x', 'y']):
         axes[2 + axis_index].plot(
             df_features.index,
@@ -436,6 +447,11 @@ def plot_tray_motion_features(
             label='Smoothed ${}$ velocity (m/s)'.format(axis_name)
         )
         axes[2 + axis_index].set_ylabel(r'$d{}/dt$ (m/s)'.format(axis_name))
+        if velocity_limits is not None:
+            axes[2 + axis_index].set_ylim(
+                velocity_limits[0],
+                velocity_limits[1]
+            )
     for axis_index, axis_name in enumerate(['x', 'y', 'z']):
         axes[4 + axis_index].plot(
             df_features.index,
@@ -444,6 +460,11 @@ def plot_tray_motion_features(
             label=r'Normalized ${}$ acceleration ($\mathrm{{m}}/\mathrm{{s}}^2$)'.format(axis_name)
         )
         axes[4 + axis_index].set_ylabel(r'$d^2{}/dt^2$ ($\mathrm{{m}}/\mathrm{{s}}^2$)'.format(axis_name))
+        if acceleration_limits is not None:
+            axes[4 + axis_index].set_ylim(
+                acceleration_limits[0],
+                acceleration_limits[1]
+            )
     axes[6].set_xlabel('Time (UTC)')
     extra_artists.append(fig.suptitle('{} ({})'.format(
         entity_name,
