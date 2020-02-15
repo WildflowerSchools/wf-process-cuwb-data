@@ -13,6 +13,11 @@ def extract_velocity_features(
     freq='100ms'
 ):
     df = df.copy()
+    df = df.reindex(columns=[
+        'x_meters',
+        'y_meters',
+        'z_meters'
+    ])
     df = regularize_index(
         df,
         freq=freq
@@ -34,6 +39,11 @@ def extract_acceleration_features(
     freq='100ms'
 ):
     df = df.copy()
+    df = df.reindex(columns=[
+        'x_gs',
+        'y_gs',
+        'z_gs'
+    ])
     df = regularize_index(
         df,
         freq=freq
