@@ -99,6 +99,51 @@ def plot_positions_and_accelerations_multiple_devices(
             room_corners=room_corners,
             **kwargs
         )
+def plot_tray_motion_features_multiple_devices(
+    df_position,
+    df_features,
+    room_corners,
+    figure_size_inches = [8, 10.5],
+    plot_show=True,
+    plot_save=False,
+    output_directory = '.',
+    filename_extension = 'png',
+):
+    for device_id in df_features['device_id'].unique().tolist():
+        df_position_reduced = df_position[df_position['device_id'] == device_id]
+        df_features_reduced = df_features[df_features['device_id'] == device_id]
+        device_serial_numbers = df_position_reduced['device_serial_number'].unique().tolist()
+        if len(device_serial_numbers) == 0:
+            raise ValueError('Device serial number for device ID {} not found in position data'.format(
+                device_id
+            ))
+        if len(device_serial_numbers) > 1:
+            raise ValueError('Multiple device serial numbers found in data for device ID {}'.format(
+                device_id
+            ))
+        device_serial_number = device_serial_numbers[0]
+        material_names = df_position_reduced['material_name'].unique().tolist()
+        if len(material_names) == 0:
+            raise ValueError('Material name for device ID {} not found in position data'.format(
+                device_id
+            ))
+        if len(material_names) > 1:
+            raise ValueError('Multiple material names found in data for device ID {}'.format(
+                device_id
+            ))
+        entity_name = material_names[0]
+        plot_tray_motion_features(
+            df_position=df_position_reduced,
+            df_features=df_features_reduced,
+            entity_name=entity_name,
+            device_serial_number=device_serial_number,
+            room_corners=room_corners,
+            figure_size_inches=figure_size_inches,
+            plot_show=plot_show,
+            plot_save=plot_save,
+            output_directory=output_directory,
+            filename_extension=filename_extension,
+        )
 
 def plot_positions(
     df,
