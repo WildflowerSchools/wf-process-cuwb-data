@@ -23,6 +23,35 @@ def regularize_index(
     df = df.reindex(regular_index).dropna()
     return df
 
+def calculate_velocity_features(
+    df,
+    N,
+    Wn,
+    fs,
+    inplace=False
+):
+    btype='lowpass'
+    if not inplace:
+        df = df.copy()
+    df['x_position_smoothed'] = filter_butter_filtfilt(
+        series=df['x_meters'],
+        N=N,
+        Wn=Wn,
+        fs=fs,
+        btype=btype
+    )
+    df['y_position_smoothed'] = filter_butter_filtfilt(
+        series=df['y_meters'],
+        N=N,
+        Wn=Wn,
+        fs=fs,
+        btype=btype
+    )
+    df['x_velocity_smoothed']=df['x_position_smoothed'].diff().divide(df.index.to_series().diff().apply(lambda dt: dt.total_seconds()))
+    df['y_velocity_smoothed']=df['y_position_smoothed'].diff().divide(df.index.to_series().diff().apply(lambda dt: dt.total_seconds()))
+    if not inplace:
+        return df
+
 def filter_butter_filtfilt(
     series,
     N,
@@ -33,4 +62,3 @@ def filter_butter_filtfilt(
     butter_b, butter_a = scipy.signal.butter(N=N, Wn=Wn, btype=btype, fs=fs)
     series_filtered = scipy.signal.filtfilt(butter_b, butter_a, series)
     return series_filtered
-    
