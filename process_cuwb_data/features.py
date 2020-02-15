@@ -217,3 +217,21 @@ def calculate_acceleration_features(
     )
     if not inplace:
         return df
+
+def fetch_ground_truth_data(
+    path,
+    time_zone_name='US/Eastern',
+    date_field_name = 'date',
+    start_time_field_name='start_time',
+    end_time_field_name='end_time'
+):
+    df = pd.read_csv(
+        path,
+        parse_dates={
+            'start_datetime': [date_field_name, start_time_field_name],
+            'end_datetime': [date_field_name, end_time_field_name]
+        }
+    )
+    df['start_datetime'] = df['start_datetime'].dt.tz_localize(time_zone_name).dt.tz_convert('UTC')
+    df['end_datetime'] = df['end_datetime'].dt.tz_localize(time_zone_name).dt.tz_convert('UTC')
+    return df
