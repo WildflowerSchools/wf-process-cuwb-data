@@ -5,6 +5,29 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def extract_tray_motion_features(
+    df_position,
+    df_acceleration,
+    N,
+    Wn,
+    fs,
+    freq='100ms'
+):
+    df_velocity_features = extract_velocity_features(
+        df=df_position,
+        N=N,
+        Wn=Wn,
+        fs=fs,
+        freq=freq
+    )
+    df_acceleration_features = extract_acceleration_features(
+        df=df_acceleration,
+        freq=freq
+    )
+    df_features = df_velocity_features.join(df_acceleration_features, how='inner')
+    df_features.dropna(inplace=True)
+    return df_features
+
 def extract_velocity_features(
     df,
     N,
