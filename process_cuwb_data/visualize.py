@@ -74,6 +74,32 @@ def plot_accelerations_multiple_devices(
             **kwargs
         )
 
+def plot_positions_and_accelerations_multiple_devices(
+    df_position,
+    df_acceleration,
+    room_corners,
+    **kwargs
+):
+    for (device_id, device_serial_number, entity_type, person_short_name, material_name), df_position_group_df in df_position.fillna('NA').groupby([
+        'device_id',
+        'device_serial_number',
+        'entity_type',
+        'person_short_name',
+        'material_name'
+    ]):
+        entity_name = material_name
+        if entity_type == 'Person':
+            entity_name = person_short_name
+        df_acceleration_group_df = df_acceleration.loc[df_acceleration['device_id'] == device_id]
+        plot_positions_and_accelerations(
+            df_position=df_position_group_df,
+            df_acceleration=df_acceleration_group_df,
+            entity_name=entity_name,
+            device_serial_number=device_serial_number,
+            room_corners=room_corners,
+            **kwargs
+        )
+
 def plot_positions(
     df,
     entity_name,
@@ -247,6 +273,80 @@ def plot_accelerations(
     if plot_save:
         filename = '_'.join([
             'cuwb_accelerations',
+            slugify.slugify(device_serial_number),
+            time_min.strftime('%Y%m%d-%H%M%S'),
+            time_max.strftime('%Y%m%d-%H%M%S')
+        ])
+        filename += '.' + filename_extension
+        path = os.path.join(
+            output_directory,
+            filename
+        )
+        fig.savefig(path)
+
+def plot_positions_and_accelerations(
+    df_position,
+    df_acceleration,
+    entity_name,
+    device_serial_number,
+    room_corners,
+    marker = '.',
+    alpha = 1.0,
+    colormap_name = 'hot_r',
+    quality_lims = [0, 10000],
+    acceleration_max = 2.0,
+    figure_size_inches = [8, 10.5],
+    plot_show=True,
+    plot_save=False,
+    output_directory = '.',
+    filename_extension = 'png',
+    position_y_axis_labels = ['$x$ position (meters)', '$y$ position (meters)'],
+    position_color_axis_label = 'Position quality',
+    position_column_names = ['x_meters', 'y_meters'],
+    position_quality_column_name = 'quality',
+    acceleration_y_axis_labels = ['$x$ acceleration (g\'s)', '$y$ acceleration (g\'s)', '$z$ acceleration (g\'s)'],
+    acceleration_column_names = ['x_gs', 'y_gs', 'z_gs']
+):
+    time_min = np.min([df_position.index.min(), df_acceleration.index.min()])
+    time_max = np.max([df_position.index.max(), df_acceleration.index.max()])
+    fig, axes = plt.subplots(5, 1, sharex=True)
+    plots = [None, None, None, None, None]
+    for position_axis_index in range(2):
+        plots[position_axis_index] = axes[position_axis_index].scatter(
+            df_position.index.values,
+            df_position[position_column_names[position_axis_index]],
+            marker=marker,
+            alpha=alpha,
+            c=df_position[position_quality_column_name],
+            cmap=plt.get_cmap(colormap_name),
+            vmin=quality_lims[0],
+            vmax=quality_lims[1]
+        )
+        axes[position_axis_index].set_ylim(room_corners[0][position_axis_index], room_corners[1][position_axis_index])
+        axes[position_axis_index].set_ylabel(position_y_axis_labels[position_axis_index])
+    for acceleration_axis_index in range(3):
+        plots[acceleration_axis_index + 2] = axes[acceleration_axis_index + 2].scatter(
+            df_acceleration.index.values,
+            df_acceleration[acceleration_column_names[acceleration_axis_index]],
+            marker=marker,
+            alpha=alpha
+        )
+        axes[acceleration_axis_index + 2].set_ylim(-acceleration_max, acceleration_max)
+        axes[acceleration_axis_index + 2].set_ylabel(acceleration_y_axis_labels[acceleration_axis_index])
+    axes[4].set_xlim(time_min, time_max)
+    axes[4].set_xlabel('Time (UTC)')
+    axes[4].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+    fig.colorbar(plots[1], ax=axes).set_label(position_color_axis_label)
+    fig.suptitle('{} ({})'.format(
+        entity_name,
+        device_serial_number
+    ))
+    fig.set_size_inches(figure_size_inches[0],figure_size_inches[1])
+    if plot_show:
+        plt.show()
+    if plot_save:
+        filename = '_'.join([
+            'cuwb_positions_and_accelerations',
             slugify.slugify(device_serial_number),
             time_min.strftime('%Y%m%d-%H%M%S'),
             time_max.strftime('%Y%m%d-%H%M%S')
