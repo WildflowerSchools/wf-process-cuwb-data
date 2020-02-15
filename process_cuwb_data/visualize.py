@@ -427,7 +427,7 @@ def plot_tray_motion_features(
             'g-',
             label='${}$ position (m)'.format(axis_name)
         )
-        extra_artists.append(axes[axis_index].legend(loc='upper left', bbox_to_anchor=(1.0, 1.0)))
+        axes[axis_index].set_ylabel(r'${}$ (m)'.format(axis_name))
     for axis_index, axis_name in enumerate(['x', 'y']):
         axes[2 + axis_index].plot(
             df_features.index,
@@ -435,15 +435,15 @@ def plot_tray_motion_features(
             'b-',
             label='Smoothed ${}$ velocity (m/s)'.format(axis_name)
         )
-        extra_artists.append(axes[2 + axis_index].legend(loc='upper left', bbox_to_anchor=(1.0, 1.0)))
+        axes[2 + axis_index].set_ylabel(r'$d{}/dt$ (m/s)'.format(axis_name))
     for axis_index, axis_name in enumerate(['x', 'y', 'z']):
         axes[4 + axis_index].plot(
             df_features.index,
             df_features['{}_acceleration_normalized'.format(axis_name)],
             'b-',
-            label=r'Normalized ${}$ acceleration (m/$\mathrm{{s}}^2$)'.format(axis_name)
+            label=r'Normalized ${}$ acceleration ($\mathrm{{m}}/\mathrm{{s}}^2$)'.format(axis_name)
         )
-        extra_artists.append(axes[4 + axis_index].legend(loc='upper left', bbox_to_anchor=(1.0, 1.0)))
+        axes[4 + axis_index].set_ylabel(r'$d^2{}/dt^2$ ($\mathrm{{m}}/\mathrm{{s}}^2$)'.format(axis_name))
     axes[6].set_xlabel('Time (UTC)')
     extra_artists.append(fig.suptitle('{} ({})'.format(
         entity_name,
