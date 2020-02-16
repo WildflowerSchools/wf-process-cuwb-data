@@ -11,6 +11,7 @@ BASE_DEPENDENCIES = [
     'wf-geom-render>=0.3.0',
     'pandas>=0.25.3',
     'numpy>=1.18.1',
+    'scipy>=1.4.1',
     'matplotlib>=3.1.2',
     'python-slugify>=4.0.0'
 ]
