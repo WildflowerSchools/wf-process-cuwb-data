@@ -245,6 +245,82 @@ def plot_tray_motion_features_with_ground_truth_multiple_devices(
             filename_extension=filename_extension,
         )
 
+def plot_tray_motion_features_with_state_multiple_devices(
+    df_position,
+    df_features,
+    color_dict,
+    state_field_name='ground_truth_state',
+    room_corners=None,
+    velocity_limits=None,
+    acceleration_limits=None,
+    figure_size_inches = [8, 10.5],
+    plot_show=True,
+    plot_save=False,
+    output_directory = '.',
+    filename_extension = 'png',
+):
+    if velocity_limits is None:
+        velocity_min = np.min([
+            df_features['x_velocity_smoothed'].min(),
+            df_features['y_velocity_smoothed'].min()
+        ])
+        velocity_max = np.max([
+            df_features['x_velocity_smoothed'].max(),
+            df_features['y_velocity_smoothed'].max()
+        ])
+        velocity_limits = [velocity_min, velocity_max]
+    if acceleration_limits is None:
+        acceleration_min = np.min([
+            df_features['x_acceleration_normalized'].min(),
+            df_features['y_acceleration_normalized'].min(),
+            df_features['z_acceleration_normalized'].min(),
+        ])
+        acceleration_max = np.max([
+            df_features['x_acceleration_normalized'].max(),
+            df_features['y_acceleration_normalized'].max(),
+            df_features['z_acceleration_normalized'].max(),
+        ])
+        acceleration_limits = [acceleration_min, acceleration_max]
+    for device_id in df_features['device_id'].unique().tolist():
+        df_position_reduced = df_position[df_position['device_id'] == device_id]
+        df_features_reduced = df_features[df_features['device_id'] == device_id]
+        device_serial_numbers = df_position_reduced['device_serial_number'].unique().tolist()
+        if len(device_serial_numbers) == 0:
+            raise ValueError('Device serial number for device ID {} not found in position data'.format(
+                device_id
+            ))
+        if len(device_serial_numbers) > 1:
+            raise ValueError('Multiple device serial numbers found in data for device ID {}'.format(
+                device_id
+            ))
+        device_serial_number = device_serial_numbers[0]
+        material_names = df_position_reduced['material_name'].unique().tolist()
+        if len(material_names) == 0:
+            raise ValueError('Material name for device ID {} not found in position data'.format(
+                device_id
+            ))
+        if len(material_names) > 1:
+            raise ValueError('Multiple material names found in data for device ID {}'.format(
+                device_id
+            ))
+        entity_name = material_names[0]
+        plot_tray_motion_features_with_state(
+            df_position=df_position_reduced,
+            df_features=df_features_reduced,
+            entity_name=entity_name,
+            device_serial_number=device_serial_number,
+            color_dict=color_dict,
+            state_field_name=state_field_name,
+            room_corners=room_corners,
+            velocity_limits=velocity_limits,
+            acceleration_limits=acceleration_limits,
+            figure_size_inches=figure_size_inches,
+            plot_show=plot_show,
+            plot_save=plot_save,
+            output_directory=output_directory,
+            filename_extension=filename_extension,
+        )
+
 def plot_positions(
     df,
     entity_name,
@@ -661,6 +737,96 @@ def plot_tray_motion_features_with_ground_truth(
     if plot_save:
         filename = '_'.join([
             'tray_motion_features_with_ground_truth',
+            slugify.slugify(device_serial_number),
+            time_min.strftime('%Y%m%d-%H%M%S'),
+            time_max.strftime('%Y%m%d-%H%M%S')
+        ])
+        filename += '.' + filename_extension
+        path = os.path.join(
+            output_directory,
+            filename
+        )
+        fig.savefig(path, bbox_extra_artists=extra_artists, bbox_inches='tight')
+
+def plot_tray_motion_features_with_state(
+    df_position,
+    df_features,
+    entity_name,
+    device_serial_number,
+    color_dict,
+    state_field_name='ground_truth_state',
+    room_corners=None,
+    velocity_limits=None,
+    acceleration_limits=None,
+    figure_size_inches = [8, 10.5],
+    plot_show=True,
+    plot_save=False,
+    output_directory = '.',
+    filename_extension = 'png',
+):
+    time_min = np.min([df_position.index.min(), df_features.index.min()])
+    time_max = np.max([df_position.index.max(), df_features.index.max()])
+    states = df_features[state_field_name].unique().tolist()
+    fig, axes = plt.subplots(7, 1, sharex=True)
+    extra_artists = []
+    for axis_index, axis_name in enumerate(['x', 'y']):
+        axes[axis_index].scatter(
+            x=df_position.index,
+            y=df_position['{}_meters'.format(axis_name)],
+            marker='.',
+            s=1,
+        )
+        axes[axis_index].set_ylabel(r'${}$ (m)'.format(axis_name))
+        if room_corners is not None:
+            axes[axis_index].set_ylim(
+                room_corners[0][axis_index],
+                room_corners[1][axis_index]
+            )
+    for axis_index, axis_name in enumerate(['x', 'y']):
+        for state in states:
+            axes[2 + axis_index].scatter(
+                x=df_features.loc[df_features[state_field_name] == state].index,
+                y=df_features.loc[df_features[state_field_name] == state, '{}_velocity_smoothed'.format(axis_name)],
+                c=color_dict[state],
+                marker='.',
+                s=1,
+                label=state
+            )
+        axes[2 + axis_index].set_ylabel(r'$d{}/dt$ (m/s)'.format(axis_name))
+        if velocity_limits is not None:
+            axes[2 + axis_index].set_ylim(
+                velocity_limits[0],
+                velocity_limits[1]
+            )
+    for axis_index, axis_name in enumerate(['x', 'y', 'z']):
+        for state in states:
+            axes[4 + axis_index].scatter(
+                x=df_features.loc[df_features[state_field_name] == state].index,
+                y=df_features.loc[df_features[state_field_name] == state, '{}_acceleration_normalized'.format(axis_name)],
+                c=color_dict[state],
+                marker='.',
+                s=1,
+                label=state
+            )
+        axes[4 + axis_index].set_ylabel(r'$d^2{}/dt^2$ ($\mathrm{{m}}/\mathrm{{s}}^2$)'.format(axis_name))
+        if acceleration_limits is not None:
+            axes[4 + axis_index].set_ylim(
+                acceleration_limits[0],
+                acceleration_limits[1]
+            )
+    axes[6].set_xlim(time_min, time_max)
+    axes[6].set_xlabel('Time (UTC)')
+    extra_artists.append(fig.suptitle('{} ({})'.format(
+        entity_name,
+        device_serial_number
+    )))
+    extra_artists.append(axes[2].legend(loc='upper left', bbox_to_anchor=(1.0, 1.0)))
+    fig.set_size_inches(figure_size_inches[0],figure_size_inches[1])
+    if plot_show:
+        plt.show()
+    if plot_save:
+        filename = '_'.join([
+            'tray_motion_features_with_state',
             slugify.slugify(device_serial_number),
             time_min.strftime('%Y%m%d-%H%M%S'),
             time_max.strftime('%Y%m%d-%H%M%S')
