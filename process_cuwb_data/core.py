@@ -84,6 +84,8 @@ def fetch_cuwb_status_data(
 def extract_position_data(
     df
 ):
+    if len(df) == 0:
+        return df
     df = df.loc[df['type'] == 'position'].copy()
     df['x_meters'] = df['x']/1000.0
     df['y_meters'] = df['y']/1000.0
@@ -98,13 +100,16 @@ def extract_position_data(
             'y',
             'z'
         ],
-        inplace=True
+        inplace=True,
+        errors='ignore'
     )
     return df
 
 def extract_accelerometer_data(
     df
 ):
+    if len(df) == 0:
+        return df
     df = df.loc[df['type'] == 'accelerometer'].copy()
     df['x_gs'] = df['x']*df['scale']/CUWB_DATA_MAX_INT[ACCELEROMETER_BYTE_SIZE]
     df['y_gs'] = df['y']*df['scale']/CUWB_DATA_MAX_INT[ACCELEROMETER_BYTE_SIZE]
@@ -123,13 +128,16 @@ def extract_accelerometer_data(
             'smoothing',
 
         ],
-        inplace=True
+        inplace=True,
+        errors='ignore'
     )
     return df
 
 def extract_status_data(
     df
 ):
+    if len(df) == 0:
+        return df
     df = df.loc[df['type'] == 'status'].copy()
     df.drop(
         columns=[
@@ -143,7 +151,8 @@ def extract_status_data(
             'smoothing',
 
         ],
-        inplace=True
+        inplace=True,
+        errors='ignore'
     )
     return df
 
@@ -173,6 +182,8 @@ def fetch_cuwb_data(
         object_ids = object_ids
     )
     df = pd.DataFrame(data)
+    if len(df) == 0:
+        return df
     df.drop(
         columns = [
             'timestamp',
@@ -185,7 +196,8 @@ def fetch_cuwb_data(
             'network_time',
             'object_id_secondary'
         ],
-        inplace=True
+        inplace=True,
+        errors='ignore'
     )
     df.rename(
         columns = {
