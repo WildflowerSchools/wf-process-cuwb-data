@@ -1,7 +1,6 @@
 from database_connection_honeycomb import DatabaseConnectionHoneycomb
 from minimal_honeycomb import MinimalHoneycombClient
 import pandas as pd
-from pandas.io.json import json_normalize
 import datetime
 import logging
 import os
@@ -84,6 +83,8 @@ def fetch_cuwb_status_data(
 def extract_position_data(
     df
 ):
+    if len(df) == 0:
+        return df
     df = df.loc[df['type'] == 'position'].copy()
     df['x_meters'] = df['x']/1000.0
     df['y_meters'] = df['y']/1000.0
@@ -98,13 +99,16 @@ def extract_position_data(
             'y',
             'z'
         ],
-        inplace=True
+        inplace=True,
+        errors='ignore'
     )
     return df
 
 def extract_accelerometer_data(
     df
 ):
+    if len(df) == 0:
+        return df
     df = df.loc[df['type'] == 'accelerometer'].copy()
     df['x_gs'] = df['x']*df['scale']/CUWB_DATA_MAX_INT[ACCELEROMETER_BYTE_SIZE]
     df['y_gs'] = df['y']*df['scale']/CUWB_DATA_MAX_INT[ACCELEROMETER_BYTE_SIZE]
@@ -123,13 +127,16 @@ def extract_accelerometer_data(
             'smoothing',
 
         ],
-        inplace=True
+        inplace=True,
+        errors='ignore'
     )
     return df
 
 def extract_status_data(
     df
 ):
+    if len(df) == 0:
+        return df
     df = df.loc[df['type'] == 'status'].copy()
     df.drop(
         columns=[
@@ -143,7 +150,8 @@ def extract_status_data(
             'smoothing',
 
         ],
-        inplace=True
+        inplace=True,
+        errors='ignore'
     )
     return df
 
@@ -173,6 +181,8 @@ def fetch_cuwb_data(
         object_ids = object_ids
     )
     df = pd.DataFrame(data)
+    if len(df) == 0:
+        return df
     df.drop(
         columns = [
             'timestamp',
@@ -185,7 +195,8 @@ def fetch_cuwb_data(
             'network_time',
             'object_id_secondary'
         ],
-        inplace=True
+        inplace=True,
+        errors='ignore'
     )
     df.rename(
         columns = {
@@ -426,7 +437,7 @@ def fetch_tray_ids():
             ]}
         ]
     )
-    df = json_normalize(result.get('data'))
+    df = pd.json_normalize(result.get('data'))
     df.rename(
         columns={
             'entity.tray_id': 'tray_id',
@@ -533,7 +544,7 @@ def fetch_entity_info():
             ]}
         ]
     )
-    df = json_normalize(result.get('data'))
+    df = pd.json_normalize(result.get('data'))
     df.rename(
         columns={
             'entity.entity_type': 'entity_type',
@@ -570,7 +581,7 @@ def fetch_material_names(
             ]}
         ]
     )
-    df = json_normalize(result.get('data'))
+    df = pd.json_normalize(result.get('data'))
     df.rename(
         columns={
             'material.material_id': 'material_id',
