@@ -1,7 +1,6 @@
 from database_connection_honeycomb import DatabaseConnectionHoneycomb
 from minimal_honeycomb import MinimalHoneycombClient
 import pandas as pd
-from pandas.io.json import json_normalize
 import datetime
 import logging
 import os
@@ -438,7 +437,7 @@ def fetch_tray_ids():
             ]}
         ]
     )
-    df = json_normalize(result.get('data'))
+    df = pd.json_normalize(result.get('data'))
     df.rename(
         columns={
             'entity.tray_id': 'tray_id',
@@ -545,7 +544,7 @@ def fetch_entity_info():
             ]}
         ]
     )
-    df = json_normalize(result.get('data'))
+    df = pd.json_normalize(result.get('data'))
     df.rename(
         columns={
             'entity.entity_type': 'entity_type',
@@ -582,7 +581,7 @@ def fetch_material_names(
             ]}
         ]
     )
-    df = json_normalize(result.get('data'))
+    df = pd.json_normalize(result.get('data'))
     df.rename(
         columns={
             'material.material_id': 'material_id',
