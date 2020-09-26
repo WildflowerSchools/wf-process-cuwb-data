@@ -29,6 +29,8 @@ date_formats = list(chain.from_iterable(
               help="output folder for cuwb data")
 def cli_fetch_cuwb_data(environment, start, end, entity_type, data_type,
                         environment_assignments, entity_assignments, output):
+    Path(output).mkdir(parents=True, exist_ok=True)
+
     df = fetch_cuwb_data(
         environment,
         start,
@@ -58,6 +60,8 @@ def cli_fetch_cuwb_data(environment, start, end, entity_type, data_type,
 @click.option("--output", type=click.Path(), default="%s/output/data" % (os.getcwd()),
               help="output folder for cuwb tray features data")
 def cli_fetch_tray_features(environment, start, end, output):
+    Path(output).mkdir(parents=True, exist_ok=True)
+
     df_features = fetch_tray_motion_features(
         environment,
         start,
