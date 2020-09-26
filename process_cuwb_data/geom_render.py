@@ -6,9 +6,8 @@ import pandas as pd
 import numpy as np
 import datetime
 import os
-import logging
 
-logger = logging.getLogger(__name__)
+from .log import logger
 
 
 def fetch_geoms_2d(

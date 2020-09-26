@@ -1,8 +1,11 @@
-from .features import FeatureExtraction, combine_features_with_ground_truth_data
 from .io import load_groundtruth_data
 from .log import logger
-from .remote import fetch_raw_cuwb_data
-from .classifier import Train, Inference
+from .honeycomb import fetch_raw_cuwb_data
+from .tray_motion_classifiers import TrayCarryClassifier
+from .tray_motion_events import extract_carry_events_by_device
+from .tray_motion_features import FeatureExtraction
+from .tray_motion_ground_truth import combine_features_with_ground_truth_data
+
 
 # CUWB Data Protocol: Byte size for accelerometer values
 ACCELEROMETER_BYTE_SIZE = 4
@@ -184,23 +187,27 @@ def extract_tray_motion_features(df_position, df_acceleration):
     return f.extract_tray_motion_features_for_multiple_devices(df_position, df_acceleration)
 
 
-def generate_tray_motion_groundtruth(environment, start, end, groundtruth_csv):
+def generate_tray_carry_groundtruth(environment, start, end, groundtruth_csv):
     df_groundtruth = load_groundtruth_data(groundtruth_csv)
     df_features = fetch_tray_motion_features(environment, start, end)
 
     df_groundtruth_features = combine_features_with_ground_truth_data(df_features, df_groundtruth)
 
     logger.info("Tray Carry groundtruth features breakdown by device\n{}".format(
-        df_groundtruth_features.fillna('NA').groupby(['device_id']).size()))
+        df_groundtruth_features.fillna('NA').groupby(['device_id', 'ground_truth_state']).size()))
 
     return df_groundtruth_features
 
 
-def generate_tray_motion_model(groundtruth_features):
-    tc = Train(groundtruth_features=groundtruth_features)
-    return tc.train()
+def generate_tray_carry_model(groundtruth_features):
+    tc = TrayCarryClassifier()
+    return tc.train(df_groundtruth=groundtruth_features)
 
 
-def infer_tray_motion(model, scaler, features):
-    tc = Inference(model=model, scaler=scaler)
-    return tc.infer(features)
+def infer_tray_carry(model, scaler, features):
+    tc = TrayCarryClassifier(model=model, feature_scaler=scaler)
+    return tc.inference(features)
+
+
+def extract_tray_carry_events_from_inferred(inferred):
+    return extract_carry_events_by_device(inferred)

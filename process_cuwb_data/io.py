@@ -7,6 +7,16 @@ import pandas as pd
 from .log import logger
 
 
+def write_datafile_to_csv(df, filename, directory='.', index=True):
+    filename = filename + '.csv'
+    path = os.path.join(
+        directory,
+        filename
+    )
+    logger.info("Writing datafile '{}' to {}".format(filename, path))
+    df.to_csv(path, index=index)
+
+
 def write_generic_pkl(record, filename, directory='.'):
     filename = filename + '.pkl'
     path = os.path.join(

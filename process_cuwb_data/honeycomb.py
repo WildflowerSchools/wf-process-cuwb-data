@@ -1,10 +1,9 @@
-import logging
 import pandas as pd
 
 from database_connection_honeycomb import DatabaseConnectionHoneycomb
 from minimal_honeycomb import MinimalHoneycombClient
 
-logger = logging.getLogger(__name__)
+from .log import logger
 
 
 def fetch_raw_cuwb_data(

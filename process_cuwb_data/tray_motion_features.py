@@ -1,83 +1,22 @@
 import pandas as pd
 import numpy as np
-import scipy.signal
 
+from .tray_motion_filters import TrayMotionButterFiltFiltFilter, TrayMotionSavGolFilter
 from .log import logger
 
 
-class ButterFiltFiltFilter:
-    """
-    Structure for storing Butter + FiltFilt signal filtering parameters
-
-    See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
-    """
-
-    def __init__(self, N=3, Wn=0.01, fs=10):
-        """
-        Parameters
-        ----------
-        N : int
-            The order of the butter signal filter.
-        Wn : array_like
-            The critical frequency or frequencies for the butter signal filter.
-        fs : float
-            The sampling frequency for the butter signal filter.
-        """
-        self.N = N
-        self.Wn = Wn
-        self.fs = fs
-
-    def filter(self, series, btype):
-        butter_b, butter_a = scipy.signal.butter(N=self.N, Wn=self.Wn, fs=self.fs, btype=btype)
-        series_filtered = scipy.signal.filtfilt(butter_b, butter_a, series)
-        return series_filtered
-
-
-class SavGolFilter:
-    """
-    Structure for storing SavGol signal filtering parameters
-
-    See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.savgol_filter.html
-    """
-
-    def __init__(self, window_length=31, polyorder=3, fs=10):
-        """
-        Parameters
-        ----------
-        window_length : int
-            The length of the filter window (i.e., the number of coefficients)
-        polyorder : int
-            The order of the polynomial used to fit the samples
-        fs : float
-            The sampling frequency for the signal filter
-        """
-        self.window_length = window_length
-        self.polyorder = polyorder
-        self.delta = 1 / fs
-
-    def filter(self, series, deriv):
-        return scipy.signal.savgol_filter(
-            series, deriv=deriv, window_length=self.window_length, polyorder=self.polyorder, delta=self.delta)
-
-
-class PositionFilter:
-    def __init__(self, butter_filt_filt=ButterFiltFiltFilter(), savgol=SavGolFilter()):
-        if not isinstance(butter_filt_filt, ButterFiltFiltFilter):
-            raise Exception("butter_filt_filt must be of type ButterFiltFiltFilter")
-
-        if not isinstance(savgol, SavGolFilter):
-            raise Exception("savgol must be of type SavGolFilter")
-
-        self.butter_filt_filt = butter_filt_filt
-        self.savgol = savgol
-
-
 class FeatureExtraction:
-    def __init__(self, frequency="100ms", position_filter=PositionFilter()):
+    def __init__(self, frequency="100ms", position_filter=TrayMotionButterFiltFiltFilter(),
+                 velocity_filter=TrayMotionSavGolFilter()):
         self.frequency = frequency
         self.position_filter = position_filter
+        self.velocity_filter = velocity_filter
 
     def extract_tray_motion_features_for_multiple_devices(self, df_position, df_acceleration):
+        if ((len(df_position) == 0 or 'entity_type' not in df_position.columns) or
+                (len(df_acceleration) == 0 or 'entity_type' not in df_acceleration.columns)):
+            return None
+
         position_device_ids = df_position.loc[
             df_position['entity_type'] == 'Tray',
             'device_id'
@@ -208,15 +147,15 @@ class FeatureExtraction:
         if not inplace:
             df = df.copy()
 
-        df['x_position_smoothed'] = self.position_filter.butter_filt_filt.filter(
+        df['x_position_smoothed'] = self.position_filter.filter(
             series=df['x_meters'],
             btype=btype
         )
-        df['y_position_smoothed'] = self.position_filter.butter_filt_filt.filter(
+        df['y_position_smoothed'] = self.position_filter.filter(
             series=df['y_meters'],
             btype=btype
         )
-        df['z_position_smoothed'] = self.position_filter.butter_filt_filt.filter(
+        df['z_position_smoothed'] = self.position_filter.filter(
             series=df['z_meters'],
             btype=btype
         )
@@ -224,11 +163,11 @@ class FeatureExtraction:
         #df['x_velocity_smoothed']=df['x_position_smoothed'].diff().divide(df.index.to_series().diff().apply(lambda dt: dt.total_seconds()))
         #df['y_velocity_smoothed']=df['y_position_smoothed'].diff().divide(df.index.to_series().diff().apply(lambda dt: dt.total_seconds()))
 
-        df['x_velocity_smoothed'] = self.position_filter.savgol.filter(
+        df['x_velocity_smoothed'] = self.velocity_filter.filter(
             df['x_position_smoothed'],
             deriv=1
         )
-        df['y_velocity_smoothed'] = self.position_filter.savgol.filter(
+        df['y_velocity_smoothed'] = self.velocity_filter.filter(
             df['y_position_smoothed'],
             deriv=1
         )
@@ -254,26 +193,3 @@ class FeatureExtraction:
         )
         if not inplace:
             return df
-
-
-def combine_features_with_ground_truth_data(
-    df_features,
-    df_ground_truth,
-    baseline_state='Not carried',
-    inplace=False
-):
-    if not inplace:
-        df_features = df_features.copy()
-    df_features['ground_truth_state'] = baseline_state
-    for index, row in df_ground_truth.iterrows():
-        if row['ground_truth_state'] != baseline_state:
-            df_features.loc[
-                (
-                    (df_features['device_id'] == row['device_id']) &
-                    (df_features.index >= row['start_datetime']) &
-                    (df_features.index <= row['end_datetime'])
-                ),
-                'ground_truth_state'
-            ] = row['ground_truth_state']
-    if not inplace:
-        return df_features
