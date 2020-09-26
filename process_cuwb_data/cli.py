@@ -113,7 +113,8 @@ def cli_train_tray_carry_model(groundtruth_features, output):
     write_generic_pkl(result['scaler'], "{}_scaler".format(now), output)
 
 
-@click.command(name="infer-tray-carry")
+@click.command(name="infer-tray-carry",
+               help="Infer tray carrying events given a model and feature scaler. Output is written to a CSV")
 @click.option("--environment", type=str, required=True)
 @click.option("--start", type=click.DateTime(formats=date_formats), required=True)
 @click.option("--end", type=click.DateTime(formats=date_formats), required=True)
