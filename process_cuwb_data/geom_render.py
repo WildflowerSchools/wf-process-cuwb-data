@@ -1,5 +1,5 @@
 
-import process_cuwb_data
+from .honeycomb import fetch_raw_cuwb_data
 import geom_render
 from minimal_honeycomb import MinimalHoneycombClient
 import pandas as pd
@@ -19,7 +19,7 @@ def fetch_geoms_2d(
     notebook=False
 ):
     # Fetch CUWB position data
-    df_position = process_cuwb_data.fetch_cuwb_position_data(
+    df_position = fetch_raw_cuwb_data(
         environment_name=environment_name,
         start_time=start_time,
         end_time=end_time,
