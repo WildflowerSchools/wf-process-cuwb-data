@@ -15,7 +15,8 @@ BASE_DEPENDENCIES = [
     'numpy>=1.18.1',
     'scipy>=1.4.1',
     'matplotlib>=3.1.2',
-    'python-slugify>=4.0.0'
+    'python-slugify>=4.0.0',
+    'python-dotenv>=0.14.0'
 ]
 # TEST_DEPENDENCIES = [
 # ]

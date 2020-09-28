@@ -1,6 +1,7 @@
 import click
 import click_log
 from datetime import datetime
+from dotenv import load_dotenv
 from itertools import chain
 import os
 import pandas as pd
@@ -41,6 +42,10 @@ def cli_fetch_cuwb_data(environment, start, end, entity_type, data_type,
         entity_assignment_info=entity_assignments
     )
 
+    if df is None:
+        logger.warning("No CUWB data found")
+        return
+
     write_cuwb_data_pkl(
         df,
         filename_prefix='',
@@ -67,6 +72,10 @@ def cli_fetch_tray_features(environment, start, end, output):
         start,
         end
     )
+
+    if df_features is None:
+        logger.warning("No CUWB data found")
+        return
 
     write_cuwb_data_pkl(
         df_features,
@@ -144,8 +153,14 @@ def cli_infer_tray_carry(environment, start, end, model, feature_scaler, output)
 
 @click_log.simple_verbosity_option(logger)
 @click.group()
-def cli():
-    pass
+@click.option("--env-file", type=click.Path(exists=True),
+              help="env file to load environment variables from")
+def cli(env_file):
+    if env_file is None:
+        env_file = os.path.join(os.getcwd(), '.env')
+
+    if os.path.exists(env_file):
+        load_dotenv(dotenv_path=env_file)
 
 
 cli.add_command(cli_fetch_cuwb_data)

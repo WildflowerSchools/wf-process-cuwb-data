@@ -14,8 +14,9 @@ def validate_ground_truth(df_groundtruth):
         return False, "Groundtruth data missing column(s) {}".format(missing_columns)
 
     for index, row in df_groundtruth.iterrows():
-        if CarryCategory(row['ground_truth_state']) == None:
-            msg = "Invalid ground_truth_state '{}', valid options include {}".format(row['ground_truth_state'], CarryCategory.as_name_list())
+        if CarryCategory(row['ground_truth_state']) is None:
+            msg = "Invalid ground_truth_state '{}', valid options include {}".format(
+                row['ground_truth_state'], CarryCategory.as_name_list())
             return False, msg
 
     return True, ""
@@ -27,8 +28,10 @@ def combine_features_with_ground_truth_data(
     baseline_state=CarryCategory.NOT_CARRIED.name,
     inplace=False
 ):
-    if CarryCategory(baseline_state) == None:
-        raise Exception("Invalid baseline_state '{}', valid options include {}".format(baseline_state, CarryCategory.as_name_list()))
+    if CarryCategory(baseline_state) is None:
+        raise Exception(
+            "Invalid baseline_state '{}', valid options include {}".format(
+                baseline_state, CarryCategory.as_name_list()))
 
     if not inplace:
         df_features = df_features.copy()
