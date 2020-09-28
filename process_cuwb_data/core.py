@@ -188,10 +188,14 @@ def extract_tray_motion_features(df_position, df_acceleration):
 
 
 def generate_tray_carry_groundtruth(environment, start, end, groundtruth_csv):
-    df_groundtruth = load_groundtruth_data(groundtruth_csv)
-    valid, msg = validate_ground_truth(df_groundtruth)
-    if not valid:
-        logger.error(msg)
+    try:
+        df_groundtruth = load_groundtruth_data(groundtruth_csv)
+        valid, msg = validate_ground_truth(df_groundtruth)
+        if not valid:
+            logger.error(msg)
+            return None
+    except Exception as err:
+        logger.error(err)
         return None
 
     df_features = fetch_tray_motion_features(environment, start, end)

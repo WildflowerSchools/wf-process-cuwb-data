@@ -2,6 +2,17 @@ from .tray_motion_categories import CarryCategory
 
 
 def validate_ground_truth(df_groundtruth):
+    required_columns = ['device_id', 'ground_truth_state', 'start_datetime', 'end_datetime']
+
+    # Verify required columns exist
+    missing_columns = []
+    for rcolumn in required_columns:
+        if rcolumn not in df_groundtruth.columns:
+            missing_columns.append(rcolumn)
+
+    if len(missing_columns) > 0:
+        return False, "Groundtruth data missing column(s) {}".format(missing_columns)
+
     for index, row in df_groundtruth.iterrows():
         if CarryCategory(row['ground_truth_state']) == None:
             msg = "Invalid ground_truth_state '{}', valid options include {}".format(row['ground_truth_state'], CarryCategory.as_name_list())
