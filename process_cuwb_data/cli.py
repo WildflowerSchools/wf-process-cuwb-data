@@ -94,7 +94,10 @@ def cli_generate_tray_carry_groundtruth(environment, start, end, groundtruth_csv
 
     df_groundtruth_features = generate_tray_carry_groundtruth(environment, start, end, groundtruth_csv)
 
-    write_generic_pkl(df_groundtruth_features, "{}_features".format(now), output)
+    if df_groundtruth_features is None:
+        logger.warn("Unexpected result, unable to store groundtruth features")
+    else:
+        write_generic_pkl(df_groundtruth_features, "{}_features".format(now), output)
 
 
 @click.command(name="train-tray-carry-model",

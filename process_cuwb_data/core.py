@@ -4,7 +4,7 @@ from .honeycomb import fetch_raw_cuwb_data
 from .tray_motion_classifiers import TrayCarryClassifier
 from .tray_motion_events import extract_carry_events_by_device
 from .tray_motion_features import FeatureExtraction
-from .tray_motion_ground_truth import combine_features_with_ground_truth_data
+from .tray_motion_ground_truth import combine_features_with_ground_truth_data, validate_ground_truth
 
 
 # CUWB Data Protocol: Byte size for accelerometer values
@@ -189,9 +189,18 @@ def extract_tray_motion_features(df_position, df_acceleration):
 
 def generate_tray_carry_groundtruth(environment, start, end, groundtruth_csv):
     df_groundtruth = load_groundtruth_data(groundtruth_csv)
+    valid, msg = validate_ground_truth(df_groundtruth)
+    if not valid:
+        logger.error(msg)
+        return None
+
     df_features = fetch_tray_motion_features(environment, start, end)
 
-    df_groundtruth_features = combine_features_with_ground_truth_data(df_features, df_groundtruth)
+    try:
+        df_groundtruth_features = combine_features_with_ground_truth_data(df_features, df_groundtruth)
+    except Exception as err:
+        logger.error(err)
+        return None
 
     logger.info("Tray Carry groundtruth features breakdown by device\n{}".format(
         df_groundtruth_features.fillna('NA').groupby(['device_id', 'ground_truth_state']).size()))
