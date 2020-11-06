@@ -1,14 +1,14 @@
 
-import process_cuwb_data
+from .honeycomb import fetch_raw_cuwb_data
 import geom_render
 from minimal_honeycomb import MinimalHoneycombClient
 import pandas as pd
 import numpy as np
 import datetime
 import os
-import logging
 
-logger = logging.getLogger(__name__)
+from .log import logger
+
 
 def fetch_geoms_2d(
     environment_name,
@@ -18,21 +18,21 @@ def fetch_geoms_2d(
     progress_bar=False,
     notebook=False
 ):
-    ## Fetch CUWB position data
-    df_position = process_cuwb_data.fetch_cuwb_position_data(
+    # Fetch CUWB position data
+    df_position = fetch_raw_cuwb_data(
         environment_name=environment_name,
         start_time=start_time,
         end_time=end_time,
         environment_assignment_info=False,
         entity_assignment_info=True
     )
-    ## Create 3D geom collection from data
+    # Create 3D geom collection from data
     geom_collection_3d = create_geom_collection_3d(
         df_position,
         progress_bar=progress_bar,
         notebook=notebook
     )
-    ## Resample 3D geom collection
+    # Resample 3D geom collection
     geom_collection_3d_resampled = resample_geom(
         geom_collection_3d,
         start_time=start_time,
@@ -41,22 +41,23 @@ def fetch_geoms_2d(
         progress_bar=progress_bar,
         notebook=notebook
     )
-    ## Fetch camera info
+    # Fetch camera info
     camera_info_dict = fetch_camera_info(
         environment_name=environment_name,
         start_time=start_time,
         end_time=end_time
     )
-    ## Project onto camera views
+    # Project onto camera views
     geom_collection_2d_dict = project_onto_camera_views(
         geom_collection_3d_resampled,
         camera_info_dict
     )
     return geom_collection_2d_dict
 
+
 def create_geom_collection_3d(
     df,
-    colors = {
+    colors={
         'Person': '#ff0000',
         'Tray': '#00ff00'
     },
@@ -90,7 +91,8 @@ def create_geom_collection_3d(
             group_df.index.max().isoformat()
         ))
         time_index = group_df.index.to_pydatetime()
-        position_values = group_df.loc[:, ['x_meters', 'y_meters', 'z_meters']].values
+        position_values = group_df.loc[:, [
+            'x_meters', 'y_meters', 'z_meters']].values
         coordinates = np.expand_dims(position_values, axis=1)
         geom_list = [
             geom_render.Point3D(
@@ -123,11 +125,12 @@ def create_geom_collection_3d(
     )
     return combined_geom_collection_3d
 
+
 def resample_geom(
     geom,
     start_time,
     end_time,
-    frames_per_second = 10.0,
+    frames_per_second=10.0,
     progress_bar=False,
     notebook=False
 ):
@@ -136,8 +139,9 @@ def resample_geom(
         end_time.isoformat(),
         frames_per_second
     ))
-    time_between_frames = datetime.timedelta(microseconds = int(round(10**6/frames_per_second)))
-    num_frames = int(round((end_time - start_time)/time_between_frames))
+    time_between_frames = datetime.timedelta(
+        microseconds=int(round(10**6 / frames_per_second)))
+    num_frames = int(round((end_time - start_time) / time_between_frames))
     geom_resampled = geom.resample(
         new_start_time=start_time,
         new_frames_per_second=frames_per_second,
@@ -147,12 +151,14 @@ def resample_geom(
     )
     return geom_resampled
 
+
 def project_onto_camera_views(
     geom_3d,
     camera_info_dict
 ):
     logger.info('Creating 2D geoms from 3D geom, one for each camera: {}'.format(
-        [camera_info['device_name'] for camera_info in camera_info_dict.values()]
+        [camera_info['device_name']
+            for camera_info in camera_info_dict.values()]
     ))
     geom_2d_dict = dict()
     for device_id, camera_info in camera_info_dict.items():
@@ -170,6 +176,7 @@ def project_onto_camera_views(
             frame_height=camera_info['image_height']
         )
     return geom_2d_dict
+
 
 def write_json(
     geom_dict,
@@ -190,6 +197,7 @@ def write_json(
         )
         with open(path, 'w') as fp:
             fp.write(geom_info['geom'].to_json(indent=indent))
+
 
 def fetch_camera_info(
     environment_name,
@@ -213,7 +221,7 @@ def fetch_camera_info(
         end_time.isoformat(),
         device_ids
     ))
-    client=MinimalHoneycombClient()
+    client = MinimalHoneycombClient()
     result = client.request(
         request_type='query',
         request_name='searchDevices',
@@ -227,11 +235,11 @@ def fetch_camera_info(
                 }
             }
         },
-        return_object = [
+        return_object=[
             {'data': [
                 'device_id',
                 'name',
-                {'intrinsic_calibrations':[
+                {'intrinsic_calibrations': [
                     'start',
                     'end',
                     'camera_matrix',
@@ -239,7 +247,7 @@ def fetch_camera_info(
                     'image_width',
                     'image_height'
                 ]},
-                {'extrinsic_calibrations':[
+                {'extrinsic_calibrations': [
                     'start',
                     'end',
                     'translation_vector',
@@ -276,13 +284,14 @@ def fetch_camera_info(
         }
     return camera_info_dict
 
+
 def fetch_camera_device_ids(
     environment_name,
     start_time,
     end_time,
     camera_device_types=['PI3WITHCAMERA', 'PIZEROWITHCAMERA']
 ):
-    client=MinimalHoneycombClient()
+    client = MinimalHoneycombClient()
     result = client.request(
         request_type='query',
         request_name='findEnvironments',
@@ -292,7 +301,7 @@ def fetch_camera_device_ids(
                 'value': environment_name
             }
         },
-        return_object = [
+        return_object=[
             {'data': [
                 {'assignments': [
                     'start',
@@ -311,22 +320,28 @@ def fetch_camera_device_ids(
     )
     environments = result.get('data')
     if len(environments) == 0:
-        raise ValueError('No environments match environment name {}'.format(environment_name))
+        raise ValueError(
+            'No environments match environment name {}'.format(environment_name))
     if len(environments) > 1:
-        raise ValueError('More than one environments matched name {}'.format(environment_name))
+        raise ValueError(
+            'More than one environments matched name {}'.format(environment_name))
     assignments = environments[0].get('assignments')
     camera_device_ids = list()
     for assignment in assignments:
-        if assignment.get('start') is not None and (pd.to_datetime(assignment.get('start')).to_pydatetime() > end_time):
+        if assignment.get('start') is not None and (pd.to_datetime(
+                assignment.get('start')).to_pydatetime() > end_time):
             continue
-        if assignment.get('end') is not None and (pd.to_datetime(assignment.get('end')).to_pydatetime() < start_time):
+        if assignment.get('end') is not None and (pd.to_datetime(
+                assignment.get('end')).to_pydatetime() < start_time):
             continue
         if assignment.get('assigned').get('__typename') != 'Device':
             continue
-        if assignment.get('assigned').get('device_type') not in camera_device_types:
+        if assignment.get('assigned').get(
+                'device_type') not in camera_device_types:
             continue
         camera_device_ids.append(assignment.get('assigned').get('device_id'))
     return camera_device_ids
+
 
 def extract_assignment(
     assignments,
@@ -335,9 +350,11 @@ def extract_assignment(
 ):
     matched_assignments = list()
     for assignment in assignments:
-        if assignment.get('start') is not None and (pd.to_datetime(assignment.get('start')).to_pydatetime() > end_time):
+        if assignment.get('start') is not None and (pd.to_datetime(
+                assignment.get('start')).to_pydatetime() > end_time):
             continue
-        if assignment.get('end') is not None and (pd.to_datetime(assignment.get('end')).to_pydatetime() < start_time):
+        if assignment.get('end') is not None and (pd.to_datetime(
+                assignment.get('end')).to_pydatetime() < start_time):
             continue
         matched_assignments.append(assignment)
     if len(matched_assignments) == 0:

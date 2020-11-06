@@ -7,6 +7,7 @@ import os
 
 register_matplotlib_converters()
 
+
 def plot_positions_multiple_devices(
     df,
     room_corners,
@@ -29,6 +30,7 @@ def plot_positions_multiple_devices(
             device_serial_number=device_serial_number,
             **kwargs
         )
+
 
 def plot_positions_topdown_multiple_devices(
     df,
@@ -53,6 +55,7 @@ def plot_positions_topdown_multiple_devices(
             **kwargs
         )
 
+
 def plot_accelerations_multiple_devices(
     df,
     **kwargs
@@ -73,6 +76,7 @@ def plot_accelerations_multiple_devices(
             device_serial_number=device_serial_number,
             **kwargs
         )
+
 
 def plot_positions_and_accelerations_multiple_devices(
     df_position,
@@ -99,17 +103,19 @@ def plot_positions_and_accelerations_multiple_devices(
             room_corners=room_corners,
             **kwargs
         )
+
+
 def plot_tray_motion_features_multiple_devices(
     df_position,
     df_features,
     room_corners=None,
     velocity_limits=None,
     acceleration_limits=None,
-    figure_size_inches = [8, 10.5],
+    figure_size_inches=[8, 10.5],
     plot_show=True,
     plot_save=False,
-    output_directory = '.',
-    filename_extension = 'png',
+    output_directory='.',
+    filename_extension='png',
 ):
     if velocity_limits is None:
         velocity_min = np.min([
@@ -136,7 +142,8 @@ def plot_tray_motion_features_multiple_devices(
     for device_id in df_features['device_id'].unique().tolist():
         df_position_reduced = df_position[df_position['device_id'] == device_id]
         df_features_reduced = df_features[df_features['device_id'] == device_id]
-        device_serial_numbers = df_position_reduced['device_serial_number'].unique().tolist()
+        device_serial_numbers = df_position_reduced['device_serial_number'].unique(
+        ).tolist()
         if len(device_serial_numbers) == 0:
             raise ValueError('Device serial number for device ID {} not found in position data'.format(
                 device_id
@@ -171,6 +178,7 @@ def plot_tray_motion_features_multiple_devices(
             filename_extension=filename_extension,
         )
 
+
 def plot_tray_motion_features_with_ground_truth_multiple_devices(
     df_position,
     df_features,
@@ -178,11 +186,11 @@ def plot_tray_motion_features_with_ground_truth_multiple_devices(
     room_corners=None,
     velocity_limits=None,
     acceleration_limits=None,
-    figure_size_inches = [8, 10.5],
+    figure_size_inches=[8, 10.5],
     plot_show=True,
     plot_save=False,
-    output_directory = '.',
-    filename_extension = 'png',
+    output_directory='.',
+    filename_extension='png',
 ):
     if velocity_limits is None:
         velocity_min = np.min([
@@ -209,7 +217,8 @@ def plot_tray_motion_features_with_ground_truth_multiple_devices(
     for device_id in df_features['device_id'].unique().tolist():
         df_position_reduced = df_position[df_position['device_id'] == device_id]
         df_features_reduced = df_features[df_features['device_id'] == device_id]
-        device_serial_numbers = df_position_reduced['device_serial_number'].unique().tolist()
+        device_serial_numbers = df_position_reduced['device_serial_number'].unique(
+        ).tolist()
         if len(device_serial_numbers) == 0:
             raise ValueError('Device serial number for device ID {} not found in position data'.format(
                 device_id
@@ -245,6 +254,7 @@ def plot_tray_motion_features_with_ground_truth_multiple_devices(
             filename_extension=filename_extension,
         )
 
+
 def plot_tray_motion_features_with_state_multiple_devices(
     df_position,
     df_features,
@@ -253,11 +263,11 @@ def plot_tray_motion_features_with_state_multiple_devices(
     room_corners=None,
     velocity_limits=None,
     acceleration_limits=None,
-    figure_size_inches = [8, 10.5],
+    figure_size_inches=[8, 10.5],
     plot_show=True,
     plot_save=False,
-    output_directory = '.',
-    filename_extension = 'png',
+    output_directory='.',
+    filename_extension='png',
 ):
     if velocity_limits is None:
         velocity_min = np.min([
@@ -284,7 +294,8 @@ def plot_tray_motion_features_with_state_multiple_devices(
     for device_id in df_features['device_id'].unique().tolist():
         df_position_reduced = df_position[df_position['device_id'] == device_id]
         df_features_reduced = df_features[df_features['device_id'] == device_id]
-        device_serial_numbers = df_position_reduced['device_serial_number'].unique().tolist()
+        device_serial_numbers = df_position_reduced['device_serial_number'].unique(
+        ).tolist()
         if len(device_serial_numbers) == 0:
             raise ValueError('Device serial number for device ID {} not found in position data'.format(
                 device_id
@@ -321,24 +332,25 @@ def plot_tray_motion_features_with_state_multiple_devices(
             filename_extension=filename_extension,
         )
 
+
 def plot_positions(
     df,
     entity_name,
     device_serial_number,
     room_corners,
-    marker = '.',
-    alpha = 1.0,
-    colormap_name = 'hot_r',
-    quality_lims = [0, 10000],
-    figure_size_inches = [10.5, 8],
+    marker='.',
+    alpha=1.0,
+    colormap_name='hot_r',
+    quality_lims=[0, 10000],
+    figure_size_inches=[10.5, 8],
     plot_show=True,
     plot_save=False,
-    output_directory = '.',
-    filename_extension = 'png',
-    y_axis_labels = ['$x$ position (meters)', '$y$ position (meters)'],
-    color_axis_label = 'Quality',
-    position_column_names = ['x_meters', 'y_meters'],
-    quality_column_name = 'quality'
+    output_directory='.',
+    filename_extension='png',
+    y_axis_labels=['$x$ position (meters)', '$y$ position (meters)'],
+    color_axis_label='Quality',
+    position_column_names=['x_meters', 'y_meters'],
+    quality_column_name='quality'
 ):
     time_min = df.index.min()
     time_max = df.index.max()
@@ -355,7 +367,9 @@ def plot_positions(
             vmin=quality_lims[0],
             vmax=quality_lims[1]
         )
-        axes[axis_index].set_ylim(room_corners[0][axis_index], room_corners[1][axis_index])
+        axes[axis_index].set_ylim(
+            room_corners[0][axis_index],
+            room_corners[1][axis_index])
         axes[axis_index].set_ylabel(y_axis_labels[axis_index])
     axes[1].set_xlim(time_min, time_max)
     axes[1].set_xlabel('Time (UTC)')
@@ -365,7 +379,7 @@ def plot_positions(
         entity_name,
         device_serial_number
     ))
-    fig.set_size_inches(figure_size_inches[0],figure_size_inches[1])
+    fig.set_size_inches(figure_size_inches[0], figure_size_inches[1])
     if plot_show:
         plt.show()
     if plot_save:
@@ -382,25 +396,26 @@ def plot_positions(
         )
         fig.savefig(path)
 
+
 def plot_positions_topdown(
     df,
     entity_name,
     device_serial_number,
     room_corners,
-    marker = '.',
-    alpha = 1.0,
+    marker='.',
+    alpha=1.0,
     color_axis='quality',
-    colormap_name = 'hot_r',
-    quality_lims = [0, 10000],
-    figure_size_inches = [10.5, 8],
+    colormap_name='hot_r',
+    quality_lims=[0, 10000],
+    figure_size_inches=[10.5, 8],
     plot_show=True,
     plot_save=False,
-    output_directory = '.',
-    filename_extension = 'png',
-    axis_labels = ['$x$ position (meters)', '$y$ position (meters)'],
-    color_axis_label = 'Quality',
-    position_column_names = ['x_meters', 'y_meters'],
-    quality_column_name = 'quality'
+    output_directory='.',
+    filename_extension='png',
+    axis_labels=['$x$ position (meters)', '$y$ position (meters)'],
+    color_axis_label='Quality',
+    position_column_names=['x_meters', 'y_meters'],
+    quality_column_name='quality'
 ):
     time_min = df.index.min()
     time_max = df.index.max()
@@ -436,7 +451,7 @@ def plot_positions_topdown(
         entity_name,
         device_serial_number
     ))
-    fig.set_size_inches(figure_size_inches[0],figure_size_inches[1])
+    fig.set_size_inches(figure_size_inches[0], figure_size_inches[1])
     fig.autofmt_xdate()
     if plot_show:
         plt.show()
@@ -454,20 +469,24 @@ def plot_positions_topdown(
         )
         fig.savefig(path)
 
+
 def plot_accelerations(
     df,
     entity_name,
     device_serial_number,
-    marker = '.',
-    acceleration_max = 2.0,
-    alpha = 1.0,
-    figure_size_inches = [10.5, 8],
+    marker='.',
+    acceleration_max=2.0,
+    alpha=1.0,
+    figure_size_inches=[10.5, 8],
     plot_show=True,
     plot_save=False,
-    output_directory = '.',
-    filename_extension = 'png',
-    y_axis_labels = ['$x$ acceleration (g\'s)', '$y$ acceleration (g\'s)', '$z$ acceleration (g\'s)'],
-    acceleration_column_names = ['x_gs', 'y_gs', 'z_gs']
+    output_directory='.',
+    filename_extension='png',
+    y_axis_labels=[
+        '$x$ acceleration (g\'s)',
+        '$y$ acceleration (g\'s)',
+        '$z$ acceleration (g\'s)'],
+    acceleration_column_names=['x_gs', 'y_gs', 'z_gs']
 ):
     time_min = df.index.min()
     time_max = df.index.max()
@@ -489,7 +508,7 @@ def plot_accelerations(
         entity_name,
         device_serial_number
     ))
-    fig.set_size_inches(figure_size_inches[0],figure_size_inches[1])
+    fig.set_size_inches(figure_size_inches[0], figure_size_inches[1])
     if plot_show:
         plt.show()
     if plot_save:
@@ -506,28 +525,32 @@ def plot_accelerations(
         )
         fig.savefig(path)
 
+
 def plot_positions_and_accelerations(
     df_position,
     df_acceleration,
     entity_name,
     device_serial_number,
     room_corners,
-    marker = '.',
-    alpha = 1.0,
-    colormap_name = 'hot_r',
-    quality_lims = [0, 10000],
-    acceleration_max = 2.0,
-    figure_size_inches = [8, 10.5],
+    marker='.',
+    alpha=1.0,
+    colormap_name='hot_r',
+    quality_lims=[0, 10000],
+    acceleration_max=2.0,
+    figure_size_inches=[8, 10.5],
     plot_show=True,
     plot_save=False,
-    output_directory = '.',
-    filename_extension = 'png',
-    position_y_axis_labels = ['$x$ position (meters)', '$y$ position (meters)'],
-    position_color_axis_label = 'Position quality',
-    position_column_names = ['x_meters', 'y_meters'],
-    position_quality_column_name = 'quality',
-    acceleration_y_axis_labels = ['$x$ acceleration (g\'s)', '$y$ acceleration (g\'s)', '$z$ acceleration (g\'s)'],
-    acceleration_column_names = ['x_gs', 'y_gs', 'z_gs']
+    output_directory='.',
+    filename_extension='png',
+    position_y_axis_labels=['$x$ position (meters)', '$y$ position (meters)'],
+    position_color_axis_label='Position quality',
+    position_column_names=['x_meters', 'y_meters'],
+    position_quality_column_name='quality',
+    acceleration_y_axis_labels=[
+        '$x$ acceleration (g\'s)',
+        '$y$ acceleration (g\'s)',
+        '$z$ acceleration (g\'s)'],
+    acceleration_column_names=['x_gs', 'y_gs', 'z_gs']
 ):
     time_min = np.min([df_position.index.min(), df_acceleration.index.min()])
     time_max = np.max([df_position.index.max(), df_acceleration.index.max()])
@@ -544,8 +567,11 @@ def plot_positions_and_accelerations(
             vmin=quality_lims[0],
             vmax=quality_lims[1]
         )
-        axes[position_axis_index].set_ylim(room_corners[0][position_axis_index], room_corners[1][position_axis_index])
-        axes[position_axis_index].set_ylabel(position_y_axis_labels[position_axis_index])
+        axes[position_axis_index].set_ylim(
+            room_corners[0][position_axis_index],
+            room_corners[1][position_axis_index])
+        axes[position_axis_index].set_ylabel(
+            position_y_axis_labels[position_axis_index])
     for acceleration_axis_index in range(3):
         plots[acceleration_axis_index + 2] = axes[acceleration_axis_index + 2].scatter(
             df_acceleration.index.values,
@@ -553,8 +579,10 @@ def plot_positions_and_accelerations(
             marker=marker,
             alpha=alpha
         )
-        axes[acceleration_axis_index + 2].set_ylim(-acceleration_max, acceleration_max)
-        axes[acceleration_axis_index + 2].set_ylabel(acceleration_y_axis_labels[acceleration_axis_index])
+        axes[acceleration_axis_index +
+             2].set_ylim(-acceleration_max, acceleration_max)
+        axes[acceleration_axis_index +
+             2].set_ylabel(acceleration_y_axis_labels[acceleration_axis_index])
     axes[4].set_xlim(time_min, time_max)
     axes[4].set_xlabel('Time (UTC)')
     axes[4].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
@@ -563,7 +591,7 @@ def plot_positions_and_accelerations(
         entity_name,
         device_serial_number
     ))
-    fig.set_size_inches(figure_size_inches[0],figure_size_inches[1])
+    fig.set_size_inches(figure_size_inches[0], figure_size_inches[1])
     if plot_show:
         plt.show()
     if plot_save:
@@ -580,6 +608,7 @@ def plot_positions_and_accelerations(
         )
         fig.savefig(path)
 
+
 def plot_tray_motion_features(
     df_position,
     df_features,
@@ -588,11 +617,11 @@ def plot_tray_motion_features(
     room_corners=None,
     velocity_limits=None,
     acceleration_limits=None,
-    figure_size_inches = [8, 10.5],
+    figure_size_inches=[8, 10.5],
     plot_show=True,
     plot_save=False,
-    output_directory = '.',
-    filename_extension = 'png',
+    output_directory='.',
+    filename_extension='png',
 ):
     time_min = np.min([df_position.index.min(), df_features.index.min()])
     time_max = np.max([df_position.index.max(), df_features.index.max()])
@@ -629,9 +658,11 @@ def plot_tray_motion_features(
             df_features.index,
             df_features['{}_acceleration_normalized'.format(axis_name)],
             'b-',
-            label=r'Normalized ${}$ acceleration ($\mathrm{{m}}/\mathrm{{s}}^2$)'.format(axis_name)
+            label=r'Normalized ${}$ acceleration ($\mathrm{{m}}/\mathrm{{s}}^2$)'.format(
+                axis_name)
         )
-        axes[4 + axis_index].set_ylabel(r'$d^2{}/dt^2$ ($\mathrm{{m}}/\mathrm{{s}}^2$)'.format(axis_name))
+        axes[4 + axis_index].set_ylabel(
+            r'$d^2{}/dt^2$ ($\mathrm{{m}}/\mathrm{{s}}^2$)'.format(axis_name))
         if acceleration_limits is not None:
             axes[4 + axis_index].set_ylim(
                 acceleration_limits[0],
@@ -642,7 +673,7 @@ def plot_tray_motion_features(
         entity_name,
         device_serial_number
     )))
-    fig.set_size_inches(figure_size_inches[0],figure_size_inches[1])
+    fig.set_size_inches(figure_size_inches[0], figure_size_inches[1])
     if plot_show:
         plt.show()
     if plot_save:
@@ -657,7 +688,11 @@ def plot_tray_motion_features(
             output_directory,
             filename
         )
-        fig.savefig(path, bbox_extra_artists=extra_artists, bbox_inches='tight')
+        fig.savefig(
+            path,
+            bbox_extra_artists=extra_artists,
+            bbox_inches='tight')
+
 
 def plot_tray_motion_features_with_ground_truth(
     df_position,
@@ -668,11 +703,11 @@ def plot_tray_motion_features_with_ground_truth(
     room_corners=None,
     velocity_limits=None,
     acceleration_limits=None,
-    figure_size_inches = [8, 10.5],
+    figure_size_inches=[8, 10.5],
     plot_show=True,
     plot_save=False,
-    output_directory = '.',
-    filename_extension = 'png',
+    output_directory='.',
+    filename_extension='png',
 ):
     time_min = np.min([df_position.index.min(), df_features.index.min()])
     time_max = np.max([df_position.index.max(), df_features.index.max()])
@@ -695,8 +730,10 @@ def plot_tray_motion_features_with_ground_truth(
     for axis_index, axis_name in enumerate(['x', 'y']):
         for ground_truth_state in ground_truth_states:
             axes[2 + axis_index].scatter(
-                x=df_features.loc[df_features['ground_truth_state'] == ground_truth_state].index,
-                y=df_features.loc[df_features['ground_truth_state'] == ground_truth_state, '{}_velocity_smoothed'.format(axis_name)],
+                x=df_features.loc[df_features['ground_truth_state']
+                                  == ground_truth_state].index,
+                y=df_features.loc[df_features['ground_truth_state'] ==
+                                  ground_truth_state, '{}_velocity_smoothed'.format(axis_name)],
                 c=color_dict[ground_truth_state],
                 marker='.',
                 s=1,
@@ -711,14 +748,17 @@ def plot_tray_motion_features_with_ground_truth(
     for axis_index, axis_name in enumerate(['x', 'y', 'z']):
         for ground_truth_state in ground_truth_states:
             axes[4 + axis_index].scatter(
-                x=df_features.loc[df_features['ground_truth_state'] == ground_truth_state].index,
-                y=df_features.loc[df_features['ground_truth_state'] == ground_truth_state, '{}_acceleration_normalized'.format(axis_name)],
+                x=df_features.loc[df_features['ground_truth_state']
+                                  == ground_truth_state].index,
+                y=df_features.loc[df_features['ground_truth_state'] ==
+                                  ground_truth_state, '{}_acceleration_normalized'.format(axis_name)],
                 c=color_dict[ground_truth_state],
                 marker='.',
                 s=1,
                 label=ground_truth_state
             )
-        axes[4 + axis_index].set_ylabel(r'$d^2{}/dt^2$ ($\mathrm{{m}}/\mathrm{{s}}^2$)'.format(axis_name))
+        axes[4 + axis_index].set_ylabel(
+            r'$d^2{}/dt^2$ ($\mathrm{{m}}/\mathrm{{s}}^2$)'.format(axis_name))
         if acceleration_limits is not None:
             axes[4 + axis_index].set_ylim(
                 acceleration_limits[0],
@@ -730,8 +770,13 @@ def plot_tray_motion_features_with_ground_truth(
         entity_name,
         device_serial_number
     )))
-    extra_artists.append(axes[2].legend(loc='upper left', bbox_to_anchor=(1.0, 1.0)))
-    fig.set_size_inches(figure_size_inches[0],figure_size_inches[1])
+    extra_artists.append(
+        axes[2].legend(
+            loc='upper left',
+            bbox_to_anchor=(
+                1.0,
+                1.0)))
+    fig.set_size_inches(figure_size_inches[0], figure_size_inches[1])
     if plot_show:
         plt.show()
     if plot_save:
@@ -746,7 +791,11 @@ def plot_tray_motion_features_with_ground_truth(
             output_directory,
             filename
         )
-        fig.savefig(path, bbox_extra_artists=extra_artists, bbox_inches='tight')
+        fig.savefig(
+            path,
+            bbox_extra_artists=extra_artists,
+            bbox_inches='tight')
+
 
 def plot_tray_motion_features_with_state(
     df_position,
@@ -758,11 +807,11 @@ def plot_tray_motion_features_with_state(
     room_corners=None,
     velocity_limits=None,
     acceleration_limits=None,
-    figure_size_inches = [8, 10.5],
+    figure_size_inches=[8, 10.5],
     plot_show=True,
     plot_save=False,
-    output_directory = '.',
-    filename_extension = 'png',
+    output_directory='.',
+    filename_extension='png',
 ):
     time_min = np.min([df_position.index.min(), df_features.index.min()])
     time_max = np.max([df_position.index.max(), df_features.index.max()])
@@ -785,8 +834,10 @@ def plot_tray_motion_features_with_state(
     for axis_index, axis_name in enumerate(['x', 'y']):
         for state in states:
             axes[2 + axis_index].scatter(
-                x=df_features.loc[df_features[state_field_name] == state].index,
-                y=df_features.loc[df_features[state_field_name] == state, '{}_velocity_smoothed'.format(axis_name)],
+                x=df_features.loc[df_features[state_field_name]
+                                  == state].index,
+                y=df_features.loc[df_features[state_field_name] ==
+                                  state, '{}_velocity_smoothed'.format(axis_name)],
                 c=color_dict[state],
                 marker='.',
                 s=1,
@@ -801,14 +852,17 @@ def plot_tray_motion_features_with_state(
     for axis_index, axis_name in enumerate(['x', 'y', 'z']):
         for state in states:
             axes[4 + axis_index].scatter(
-                x=df_features.loc[df_features[state_field_name] == state].index,
-                y=df_features.loc[df_features[state_field_name] == state, '{}_acceleration_normalized'.format(axis_name)],
+                x=df_features.loc[df_features[state_field_name]
+                                  == state].index,
+                y=df_features.loc[df_features[state_field_name] ==
+                                  state, '{}_acceleration_normalized'.format(axis_name)],
                 c=color_dict[state],
                 marker='.',
                 s=1,
                 label=state
             )
-        axes[4 + axis_index].set_ylabel(r'$d^2{}/dt^2$ ($\mathrm{{m}}/\mathrm{{s}}^2$)'.format(axis_name))
+        axes[4 + axis_index].set_ylabel(
+            r'$d^2{}/dt^2$ ($\mathrm{{m}}/\mathrm{{s}}^2$)'.format(axis_name))
         if acceleration_limits is not None:
             axes[4 + axis_index].set_ylim(
                 acceleration_limits[0],
@@ -820,8 +874,13 @@ def plot_tray_motion_features_with_state(
         entity_name,
         device_serial_number
     )))
-    extra_artists.append(axes[2].legend(loc='upper left', bbox_to_anchor=(1.0, 1.0)))
-    fig.set_size_inches(figure_size_inches[0],figure_size_inches[1])
+    extra_artists.append(
+        axes[2].legend(
+            loc='upper left',
+            bbox_to_anchor=(
+                1.0,
+                1.0)))
+    fig.set_size_inches(figure_size_inches[0], figure_size_inches[1])
     if plot_show:
         plt.show()
     if plot_save:
@@ -836,4 +895,7 @@ def plot_tray_motion_features_with_state(
             output_directory,
             filename
         )
-        fig.savefig(path, bbox_extra_artists=extra_artists, bbox_inches='tight')
+        fig.savefig(
+            path,
+            bbox_extra_artists=extra_artists,
+            bbox_inches='tight')
