@@ -1,4 +1,4 @@
-from functools import partial, reduce
+from functools import partial
 import multiprocessing
 import numpy as np
 import pandas as pd
@@ -50,6 +50,28 @@ def augment_carry_events_start_and_end_times(df_carry_events_with_track_ids, num
         pd.Timedelta(seconds=num_seconds)
     df_carry_events_augmented['end_augmented'] = df_carry_events_augmented['end'] + pd.Timedelta(seconds=num_seconds)
     return df_carry_events_augmented
+
+
+def validate_tray_centroids_dataframe(df_tray_centroids):
+    # Ignoring start_time and end_time for now
+    required_columns = ['device_id', 'start_datetime', 'end_datetime', 'x_centroid', 'y_centroid', 'z_centroid']
+
+    # Verify required columns exist
+    missing_columns = []
+    for rcolumn in required_columns:
+        if rcolumn not in df_tray_centroids.columns:
+            missing_columns.append(rcolumn)
+
+    if len(missing_columns) > 0:
+        return False, "Tray centroids data missing column(s) {}".format(missing_columns)
+
+    if df_tray_centroids.x_centroid.dtype != 'float64' or\
+            df_tray_centroids.y_centroid.dtype != 'float64' or\
+            df_tray_centroids.z_centroid.dtype != 'float64':
+        msg = "Invalid tray centroid datatype, position columns (x/y/z_centroid) should be float"
+        return False, msg
+
+    return True, ""
 
 
 def get_estimated_tray_location_from_carry_events(df_features, df_carry_events):
@@ -122,6 +144,18 @@ def filter_features_by_carry_events_and_split_by_device_type(df_features, df_car
 
 
 def people_trays_cdist_iterable(idx, _df_people, _df_trays, v_count, v_start, lock, size):
+    """
+    Background runnable function to compute distances between people and tray.
+
+    :param idx: Dataframe lookup index (time based)
+    :param _df_people: People dataframe
+    :param _df_trays: Trays dataframe
+    :param v_count: Iteration count
+    :param v_start: Timer for logging progress
+    :param lock: Multiprocessing lock for variable manipulation
+    :param size: Total number of records for processing
+    :return: Dataframe of joined people and trays with computed distance
+    """
     with lock:
         if v_count.value % 1000 == 0:
             logger.info("Computing tray <-> people distances: Processed {}/{} - Time {}s".format(v_count.value,
@@ -189,7 +223,7 @@ def predict_tray_centroids(df_tray_features):
     Predict all tray's predominant resting position (shelf position)
 
     :param df_tray_features:
-    :return: Dataframe with tray centroid positions in 3d space and device_id
+    :return: Dataframe with tray centroid positions and device_id
     """
     position_cols = map_column_name_to_dimension_space(
         'position_smoothed', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
@@ -218,9 +252,6 @@ def predict_tray_centroids(df_tray_features):
                                                                                                   'z_acceleration_normalized']].round(2)
 
     # Round off tray movement to integers, this will help toward getting an estimate of the # of cluster locations
-    df_generalized_tray_locations = df_tray_movement_features_rounded.round(0).groupby(
-        [*['device_id'], *position_cols]).size().reset_index().rename(columns={0: 'count'})
-
     motionless_mask = (df_tray_movement_features_rounded['x_velocity_smoothed'] == 0.0) & \
                       (df_tray_movement_features_rounded['y_velocity_smoothed'] == 0.0) & \
                       (df_tray_movement_features_rounded['x_acceleration_normalized'] == 0.0) & \
@@ -245,13 +276,18 @@ def predict_tray_centroids(df_tray_features):
         clustering = cluster.MeanShift(bandwidth=bandwidth, n_jobs=-1, bin_seeding=True, min_bin_freq=20).fit(X)
         logger.info("Clusters for device {} est: {}".format(device_id, len(clustering.cluster_centers_)))
         for label, val in enumerate(clustering.cluster_centers_):
-            tray_clusters.append(pd.DataFrame([[device_id, val[0], val[1], np.count_nonzero(
-                np.array(clustering.labels_ == label))]], columns=[*['device_id'], *centroid_cols, *['count']]))
+            tray_clusters.append(
+                pd.DataFrame([[
+                    device_id,
+                    *val[0:DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE],
+                    np.count_nonzero(
+                        np.array(clustering.labels_ == label))]],
+                    columns=[*['device_id'], *centroid_cols, *['count']]))
 
     df_tray_clusters = pd.concat(tray_clusters)
 
     ###################
-    # Filter no-movement tray clusters by locations making up more than 5% of the day
+    # Filter and retain no-movement tray clusters by locations making up more than 5% of the day
     ###################
     tray_clusters = []
     for device_id in pd.unique(df_tray_clusters['device_id']):
@@ -273,30 +309,54 @@ def predict_tray_centroids(df_tray_features):
         df_tray_no_movement_for_device = df_tray_no_movement[df_tray_no_movement['device_id'] == device_id]
         df_tray_clusters_for_device = df_tray_clusters[df_tray_clusters['device_id'] == device_id]
 
+        # n_components is number of clusters that we should estimate
         model = GaussianMixture(n_components=len(df_tray_clusters_for_device))
         model.fit(df_tray_no_movement_for_device[position_cols])
+
+        # predict the centroid index for each row/position in df_tray_no_movement_for_device
         df_tray_centroid = df_tray_no_movement_for_device.assign(centroids=model.predict(
             df_tray_no_movement_for_device[position_cols]))
 
+        # capture the predicted centroids
         centers = np.empty(shape=(model.n_components, DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE))
         centers[:] = np.NaN
         for ii in range(model.n_components):
             centers[ii, :] = model.means_[ii]
 
         df_cluster_centers = pd.DataFrame(centers, columns=centroid_cols)
+
+        # Join the position dataframe (df_tray_no_movement_for_device) with
+        # centroid coords using the centroid index column
         df_tray_centroid = df_tray_centroid.merge(df_cluster_centers, how='left', left_on='centroids', right_index=True)
         df_tray_centroid_grouped = df_tray_centroid.groupby(
             centroid_cols).size().reset_index().rename(columns={0: 'count'})
 
+        # Retain the highest occurring centroid
+        # TODO: This logic could be improved. Where a tray resides most may not be it's primary shelf location
+        #       Nor is it safe to assume a tray will have only a single shelf location during the day
         max_idx = df_tray_centroid_grouped[['count']].idxmax()
 
-        tray_centroids.append(df_tray_centroid_grouped.loc[max_idx][centroid_cols].assign(device_id=[device_id]))
+        df_tray_centroid = df_tray_centroid_grouped.loc[max_idx][centroid_cols]
+        df_tray_centroid = df_tray_centroid.assign(
+            device_id=[device_id],
+            start_datetime=df_tray_features[df_tray_features['device_id'] == device_id].index.min(),
+            end_datetime=df_tray_features[df_tray_features['device_id'] == device_id].index.max())
+
+        tray_centroids.append(df_tray_centroid)
 
     df_tray_centroids = pd.concat(tray_centroids).reset_index(drop=True)
+
+    # Output dataframe format (z_centroid added if DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE == 3):
+    # idx            start_datetime                end_datetime   x_centroid    y_centroid  device_id
+    # 0	  2020-01-17 13:00:00+00:00   2020-01-17 23:00:00+00:00     1.039953      7.852625  44fefd70-1790-4b8f-976c-58caf4d1d7e3
+    # 1	  2020-01-17 13:00:00+00:00   2020-01-17 23:00:00+00:00     6.390389      8.804649  9a93a83f-e146-42e9-973a-673f228b75c9
+    # 2	  2020-01-17 13:00:00+00:00   2020-01-17 23:00:00+00:00    -1.303979      9.555855  c7c8988c-0a25-45e8-b823-a85650366274
+    # 3         2020-01-17 13:00:00+00:00   2020-01-17 23:00:00+00:00
+    # 2.328303      1.865759  d9df153d-678d-4946-b78e-0c549c7d2156
     return df_tray_centroids
 
 
-def extract_tray_device_interactions(df_features, df_carry_events):
+def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centroids=None):
     df_carry_events_with_track_ids = modify_carry_events_with_track_ids(df_carry_events)
     df_filtered_people, df_filtered_trays_with_track_ids = filter_features_by_carry_events_and_split_by_device_type(
         df_features, df_carry_events_with_track_ids)
@@ -304,6 +364,8 @@ def extract_tray_device_interactions(df_features, df_carry_events):
     ###############
     # Determine nearest tray/person distances
     ###############
+
+    # Build a dataframe with distances between all people and trays across all carry events times
     df_person_tray_distances = generate_person_tray_distances(df_filtered_people, df_filtered_trays_with_track_ids)
 
     # Group and aggregate each person and tray-carry-track combination to get the mean distance during the carry event
@@ -335,14 +397,35 @@ def extract_tray_device_interactions(df_features, df_carry_events):
     #############
     # Determine tray centroids (this could be substituted with user defined values)
     #############
-    df_tray_centroids = predict_tray_centroids(df_features[df_features['entity_type'] == 'Tray'])
+    if df_tray_centroids is None:
+        df_tray_centroids = predict_tray_centroids(df_features[df_features['entity_type'] == 'Tray'])
+
+    #############
+    # Determine trays positions at the start/end moments of tray carry
+    #############
     df_positions_for_carry_event_moments = get_estimated_tray_location_from_carry_events(
         df_features, df_carry_events_with_track_ids)
 
-    # Create dataframe that holds estimated carry event positions with each tray's centroid
+    #############
+    # Combine carry events w/ tray positions dataframe with the tray centroids dataframe
+    #############
     df_carry_event_position_and_centroid = df_positions_for_carry_event_moments.rename_axis(
         'timestamp').reset_index().merge(df_tray_centroids, left_on='device_id', right_on='device_id')
 
+    filter_centroids_with_start_end_time_match = (
+        (df_carry_event_position_and_centroid['start_datetime'] < df_carry_event_position_and_centroid['timestamp']) &
+        (df_carry_event_position_and_centroid['end_datetime'] > df_carry_event_position_and_centroid['timestamp']))
+
+    df_carry_event_position_and_centroid = df_carry_event_position_and_centroid.loc[
+        filter_centroids_with_start_end_time_match]
+    df_carry_event_position_and_centroid.drop(
+        labels=['start_datetime', 'end_datetime'],
+        axis=1,
+        inplace=True)
+
+    #############
+    # Calculate distance between tray positions and tray centroids/shelf-positions
+    #############
     centroid_to_tray_location_distances = []
     centroid_cols = map_column_name_to_dimension_space('centroid', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
     position_cols = map_column_name_to_dimension_space(
@@ -359,7 +442,8 @@ def extract_tray_device_interactions(df_features, df_carry_events):
     df_device_distance_from_source = pd.concat(centroid_to_tray_location_distances)
 
     #############
-    # Use tray centroids to compute start/end distances from tray source/shelf
+    # Merge tray centroid <-> position distance into a cleaned up carry events dataframe
+    # containing tray_start_distance_from_source and tray_end_distance_from_source
     #############
     df_final_carry_events_with_start_distance_only = df_carry_events_with_track_ids \
         .merge(
@@ -420,10 +504,10 @@ def extract_tray_device_interactions(df_features, df_carry_events):
     #   end (date)
     #   person_device_id (str)
     #   person_name (str)
+    #   tray_id (str)
     #   tray_device_id (str)
-    #   tray_device_name (str)
     #   tray_name (str)
-    #   tray_material_name (str)
+    #   material_assignment_id (str)
     #   material_id (str)
     #   material_name (str)
     #   devices_distance_median (float)
@@ -433,13 +517,15 @@ def extract_tray_device_interactions(df_features, df_carry_events):
     #   devices_distance_count (float)
     #   tray_start_distance_from_source (float)
     #   tray_end_distance_from_source (float)
+    #   interaction_type (str)
     logger.info("Tray motion interactions\n{}".format(df_tray_interactions))
     df_tray_interactions = df_tray_interactions.rename(
         columns={
+            'device_id_tray': 'tray_device_id',
             'device_id_person': 'person_device_id',
             'person_name_person': 'person_name'})
     df_tray_interactions = df_tray_interactions.drop(
-        labels=['device_id_tray', 'material_name_tray'],
+        labels=['tray_track_id', 'material_name_tray'],
         axis=1)
 
     interaction_types = []

@@ -25,7 +25,7 @@ def _infer_tray_carry(model, feature_scaler, df_tray_features):
     inferred = infer_tray_carry(model=model, scaler=feature_scaler, df_tray_features=df_tray_features)
 
     df_carry_events = extract_tray_carry_events_from_inferred(inferred)
-    if df_carry_events is None:
+    if df_carry_events is None or len(df_carry_events) == 0:
         logger.warn("No carry events inferred")
         return None
 
@@ -60,7 +60,7 @@ def cli_fetch_cuwb_data(environment, start, end, entity_type, data_type,
         entity_assignment_info=entity_assignments
     )
 
-    if df is None:
+    if df is None or len(df) == 0:
         logger.warning("No CUWB data found")
         return
 
@@ -92,7 +92,7 @@ def cli_fetch_tray_features(environment, start, end, output):
         entity_type='tray'
     )
 
-    if df_features is None:
+    if df_features is None or len(df_features) == 0:
         logger.warning("No CUWB data found")
         return
 
@@ -159,12 +159,12 @@ def cli_infer_tray_carry(environment, start, end, model, feature_scaler, output)
     Path(output).mkdir(parents=True, exist_ok=True)
 
     df_tray_features = fetch_motion_features(environment, start, end, entity_type='tray', include_meta_fields=True)
-    if df_tray_features is None:
+    if df_tray_features is None or len(df_tray_features) == 0:
         logger.warn("No tray motion events detected")
         return None
 
     df_carry_events = _infer_tray_carry(model, feature_scaler, df_tray_features)
-    if df_carry_events is None:
+    if df_carry_events is None or len(df_carry_events) == 0:
         logger.warn("No tray carry events detected")
         return
 
@@ -182,17 +182,19 @@ def cli_infer_tray_carry(environment, start, end, model, feature_scaler, output)
               help="Pickle formatted feature scaling input (create with 'train-tray-carry-model')")
 @click.option("--output", type=click.Path(), default="%s/output/interactions" % (os.getcwd()),
               help="output folder, carry events as csv (<<DATE>>_tray_interactions.csv)")
-def cli_infer_tray_interactions(environment, start, end, model, feature_scaler, output):
+@click.option("--tray-positions-csv", type=click.Path(exists=True),
+              help="CSV formatted tray shelf position data")
+def cli_infer_tray_interactions(environment, start, end, model, feature_scaler, output, tray_positions_csv):
     Path(output).mkdir(parents=True, exist_ok=True)
 
     df_features = fetch_motion_features(environment, start, end, include_meta_fields=True)
-    if df_features is None:
+    if df_features is None or len(df_features) == 0:
         logger.warn("No motion events detected")
         return
 
     df_tray_features = df_features[df_features['entity_type'] == 'Tray']
     df_carry_events = _infer_tray_carry(model, feature_scaler, df_tray_features)
-    if df_carry_events is None:
+    if df_carry_events is None or len(df_carry_events) == 0:
         logger.warn("No tray carry events detected")
         return
 
@@ -201,9 +203,12 @@ def cli_infer_tray_interactions(environment, start, end, model, feature_scaler, 
     # df_carry_events = pd.read_pickle("./output/interactions/2020-12-15T09:21:09_interactions_df_carry_events.pkl")
 
     #df_tray_assignments = fetch_tray_device_assignments(environment, start, end)
-
-    df_tray_interactions = extract_tray_interactions(df_features, df_carry_events)
-    write_datafile_to_csv(df_tray_interactions, "{}_tray_interactions".format(now), directory=output, index=False)
+    df_tray_interactions = extract_tray_interactions(df_features, df_carry_events, tray_positions_csv)
+    if df_tray_interactions is None or len(df_tray_interactions) == 0:
+        logger.warn("No tray interactions inferred")
+        return
+    else:
+        write_datafile_to_csv(df_tray_interactions, "{}_tray_interactions".format(now), directory=output, index=False)
 
 
 @click_log.simple_verbosity_option(logger)

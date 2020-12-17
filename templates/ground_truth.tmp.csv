@@ -1,0 +1,2 @@
+start_time,end_time,device_id,device_serial_number,material_description,person_description,description_of_activity,ground_truth_state
+2020-01-17T15:29:39,2020-01-17T15:29:42,44fefd70-1790-4b8f-976c-58caf4d1d7e3,01:05:0190,Open/close bottles,Blonde boy;white sweater,Taking materials from tray; not moving tray,Not carried

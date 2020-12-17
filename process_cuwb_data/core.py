@@ -1,11 +1,11 @@
-from .io import load_groundtruth_data
+from .io import load_csv
 from .log import logger
 from .honeycomb import fetch_environment_by_name, fetch_material_tray_devices_assignments, fetch_raw_cuwb_data
 from .uwb_motion_classifiers import TrayCarryClassifier
 from .uwb_motion_events import extract_carry_events_by_device
 from .uwb_motion_features import FeatureExtraction
 from .uwb_motion_ground_truth import combine_features_with_ground_truth_data, validate_ground_truth
-from .uwb_motion_interactions import extract_tray_device_interactions
+from .uwb_motion_interactions import extract_tray_device_interactions, validate_tray_centroids_dataframe
 
 # CUWB Data Protocol: Byte size for accelerometer values
 ACCELEROMETER_BYTE_SIZE = 4
@@ -207,7 +207,7 @@ def extract_motion_features(df_position, df_acceleration, entity_type='all'):
 
 def generate_tray_carry_groundtruth(environment, start, end, groundtruth_csv):
     try:
-        df_groundtruth = load_groundtruth_data(groundtruth_csv)
+        df_groundtruth = load_csv(groundtruth_csv)
         valid, msg = validate_ground_truth(df_groundtruth)
         if not valid:
             logger.error(msg)
@@ -258,11 +258,24 @@ def extract_tray_carry_events_from_inferred(df_inferred):
     return extract_carry_events_by_device(df_inferred)
 
 
-def extract_tray_interactions(df_features, df_carry_events):
+def extract_tray_interactions(df_features, df_carry_events, tray_positions_csv=None):
     """
     Extract carry interactions (person, tray, carry_event - FROM_SHELF/TO_SHELF/etc) from carried events (see extract_tray_carry_events_from_inferred)
 
     :param df_carry_events: Dataframe with carry events (device_id, start, end)
     :return: Dataframe containing carry interactions (person_id, device_id, start, end, carry_event)
     """
-    return extract_tray_device_interactions(df_features, df_carry_events)
+
+    df_tray_centroids = None
+    if tray_positions_csv is not None:
+        try:
+            df_tray_centroids = load_csv(tray_positions_csv)
+            valid, msg = validate_tray_centroids_dataframe(df_tray_centroids)
+            if not valid:
+                logger.error(msg)
+                return None
+        except Exception as err:
+            logger.error(err)
+            return None
+
+    return extract_tray_device_interactions(df_features, df_carry_events, df_tray_centroids)

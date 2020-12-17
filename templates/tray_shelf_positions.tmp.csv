@@ -1,0 +1,2 @@
+start_time,end_time,tray_device_id,x_centroid,y_centroid,z_centroid,device_serial_number,material_description
+2020-01-17T00:00:01,2020-01-17T23:00:00,44fefd70-1790-4b8f-976c-58caf4d1d7e3,1.031160,7.833687,0.302741,01:05:0190,Opening and closing bottles
