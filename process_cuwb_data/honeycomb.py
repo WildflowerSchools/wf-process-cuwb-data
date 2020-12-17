@@ -482,7 +482,7 @@ def fetch_environment_by_name(environment_name):
                     'environment_id',
                     'name'
                 ]
-            }
+             }
         ]
     )
     logger.info('Found environments data: {} records'.format(
@@ -569,9 +569,9 @@ def fetch_material_tray_devices_assignments(environment_id, start_time, end_time
 
             if (from_honeycomb_datetime(material_assignment['start']) > end_time or
                     (
-                            material_assignment['end'] is not None and
-                            from_honeycomb_datetime(material_assignment['end']) < start_time
-                    )):
+                material_assignment['end'] is not None and
+                from_honeycomb_datetime(material_assignment['end']) < start_time
+            )):
                 continue
 
             for entity_assignment in tray['entity_assignments']:

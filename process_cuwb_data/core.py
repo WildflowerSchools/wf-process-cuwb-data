@@ -30,6 +30,7 @@ def fetch_tray_device_assignments(
     df_tray_device_assignments = fetch_material_tray_devices_assignments(environment_id, start_time, end_time)
     return df_tray_device_assignments
 
+
 def fetch_cuwb_data(
     environment_name,
     start_time,
@@ -255,6 +256,7 @@ def extract_tray_carry_events_from_inferred(df_inferred):
     :return: Dataframe containing carry events (device_id (tray ID), start, end)
     """
     return extract_carry_events_by_device(df_inferred)
+
 
 def extract_tray_interactions(df_features, df_carry_events):
     """

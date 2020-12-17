@@ -150,7 +150,10 @@ class TrayCarryClassifier:
             raise Exception("TrayCarryClassifier model required, is None")
 
         if not isinstance(self.model, RandomForestClassifier):
-            raise Exception("TrayCarryClassifier model type is {}, must be RandomForestClassifier".format(type(self.model)))
+            raise Exception(
+                "TrayCarryClassifier model type is {}, must be RandomForestClassifier".format(
+                    type(
+                        self.model)))
 
         if self.scaler is not None and not isinstance(self.scaler, StandardScaler):
             raise Exception("Feature scaler type is {}, must be StandardScaler".format(type(self.scaler)))

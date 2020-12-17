@@ -25,9 +25,7 @@ def map_column_name_to_dimension_space(column_name, num_dimensions):
 
 def modify_carry_events_with_track_ids(df_carry_events):
     """
-    Generate a set of track IDs for each carry event. Also add/subtract 1 second from tray
-    carry start and end. Assumption is the tray will be more stable when observed a second
-    before and after tray carrying.
+    Generate a set of track IDs for each carry event.
 
     :param df_carry_events:
     :return: A modified df_carry_events dataframe with numeric track_ids
@@ -49,7 +47,7 @@ def augment_carry_events_start_and_end_times(df_carry_events_with_track_ids, num
     """
     df_carry_events_augmented = df_carry_events_with_track_ids.copy()
     df_carry_events_augmented['start_augmented'] = df_carry_events_augmented['start'] - \
-                                                   pd.Timedelta(seconds=num_seconds)
+        pd.Timedelta(seconds=num_seconds)
     df_carry_events_augmented['end_augmented'] = df_carry_events_augmented['end'] + pd.Timedelta(seconds=num_seconds)
     return df_carry_events_augmented
 
@@ -61,7 +59,8 @@ def get_estimated_tray_location_from_carry_events(df_features, df_carry_events):
     df_carry_events_with_track_ids_and_augmented_times = augment_carry_events_start_and_end_times(df_carry_events)
 
     carry_events_with_positions = []
-    position_cols = map_column_name_to_dimension_space('position_smoothed', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
+    position_cols = map_column_name_to_dimension_space(
+        'position_smoothed', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
     for _, row in df_carry_events_with_track_ids_and_augmented_times.iterrows():
         device_id_mask = (df_tray_features['device_id'] == row['device_id'])
         start_mask = (df_tray_features.index == row['start_augmented']) & device_id_mask
@@ -135,7 +134,8 @@ def people_trays_cdist_iterable(idx, _df_people, _df_trays, v_count, v_start, lo
     df_people_by_idx = _df_people.loc[[idx]]
     df_trays_by_idx = _df_trays.loc[[idx]]
 
-    position_cols = map_column_name_to_dimension_space('position_smoothed', DIMENSIONS_WHEN_COMPUTING_CHILD_TRAY_DISTANCE)
+    position_cols = map_column_name_to_dimension_space(
+        'position_smoothed', DIMENSIONS_WHEN_COMPUTING_CHILD_TRAY_DISTANCE)
 
     df_people_and_trays = df_people_by_idx.join(df_trays_by_idx, how='inner', lsuffix='_person', rsuffix='_tray')
     distances = cdist(df_people_by_idx[position_cols].to_numpy(),
@@ -191,7 +191,8 @@ def predict_tray_centroids(df_tray_features):
     :param df_tray_features:
     :return: Dataframe with tray centroid positions in 3d space and device_id
     """
-    position_cols = map_column_name_to_dimension_space('position_smoothed', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
+    position_cols = map_column_name_to_dimension_space(
+        'position_smoothed', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
     centroid_cols = map_column_name_to_dimension_space('centroid', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
 
     df_tray_movement_features = df_tray_features[['device_id',
@@ -256,7 +257,7 @@ def predict_tray_centroids(df_tray_features):
     for device_id in pd.unique(df_tray_clusters['device_id']):
         df_tray_clusters_by_device = df_tray_clusters[df_tray_clusters['device_id'] == device_id].copy()
         df_tray_clusters_by_device['percent'] = df_tray_clusters_by_device['count'] / \
-                                                df_tray_clusters_by_device['count'].sum()
+            df_tray_clusters_by_device['count'].sum()
         tray_cluster = df_tray_clusters_by_device[df_tray_clusters_by_device['percent'] > 0.05]
         tray_clusters.append(tray_cluster)
 
@@ -327,15 +328,16 @@ def extract_tray_device_interactions(df_features, df_carry_events):
     # TODO: Filter by nearest tray <> person (or not, it could be possible two children carry a tray together)
     df_carry_events_distances_from_people = df_child_tray_distances_aggregated \
         .merge(
-        df_carry_events_with_track_ids[['tray_track_id', 'start', 'end']],
-        how='left',
-        on='tray_track_id')
+            df_carry_events_with_track_ids[['tray_track_id', 'start', 'end']],
+            how='left',
+            on='tray_track_id')
 
     #############
     # Determine tray centroids (this could be substituted with user defined values)
     #############
     df_tray_centroids = predict_tray_centroids(df_features[df_features['entity_type'] == 'Tray'])
-    df_positions_for_carry_event_moments = get_estimated_tray_location_from_carry_events(df_features, df_carry_events_with_track_ids)
+    df_positions_for_carry_event_moments = get_estimated_tray_location_from_carry_events(
+        df_features, df_carry_events_with_track_ids)
 
     # Create dataframe that holds estimated carry event positions with each tray's centroid
     df_carry_event_position_and_centroid = df_positions_for_carry_event_moments.rename_axis(
@@ -343,7 +345,8 @@ def extract_tray_device_interactions(df_features, df_carry_events):
 
     centroid_to_tray_location_distances = []
     centroid_cols = map_column_name_to_dimension_space('centroid', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
-    position_cols = map_column_name_to_dimension_space('position_smoothed', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
+    position_cols = map_column_name_to_dimension_space(
+        'position_smoothed', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
 
     for idx, row in df_carry_event_position_and_centroid.iterrows():
         centroid_to_tray_location_distances.append(pd.DataFrame([[
@@ -356,7 +359,7 @@ def extract_tray_device_interactions(df_features, df_carry_events):
     df_device_distance_from_source = pd.concat(centroid_to_tray_location_distances)
 
     #############
-    # Use tray centroids to compute start/end distances from tray source/shelft
+    # Use tray centroids to compute start/end distances from tray source/shelf
     #############
     df_final_carry_events_with_start_distance_only = df_carry_events_with_track_ids \
         .merge(
@@ -388,19 +391,28 @@ def extract_tray_device_interactions(df_features, df_carry_events):
 
     # Add detailed tray & material info the dataframe
     df_tray_features = df_features[df_features['entity_type'] == 'Tray']
-    df_tray_assignments = df_tray_features.groupby(['device_id', 'tray_id', 'tray_name', 'material_assignment_id', 'material_id', 'material_name']).size().reset_index().drop(0, 1)
-    df_final_carry_events_with_distances = df_final_carry_events_with_distances.merge(df_tray_assignments, how='left', left_on='device_id', right_on='device_id')
+    df_tray_assignments = df_tray_features.groupby(['device_id',
+                                                    'tray_id',
+                                                    'tray_name',
+                                                    'material_assignment_id',
+                                                    'material_id',
+                                                    'material_name']).size().reset_index().drop(0,
+                                                                                                1)
+    df_final_carry_events_with_distances = df_final_carry_events_with_distances.merge(
+        df_tray_assignments, how='left', left_on='device_id', right_on='device_id')
 
     # Filter out instances where tray and person are too far apart
     df_grouped_carry_events_distances_from_people = df_carry_events_distances_from_people.groupby(['tray_track_id'])
-    filter_grouped_carry_events_distances = df_grouped_carry_events_distances_from_people.agg({'devices_distance_median': 'min'})['devices_distance_median'] < 1.25
+    filter_grouped_carry_events_distances = df_grouped_carry_events_distances_from_people.agg(
+        {'devices_distance_median': 'min'})['devices_distance_median'] < 1.25
     df_nearest_person_to_each_track = df_carry_events_distances_from_people.loc[filter_grouped_carry_events_distances]
-    df_tray_interactions_pre_filter = df_final_carry_events_with_distances.merge(df_nearest_person_to_each_track, how='left').drop(['device_id'], 1)
+    df_tray_interactions_pre_filter = df_final_carry_events_with_distances.merge(
+        df_nearest_person_to_each_track, how='left').drop(['device_id'], 1)
 
     # Filter out instances where tray distance from source/shelf is too far apart
     filter_trays_within_min_distance_from_source = (
-            (df_tray_interactions_pre_filter['tray_start_distance_from_source'] < 1.25) |
-            (df_tray_interactions_pre_filter['tray_end_distance_from_source'] < 1.25))
+        (df_tray_interactions_pre_filter['tray_start_distance_from_source'] < 1.25) |
+        (df_tray_interactions_pre_filter['tray_end_distance_from_source'] < 1.25))
     df_tray_interactions = df_tray_interactions_pre_filter.loc[filter_trays_within_min_distance_from_source]
 
     # Final dataframe contains:
