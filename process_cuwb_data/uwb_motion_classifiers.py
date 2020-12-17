@@ -5,9 +5,9 @@ from sklearn.ensemble import RandomForestClassifier
 import sklearn.model_selection
 from sklearn.preprocessing import StandardScaler
 
-from .tray_motion_categories import CarryCategory
+from .uwb_motion_carry_categories import CarryCategory
 from .log import logger
-from .tray_motion_filters import TrayCarryHmmFilter
+from .uwb_motion_filters import TrayCarryHmmFilter
 
 DEFAULT_FEATURE_FIELD_NAMES = [
     'x_velocity_smoothed',
@@ -146,13 +146,11 @@ class TrayCarryClassifier:
             return None
 
         if self.model is None:
-            logger.error("TrayCarryClassifier model must generated through training or supplied at init time")
-
-        if self.model is None:
-            raise Exception("Classifier model required, is None")
+            logger.error("TrayCarryClassifier model must generated via training or supplied at init time")
+            raise Exception("TrayCarryClassifier model required, is None")
 
         if not isinstance(self.model, RandomForestClassifier):
-            raise Exception("Classifier model type is {}, must be RandomForestClassifier".format(type(self.model)))
+            raise Exception("TrayCarryClassifier model type is {}, must be RandomForestClassifier".format(type(self.model)))
 
         if self.scaler is not None and not isinstance(self.scaler, StandardScaler):
             raise Exception("Feature scaler type is {}, must be StandardScaler".format(type(self.scaler)))
@@ -166,20 +164,19 @@ class TrayCarryClassifier:
 
         df_features['predicted_state'] = self.model.predict(classifier_features)
 
-        logger.info("Prediction:\n{}".format(df_features.groupby('predicted_state').size()))
+        logger.info("Carry Prediction:\n{}".format(df_features.groupby('predicted_state').size()))
 
         # Convert state from string to int
         df_features['predicted_state'] = df_features['predicted_state'].map(CarryCategory.as_name_id_dict())
 
         df_dict = dict()
-        device_ids = df_features['device_id'].unique().tolist()
-        for device_id in device_ids:
+        for device_id in pd.unique(df_features['device_id']):
             df_device_features = df_features.loc[df_features['device_id'] == device_id].copy().sort_index()
 
-            logger.info("Filter prediction anomalies for device ID {}".format(device_id))
+            logger.info("Filter tray carry prediction anomalies for device ID {}".format(device_id))
             df_device_features = TrayCarryHmmFilter().filter(df_device_features, 'predicted_state')
 
-            logger.info("Smooth predictions for device ID {}".format(device_id))
+            logger.info("Smooth tray carry predictions for device ID {}".format(device_id))
             df_device_features = self.inference_post_filter_smooth_predictions(df_device_features, 'predicted_state')
 
             df_dict[device_id] = df_device_features

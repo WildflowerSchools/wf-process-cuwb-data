@@ -1,6 +1,6 @@
 import numpy as np
 
-from .filters import ButterFilter, FiltFiltFilter, SavGolFilter
+from .filters import ButterFilter, FiltFiltFilter, SosFiltFiltFilter, SavGolFilter
 
 
 class TrayMotionButterFiltFiltFilter:
@@ -10,7 +10,7 @@ class TrayMotionButterFiltFiltFilter:
     See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
     """
 
-    def __init__(self, N=3, Wn=0.01, fs=10):
+    def __init__(self, N=4, Wn=0.75, fs=10, useSosFiltFilt=False):
         """
         Parameters
         ----------
@@ -20,14 +20,22 @@ class TrayMotionButterFiltFiltFilter:
             The critical frequency or frequencies for the butter signal filter.
         fs : float
             The sampling frequency for the butter signal filter.
+        useSosFiltFilt: boolean
+            Use a forward-backward digital filter with cascaded second-order sections
         """
         self.N = N
         self.Wn = Wn
         self.fs = fs
+        self.useSosFiltFilt = useSosFiltFilt
 
-    def filter(self, series, btype):
-        butter_b, butter_a = ButterFilter(N=self.N, Wn=self.Wn, fs=self.fs, btype=btype).filter()
-        series_filtered = FiltFiltFilter(b=butter_b, a=butter_a, x=series).filter()
+    def filter(self, series, btype='lowpass'):
+        if self.useSosFiltFilt:
+            sos = ButterFilter(N=self.N, Wn=self.Wn, fs=self.fs, btype=btype, output='sos').filter()
+            series_filtered = SosFiltFiltFilter(sos=sos, x=series).filter()
+        else:
+            butter_b, butter_a = ButterFilter(N=self.N, Wn=self.Wn, fs=self.fs, btype=btype).filter()
+            series_filtered = FiltFiltFilter(b=butter_b, a=butter_a, x=series).filter()
+
         return series_filtered
 
 
@@ -82,7 +90,7 @@ class TrayCarryHeuristicFilter:
 class TrayCarryHmmFilter:
     def __init__(self,
                  initial_probability_vector=np.array([0.999, 0.001]),
-                 transition_matrix=np.array([[.9999, 0.0001], [0.05, 0.95]]),
+                 transition_matrix=np.array([[.9999, 0.0001], [0.1, 0.9]]),
                  observation_matrix=np.array([[0.95, 0.05], [0.2, 0.8]])
                  ):
         self.initial_probability = initial_probability_vector
@@ -90,7 +98,7 @@ class TrayCarryHmmFilter:
         # Transition Matrix
         #                 Not Carry(t)   Carry(t)
         # Not Carry(t-1)  0.9999         0.0001
-        # Carry(t-1)      0.05           0.95
+        # Carry(t-1)      0.1            0.9
         self.transition_matrix = transition_matrix
 
         # Observation Matrix

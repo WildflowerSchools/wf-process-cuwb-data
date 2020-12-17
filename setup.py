@@ -11,10 +11,11 @@ BASE_DEPENDENCIES = [
     'wf-database-connection-honeycomb>=0.5.0',
     'wf-minimal-honeycomb-python>=0.6.0',
     'wf-geom-render>=0.3.0',
-    'pandas>=0.25.3',
-    'numpy>=1.18.1',
-    'scipy>=1.4.1',
-    'matplotlib>=3.1.2',
+    'pandas>=1.1.4',
+    'numpy>=1.19.4',
+    'scipy>=1.5.4',
+    'scikit-learn>=0.23.2',
+    'matplotlib>=3.3.3',
     'python-slugify>=4.0.0',
     'python-dotenv>=0.14.0'
 ]

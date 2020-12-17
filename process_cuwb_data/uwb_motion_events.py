@@ -1,6 +1,6 @@
 import pandas as pd
 
-from .tray_motion_categories import CarryCategory
+from .uwb_motion_carry_categories import CarryCategory
 from .log import logger
 
 
@@ -39,16 +39,15 @@ def extract_carry_events_by_device(
         return None
 
     logger.info("Extracting carry events")
-    device_ids = df_carry_predictions[device_id_column_name].unique().tolist()
-
     df_dict = dict()
-    for device_id in device_ids:
+    for device_id in pd.unique(df_carry_predictions[device_id_column_name]):
         logger.info("Extracting carry events for device ID {}".format(device_id))
         df_device_carry_predictions = df_carry_predictions.loc[
             df_carry_predictions[device_id_column_name] == device_id
         ].copy().sort_index()
         df_carry_events = extract_carry_events_for_device(
             df_device_carry_predictions, prediction_column_name, device_id_column_name)
+        logger.info("Extracted {} carry events for device ID {}".format(len(df_carry_events), device_id))
         df_dict[device_id] = df_carry_events
 
     return pd.concat(df_dict.values())
