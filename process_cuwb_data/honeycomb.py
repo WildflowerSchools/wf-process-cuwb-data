@@ -1,7 +1,7 @@
 import pandas as pd
 
 from database_connection_honeycomb import DatabaseConnectionHoneycomb
-from minimal_honeycomb import MinimalHoneycombClient
+from minimal_honeycomb import MinimalHoneycombClient, to_honeycomb_datetime, from_honeycomb_datetime
 
 from .log import logger
 
@@ -466,4 +466,127 @@ def add_assignment_ids(
                     lookup_boolean & start_boolean & end_boolean,
                     assignment_field_name
                 ] = assignment[assignment_field_name]
+    return df
+
+
+def fetch_environment_by_name(environment_name):
+    logger.info('Fetching Environments data')
+    client = MinimalHoneycombClient()
+    result = client.request(
+        request_type="query",
+        request_name="environments",
+        arguments=None,
+        return_object=[
+            {'data':
+                [
+                    'environment_id',
+                    'name'
+                ]
+             }
+        ]
+    )
+    logger.info('Found environments data: {} records'.format(
+        len(result.get('data'))))
+    df = pd.DataFrame(result.get('data'))
+    df = df[df['name'].str.lower().isin([environment_name.lower()])].reset_index(drop=True)
+    if len(df) > 0:
+        return df.loc[0]
+    return None
+
+
+def fetch_material_tray_devices_assignments(environment_id, start_time, end_time):
+
+    hc_start_time = to_honeycomb_datetime(start_time)
+    hc_end_time = to_honeycomb_datetime(end_time)
+
+    logger.info('Fetching CUWB tag device data')
+    client = MinimalHoneycombClient()
+    result = client.request(
+        request_type="query",
+        request_name='searchAssignments',
+        arguments={'query': {
+            'type': 'QueryExpression!',
+            'value':
+                {
+                    'operator': 'AND',
+                    'children': [
+                        {'operator': 'EQ', 'field': "environment", 'value': environment_id},
+                        {'operator': 'LTE', 'field': "start", 'value': hc_end_time},
+                        {
+                            'operator': 'OR',
+                            'children': [
+                                {'operator': 'GTE', 'field': "end", 'value': hc_start_time},
+                                {'operator': 'ISNULL', 'field': "end", 'value': hc_end_time}
+                            ]
+                        }
+                    ]
+                }
+        }},
+        return_object=[
+            {'data': [
+                {'environment': [
+                    'environment_id',
+                    'name'
+                ]},
+                'assignment_id',
+                'start',
+                'end',
+                {'assigned': [
+                    {'... on Material': [
+                        'material_id',
+                        'name',
+                        'description',
+                        {'material_assignments': [
+                            'material_assignment_id',
+                            'start',
+                            'end',
+                            {'tray': [
+                                'tray_id',
+                                'name',
+                                {'entity_assignments': [
+                                    {'device': [
+                                        'device_id',
+                                        'name'
+                                    ]}
+                                ]}
+                            ]}
+                        ]}
+                    ]}
+                ]}
+            ]}
+        ]
+    )
+    logger.info('Found material/tray/device assignments: {} records'.format(
+        len(result.get('data'))))
+
+    df_env_assignments = pd.json_normalize(result.get('data'))
+    df_env_assignments = df_env_assignments[df_env_assignments['assigned.material_assignments'].notnull()]
+
+    records = {}
+    for _, env_assignment in df_env_assignments.iterrows():
+        for material_assignment in env_assignment['assigned.material_assignments']:
+            tray = material_assignment['tray']
+
+            if (from_honeycomb_datetime(material_assignment['start']) > end_time or
+                    (
+                material_assignment['end'] is not None and
+                from_honeycomb_datetime(material_assignment['end']) < start_time
+            )):
+                continue
+
+            for entity_assignment in tray['entity_assignments']:
+                device = entity_assignment['device']
+                records[env_assignment['assignment_id']] = {
+                    'start': env_assignment['start'],
+                    'end': env_assignment['end'],
+                    'material_id': env_assignment['assigned.material_id'],
+                    'material_name': env_assignment['assigned.name'],
+                    'material_description': env_assignment['assigned.description'],
+                    'tray_id': tray['tray_id'],
+                    'tray_name': tray['name'],
+                    'tray_device_id': device['device_id'],
+                    'tray_device_name': device['name'],
+                }
+
+    df = pd.DataFrame.from_dict(records, orient='index')
     return df

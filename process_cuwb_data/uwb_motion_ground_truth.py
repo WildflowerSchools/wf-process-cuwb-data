@@ -1,4 +1,4 @@
-from .tray_motion_categories import CarryCategory
+from .uwb_motion_carry_categories import CarryCategory
 
 
 def validate_ground_truth(df_groundtruth):

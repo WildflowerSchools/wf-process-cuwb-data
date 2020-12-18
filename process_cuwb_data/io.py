@@ -31,7 +31,7 @@ def write_generic_pkl(record, filename, directory='.'):
 def read_generic_pkl(path):
     with open(path, 'rb') as fp:
         record = pickle.load(fp)
-        logger.info("Loaded pickle record '{}', type '{}'".format(path, type(record)))
+        logger.info("Loaded pickle record '{}', type '{}'".format(path, type(record).__name__))
 
     return record
 
@@ -120,7 +120,7 @@ def datetime_filename_format(timestamp):
         datetime.timezone.utc).strftime('%Y%m%d-%H%M%S')
 
 
-def load_groundtruth_data(
+def load_csv(
         path,
         start_time_field_name='start_time',
         end_time_field_name='end_time'
@@ -136,7 +136,7 @@ def load_groundtruth_data(
     if len(df['start_datetime']) == 0:
         return df
 
-    # Recognize a supplied timezone but if missing assum UTC time was implied
+    # Recognize a supplied timezone but if missing assume UTC time was implied
     # TODO: handle per row timezone differences
     if df['start_datetime'][0].tzinfo is None or df['start_datetime'][0].tzinfo.utcoffset(
             df['start_datetime'][0]) is None:
