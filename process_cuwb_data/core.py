@@ -254,9 +254,13 @@ def generate_tray_carry_groundtruth(groundtruth_csv):
     return df_groundtruth_features
 
 
-def generate_tray_carry_model(groundtruth_features):
+def generate_tray_carry_model(groundtruth_features, tune=False):
     tc = TrayCarryClassifier()
-    return tc.train(df_groundtruth=groundtruth_features)
+    if tune:
+        tc.tune(df_groundtruth=groundtruth_features)
+        return None
+    else:
+        return tc.train(df_groundtruth=groundtruth_features)
 
 
 def infer_tray_carry(model, scaler, df_tray_features):

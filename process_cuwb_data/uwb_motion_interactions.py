@@ -546,7 +546,9 @@ def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centr
 
     interaction_types = []
     for _, row in df_tray_interactions.iterrows():
-        if row['tray_start_distance_from_source'] < 1.25:
+        if row['tray_start_distance_from_source'] < 1.25 and row['tray_end_distance_from_source'] < 1.25:
+            interaction_types.append(InteractionType.CARRYING_FROM_AND_TO_SHELF.name)
+        elif row['tray_start_distance_from_source'] < 1.25:
             interaction_types.append(InteractionType.CARRYING_FROM_SHELF.name)
         elif row['tray_end_distance_from_source'] < 1.25:
             interaction_types.append(InteractionType.CARRYING_TO_SHELF.name)

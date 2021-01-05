@@ -21,12 +21,13 @@ DEFAULT_FEATURE_FIELD_NAMES = [
 
 class TrayMotionRandomForestClassifier:
     def __init__(self, n_estimators=75, max_depth=30, min_samples_leaf=1,
-                 min_samples_split=5, class_weight='balanced_subsample'):
+                 min_samples_split=5, class_weight='balanced_subsample', verbose=0):
         self.n_estimators = n_estimators
         self.max_depth = max_depth
         self.min_samples_leaf = min_samples_leaf
         self.min_samples_split = min_samples_split
         self.class_weight = class_weight
+        self.verbose = verbose
 
         self.__classifier = None
 
@@ -36,7 +37,8 @@ class TrayMotionRandomForestClassifier:
             max_depth=self.max_depth,
             min_samples_split=self.min_samples_split,
             min_samples_leaf=self.min_samples_leaf,
-            class_weight=self.class_weight
+            class_weight=self.class_weight,
+            verbose=self.verbose
         )
 
     @property
@@ -56,11 +58,7 @@ class TrayCarryClassifier:
         self.feature_field_names = feature_field_names
         self.prediction_field_name = prediction_field_name
 
-    def train(self, df_groundtruth, test_size=0.2, scale_features=True,
-              classifier=TrayMotionRandomForestClassifier().classifier):
-        if not isinstance(classifier, RandomForestClassifier):
-            raise Exception("Classifier model type is {}, must be RandomForestClassifier".format(type(classifier)))
-
+    def train_test_split(self, df_groundtruth, test_size=0.2):
         X_all = df_groundtruth[self.feature_field_names].values
         y_all = df_groundtruth[self.prediction_field_name].values
 
@@ -70,6 +68,42 @@ class TrayCarryClassifier:
             test_size=test_size,
             stratify=y_all
         )
+
+        return X_all_train, X_all_test, y_all_train, y_all_test
+
+    def tune(self, df_groundtruth, test_size=0.2, scale_features=True, param_grid=None):
+        if param_grid is None:
+            param_grid = {
+                # 'n_estimators': [50, 75, 100, 200],
+                # 'max_features': ['auto', 'sqrt', 'log2'],
+                # 'max_depth': [10, 20, 30],
+                # 'criterion': ['gini', 'entropy'],
+                # 'min_samples_split': [2, 5]
+                'n_estimators': [75, 100, 200],
+                'max_features': ['auto'],
+                'max_depth': [None, 30, 50],
+                'criterion': ['gini', 'entropy'],
+                'min_samples_split': [2, 5]
+            }
+
+        X_all_train, X_all_test, y_all_train, y_all_test = self.train_test_split(df_groundtruth, test_size)
+
+        if scale_features:
+            sc = StandardScaler()
+            X_all_train = sc.fit_transform(X_all_train)
+
+        rfc = TrayMotionRandomForestClassifier(verbose=3).classifier
+        cv_rfc = sklearn.model_selection.GridSearchCV(estimator=rfc, param_grid=param_grid, n_jobs=-1, verbose=3)
+        cv_rfc.fit(X_all_train, y_all_train)
+
+        logger.info("Ideal tuned params: {}".format(cv_rfc.best_params_))
+
+    def train(self, df_groundtruth, test_size=0.2, scale_features=True,
+              classifier=TrayMotionRandomForestClassifier().classifier):
+        if not isinstance(classifier, RandomForestClassifier):
+            raise Exception("Classifier model type is {}, must be RandomForestClassifier".format(type(classifier)))
+
+        X_all_train, X_all_test, y_all_train, y_all_test = self.train_test_split(df_groundtruth, test_size)
 
         values_train, counts_train = np.unique(y_all_train, return_counts=True)
         values_test, counts_test = np.unique(y_all_test, return_counts=True)
