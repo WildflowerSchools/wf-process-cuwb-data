@@ -279,7 +279,11 @@ def predict_tray_centroids(df_tray_features):
             min_bin_freq = 2
         # TODO: if min_bin_freq is too large, this will fail
         logger.info("Min bin frequencey: {}".format(min_bin_freq))
-        clustering = cluster.MeanShift(bandwidth=bandwidth, n_jobs=-1, bin_seeding=True, min_bin_freq=min_bin_freq).fit(X)
+        clustering = cluster.MeanShift(
+            bandwidth=bandwidth,
+            n_jobs=-1,
+            bin_seeding=True,
+            min_bin_freq=min_bin_freq).fit(X)
         logger.info("Clusters for device {} est: {}".format(device_id, len(clustering.cluster_centers_)))
         for label, val in enumerate(clustering.cluster_centers_):
             tray_clusters.append(
@@ -437,7 +441,6 @@ def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centr
     centroid_cols = map_column_name_to_dimension_space('centroid', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
     position_cols = map_column_name_to_dimension_space(
         'position_smoothed', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
-
 
     for idx, row in df_carry_event_position_and_centroid.iterrows():
         centroid_to_tray_location_distances.append(pd.DataFrame([[
