@@ -272,8 +272,14 @@ def predict_tray_centroids(df_tray_features):
         # Estimate the number of clusters per device, allow all processors to work
         logger.info("Estimating # of clusters for: {}".format(device_id))
         bandwidth = cluster.estimate_bandwidth(X, quantile=0.3, n_samples=15000)
+        min_bin_freq = 20
+        if 15000 > len(X) >= 10000:
+            min_bin_freq = 10
+        elif len(X) < 10000:
+            min_bin_freq = 2
         # TODO: if min_bin_freq is too large, this will fail
-        clustering = cluster.MeanShift(bandwidth=bandwidth, n_jobs=-1, bin_seeding=True, min_bin_freq=20).fit(X)
+        logger.info("Min bin frequencey: {}".format(min_bin_freq))
+        clustering = cluster.MeanShift(bandwidth=bandwidth, n_jobs=-1, bin_seeding=True, min_bin_freq=min_bin_freq).fit(X)
         logger.info("Clusters for device {} est: {}".format(device_id, len(clustering.cluster_centers_)))
         for label, val in enumerate(clustering.cluster_centers_):
             tray_clusters.append(
@@ -427,9 +433,11 @@ def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centr
     # Calculate distance between tray positions and tray centroids/shelf-positions
     #############
     centroid_to_tray_location_distances = []
+    centroid_to_tray_location_distances_columns = ['timestamp', 'device_id', 'tray_track_id', 'distance']
     centroid_cols = map_column_name_to_dimension_space('centroid', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
     position_cols = map_column_name_to_dimension_space(
         'position_smoothed', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
+
 
     for idx, row in df_carry_event_position_and_centroid.iterrows():
         centroid_to_tray_location_distances.append(pd.DataFrame([[
@@ -438,8 +446,13 @@ def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centr
             row['tray_track_id'],
             np.linalg.norm(
                 row[centroid_cols].to_numpy() - row[position_cols].to_numpy())
-        ]], columns=['timestamp', 'device_id', 'tray_track_id', 'distance']))
-    df_device_distance_from_source = pd.concat(centroid_to_tray_location_distances)
+        ]], columns=centroid_to_tray_location_distances_columns))
+
+    # pd.DataFrame(columns = column_names)
+    if len(centroid_to_tray_location_distances) > 0:
+        df_device_distance_from_source = pd.concat(centroid_to_tray_location_distances)
+    else:
+        df_device_distance_from_source = pd.DataFrame(columns=centroid_to_tray_location_distances_columns)
 
     #############
     # Merge tray centroid <-> position distance into a cleaned up carry events dataframe

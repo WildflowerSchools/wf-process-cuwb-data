@@ -10,11 +10,12 @@ from .log import logger
 from .uwb_motion_filters import TrayCarryHmmFilter
 
 DEFAULT_FEATURE_FIELD_NAMES = [
+    'quality',
     'x_velocity_smoothed',
     'y_velocity_smoothed',
     'x_acceleration_normalized',
     'y_acceleration_normalized',
-    'z_acceleration_normalized',
+    'z_acceleration_normalized'
 ]
 
 
@@ -176,10 +177,10 @@ class TrayCarryClassifier:
         for device_id in pd.unique(df_features['device_id']):
             df_device_features = df_features.loc[df_features['device_id'] == device_id].copy().sort_index()
 
-            logger.info("Filter tray carry prediction anomalies for device ID {}".format(device_id))
+            logger.info("Filter tray carry classification anomalies for device ID {}".format(device_id))
             df_device_features = TrayCarryHmmFilter().filter(df_device_features, 'predicted_state')
 
-            logger.info("Smooth tray carry predictions for device ID {}".format(device_id))
+            logger.info("Smooth tray carry classification for device ID {}".format(device_id))
             df_device_features = self.inference_post_filter_smooth_predictions(df_device_features, 'predicted_state')
 
             df_dict[device_id] = df_device_features

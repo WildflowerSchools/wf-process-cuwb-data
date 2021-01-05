@@ -110,17 +110,14 @@ def cli_fetch_tray_features(environment, start, end, output):
 
 @click.command(name="generate-tray-carry-groundtruth",
                help="Generate a pickled dataframe of trainable groundtruth features")
-@click.option("--environment", type=str, required=True)
-@click.option("--start", type=click.DateTime(formats=date_formats), required=True)
-@click.option("--end", type=click.DateTime(formats=date_formats), required=True)
 @click.option("--groundtruth-csv", type=click.Path(exists=True),
               help="CSV formatted groundtruth data", required=True)
 @click.option("--output", type=click.Path(), default="%s/output/features" % (os.getcwd()),
               help="output folder, output includes data features pickle (features.pkl)")
-def cli_generate_tray_carry_groundtruth(environment, start, end, groundtruth_csv, output):
+def cli_generate_tray_carry_groundtruth(groundtruth_csv, output):
     Path(output).mkdir(parents=True, exist_ok=True)
 
-    df_groundtruth_features = generate_tray_carry_groundtruth(environment, start, end, groundtruth_csv)
+    df_groundtruth_features = generate_tray_carry_groundtruth(groundtruth_csv)
 
     if df_groundtruth_features is None:
         logger.warn("Unexpected result, unable to store groundtruth features")

@@ -1,3 +1,8 @@
+from cachier import cachier
+import datetime
+import numpy as np
+import pandas as pd
+
 from .io import load_csv
 from .log import logger
 from .honeycomb import fetch_environment_by_name, fetch_material_tray_devices_assignments, fetch_raw_cuwb_data
@@ -31,6 +36,7 @@ def fetch_tray_device_assignments(
     return df_tray_device_assignments
 
 
+@cachier(stale_after=datetime.timedelta(days=1))
 def fetch_cuwb_data(
     environment_name,
     start_time,
@@ -173,6 +179,7 @@ def extract_status_data(
     return df
 
 
+@cachier(stale_after=datetime.timedelta(days=1))
 def fetch_motion_features(environment, start, end, entity_type='all', include_meta_fields=False):
     df = fetch_cuwb_data(environment,
                          start,
@@ -205,7 +212,7 @@ def extract_motion_features(df_position, df_acceleration, entity_type='all'):
     return f.extract_motion_features_for_multiple_devices(df_position, df_acceleration, entity_type)
 
 
-def generate_tray_carry_groundtruth(environment, start, end, groundtruth_csv):
+def generate_tray_carry_groundtruth(groundtruth_csv):
     try:
         df_groundtruth = load_csv(groundtruth_csv)
         valid, msg = validate_ground_truth(df_groundtruth)
@@ -216,7 +223,23 @@ def generate_tray_carry_groundtruth(environment, start, end, groundtruth_csv):
         logger.error(err)
         return None
 
-    df_features = fetch_motion_features(environment, start, end, entity_type='tray')
+    #environment_with_max_start_end_time = []
+    df_features = None
+    for (environment), group_df in df_groundtruth.groupby('environment'):
+        start = group_df.agg({'start_datetime': [np.min]}).iloc[0]['start_datetime']
+        end = group_df.agg({'end_datetime': [np.max]}).iloc[0]['end_datetime']
+
+        # Until fetch_motion_features can return data safely within exact
+        # bounds, add 30 minutes offsets to start and end
+        df_environment_features = fetch_motion_features(environment=environment,
+                                            start=start.timedelta(minutes=30),
+                                            end=end.timedelta(minutes=30),
+                                            entity_type='tray')
+
+        if df_features is None:
+            df_features = df_environment_features.copy()
+        else:
+            df_features = df_features.append(df_environment_features)
 
     try:
         df_groundtruth_features = combine_features_with_ground_truth_data(df_features, df_groundtruth)
