@@ -9,14 +9,14 @@ from .uwb_motion_carry_categories import CarryCategory
 from .log import logger
 from .uwb_motion_filters import TrayCarryHmmFilter
 
-DEFAULT_FEATURE_FIELD_NAMES = [
+DEFAULT_FEATURE_FIELD_NAMES = (
     # 'quality', - Ignoring quality in classifier for now, filtering by quality median value post-categorization instead
     'x_velocity_smoothed',
     'y_velocity_smoothed',
     'x_acceleration_normalized',
     'y_acceleration_normalized',
     'z_acceleration_normalized'
-]
+)
 
 
 class TrayMotionRandomForestClassifier:
