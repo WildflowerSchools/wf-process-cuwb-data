@@ -10,7 +10,7 @@ from .log import logger
 from .uwb_motion_filters import TrayCarryHmmFilter
 
 DEFAULT_FEATURE_FIELD_NAMES = [
-    'quality',
+    #'quality', - Ignoring quality in classifier for now, filtering by quality median value post-categorization instead
     'x_velocity_smoothed',
     'y_velocity_smoothed',
     'x_acceleration_normalized',
@@ -20,13 +20,15 @@ DEFAULT_FEATURE_FIELD_NAMES = [
 
 
 class TrayMotionRandomForestClassifier:
-    def __init__(self, n_estimators=75, max_depth=30, min_samples_leaf=1,
-                 min_samples_split=5, class_weight='balanced_subsample', verbose=0):
+    def __init__(self, n_estimators=200, max_depth=50, min_samples_leaf=1,
+                 min_samples_split=2, class_weight='balanced_subsample',
+                 criterion='entropy', verbose=0):
         self.n_estimators = n_estimators
         self.max_depth = max_depth
         self.min_samples_leaf = min_samples_leaf
         self.min_samples_split = min_samples_split
         self.class_weight = class_weight
+        self.criterion = criterion
         self.verbose = verbose
 
         self.__classifier = None
@@ -38,6 +40,7 @@ class TrayMotionRandomForestClassifier:
             min_samples_split=self.min_samples_split,
             min_samples_leaf=self.min_samples_leaf,
             class_weight=self.class_weight,
+            criterion=self.criterion,
             verbose=self.verbose
         )
 
@@ -74,11 +77,6 @@ class TrayCarryClassifier:
     def tune(self, df_groundtruth, test_size=0.2, scale_features=True, param_grid=None):
         if param_grid is None:
             param_grid = {
-                # 'n_estimators': [50, 75, 100, 200],
-                # 'max_features': ['auto', 'sqrt', 'log2'],
-                # 'max_depth': [10, 20, 30],
-                # 'criterion': ['gini', 'entropy'],
-                # 'min_samples_split': [2, 5]
                 'n_estimators': [75, 100, 200],
                 'max_features': ['auto'],
                 'max_depth': [None, 30, 50],
