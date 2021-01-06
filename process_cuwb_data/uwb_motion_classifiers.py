@@ -20,11 +20,12 @@ DEFAULT_FEATURE_FIELD_NAMES = [
 
 
 class TrayMotionRandomForestClassifier:
-    def __init__(self, n_estimators=75, max_depth=50, min_samples_leaf=1,
-                 min_samples_split=5, class_weight='balanced_subsample',
-                 criterion='entropy', verbose=0):
+    def __init__(self, n_estimators=100, max_depth=60, max_features='auto',
+                 min_samples_leaf=1, min_samples_split=2,
+                 class_weight='balanced_subsample', criterion='entropy', verbose=0):
         self.n_estimators = n_estimators
         self.max_depth = max_depth
+        self.max_features = max_features
         self.min_samples_leaf = min_samples_leaf
         self.min_samples_split = min_samples_split
         self.class_weight = class_weight
@@ -37,6 +38,7 @@ class TrayMotionRandomForestClassifier:
         return dict(
             n_estimators=self.n_estimators,
             max_depth=self.max_depth,
+            max_features=self.max_features,
             min_samples_split=self.min_samples_split,
             min_samples_leaf=self.min_samples_leaf,
             class_weight=self.class_weight,
@@ -79,7 +81,7 @@ class TrayCarryClassifier:
             param_grid = {
                 'n_estimators': [75, 100, 200],
                 'max_features': ['auto'],
-                'max_depth': [None, 30, 50],
+                'max_depth': [None, 30, 50, 60],
                 'criterion': ['gini', 'entropy'],
                 'min_samples_split': [2, 5]
             }
@@ -151,6 +153,17 @@ class TrayCarryClassifier:
         )
 
     def inference_post_filter_smooth_predictions(self, df, prediction_column_name, window=10, inplace=False):
+        """
+        Smooth out predicted instances of carry/not-carry changes that don't occur within a stable
+        rolling window of carry events. Stable rolling windows are when the number of frames (windows)
+        are uniform.
+
+        :param df: Dataframe to smooth
+        :param prediction_column_name: Predicted carry column
+        :param window: Number of frames that must be uniform to be considered a "stable" event period
+        :param inplace: Modify dataframe in-place
+        :return: Modified dataframe (if inplace is False)
+        """
         if not inplace:
             df = df.copy()
 
@@ -200,7 +213,9 @@ class TrayCarryClassifier:
 
         df_features['predicted_state'] = self.model.predict(classifier_features)
 
-        logger.info("Carry Prediction (pre filter and smoothing):\n{}".format(df_features.groupby('predicted_state').size()))
+        logger.info(
+            "Carry Prediction (pre filter and smoothing):\n{}".format(
+                df_features.groupby('predicted_state').size()))
 
         # Convert state from string to int
         df_features['predicted_state'] = df_features['predicted_state'].map(CarryCategory.as_name_id_dict())
@@ -221,6 +236,8 @@ class TrayCarryClassifier:
         # Convert state from int to string
         df_features['predicted_state'] = df_features['predicted_state'].map(CarryCategory.as_id_name_dict())
 
-        logger.info("Carry Prediction (post filter and smoothing):\n{}".format(df_features.groupby('predicted_state').size()))
+        logger.info(
+            "Carry Prediction (post filter and smoothing):\n{}".format(
+                df_features.groupby('predicted_state').size()))
 
         return df_features

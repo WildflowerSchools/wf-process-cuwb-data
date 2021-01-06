@@ -63,7 +63,9 @@ def extract_carry_events_by_device(
 
         if len(df_carry_events) > 0:
             df_carry_events.drop(df_carry_events[df_carry_events['quality_median'] < 1000].index, inplace=True)
-            logger.info("Retained {} carry events for device ID {} after filtering by low quality score".format(len(df_carry_events), device_id))
+            logger.info(
+                "Retained {} carry events for device ID {} after filtering by low quality score".format(
+                    len(df_carry_events), device_id))
 
         df_dict[device_id] = df_carry_events
 
