@@ -10,7 +10,7 @@ from .log import logger
 from .uwb_motion_filters import TrayCarryHmmFilter
 
 DEFAULT_FEATURE_FIELD_NAMES = [
-    #'quality', - Ignoring quality in classifier for now, filtering by quality median value post-categorization instead
+    # 'quality', - Ignoring quality in classifier for now, filtering by quality median value post-categorization instead
     'x_velocity_smoothed',
     'y_velocity_smoothed',
     'x_acceleration_normalized',
@@ -20,8 +20,8 @@ DEFAULT_FEATURE_FIELD_NAMES = [
 
 
 class TrayMotionRandomForestClassifier:
-    def __init__(self, n_estimators=200, max_depth=50, min_samples_leaf=1,
-                 min_samples_split=2, class_weight='balanced_subsample',
+    def __init__(self, n_estimators=75, max_depth=50, min_samples_leaf=1,
+                 min_samples_split=5, class_weight='balanced_subsample',
                  criterion='entropy', verbose=0):
         self.n_estimators = n_estimators
         self.max_depth = max_depth
@@ -200,7 +200,7 @@ class TrayCarryClassifier:
 
         df_features['predicted_state'] = self.model.predict(classifier_features)
 
-        logger.info("Carry Prediction:\n{}".format(df_features.groupby('predicted_state').size()))
+        logger.info("Carry Prediction (pre filter and smoothing):\n{}".format(df_features.groupby('predicted_state').size()))
 
         # Convert state from string to int
         df_features['predicted_state'] = df_features['predicted_state'].map(CarryCategory.as_name_id_dict())
@@ -220,4 +220,7 @@ class TrayCarryClassifier:
         df_features = pd.concat(df_dict.values())
         # Convert state from int to string
         df_features['predicted_state'] = df_features['predicted_state'].map(CarryCategory.as_id_name_dict())
+
+        logger.info("Carry Prediction (post filter and smoothing):\n{}".format(df_features.groupby('predicted_state').size()))
+
         return df_features

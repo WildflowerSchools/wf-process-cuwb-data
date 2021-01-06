@@ -90,7 +90,7 @@ class TrayCarryHeuristicFilter:
 class TrayCarryHmmFilter:
     def __init__(self,
                  initial_probability_vector=np.array([0.999, 0.001]),
-                 transition_matrix=np.array([[.9999, 0.0001], [0.1, 0.9]]),
+                 transition_matrix=np.array([[.9999, 0.0001], [0.05, 0.95]]),
                  observation_matrix=np.array([[0.95, 0.05], [0.2, 0.8]])
                  ):
         self.initial_probability = initial_probability_vector
@@ -98,7 +98,7 @@ class TrayCarryHmmFilter:
         # Transition Matrix
         #                 Not Carry(t)   Carry(t)
         # Not Carry(t-1)  0.9999         0.0001
-        # Carry(t-1)      0.1            0.9
+        # Carry(t-1)      0.05           0.95
         self.transition_matrix = transition_matrix
 
         # Observation Matrix

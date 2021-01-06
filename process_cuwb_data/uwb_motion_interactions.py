@@ -278,7 +278,6 @@ def predict_tray_centroids(df_tray_features):
         elif len(X) < 10000:
             min_bin_freq = 2
         # TODO: if min_bin_freq is too large, this will fail
-        logger.info("Min bin frequencey: {}".format(min_bin_freq))
         clustering = cluster.MeanShift(
             bandwidth=bandwidth,
             n_jobs=-1,

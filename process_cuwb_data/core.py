@@ -223,7 +223,6 @@ def generate_tray_carry_groundtruth(groundtruth_csv):
         logger.error(err)
         return None
 
-    #environment_with_max_start_end_time = []
     df_features = None
     for (environment, start_datetime), group_df in df_groundtruth.groupby(
             by=['environment', pd.Grouper(key='start_datetime', freq='D')]):
@@ -231,10 +230,10 @@ def generate_tray_carry_groundtruth(groundtruth_csv):
         end = group_df.agg({'end_datetime': [np.max]}).iloc[0]['end_datetime']
 
         # Until fetch_motion_features can return data safely within exact
-        # bounds, add 30 minutes offsets to start and end
+        # bounds, add 60 minutes offsets to start and end
         df_environment_features = fetch_motion_features(environment=environment,
-                                                        start=(start - pd.DateOffset(minutes=30)),
-                                                        end=(end + pd.DateOffset(minutes=30)),
+                                                        start=(start - pd.DateOffset(minutes=60)),
+                                                        end=(end + pd.DateOffset(minutes=60)),
                                                         entity_type='tray')
 
         if df_features is None:
