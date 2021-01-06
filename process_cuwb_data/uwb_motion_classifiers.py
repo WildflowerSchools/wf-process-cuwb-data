@@ -60,7 +60,7 @@ class TrayCarryClassifier:
                  prediction_field_name='ground_truth_state'):
         self.model = model
         self.scaler = feature_scaler
-        self.feature_field_names = feature_field_names
+        self.feature_field_names = list(feature_field_names)
         self.prediction_field_name = prediction_field_name
 
     def train_test_split(self, df_groundtruth, test_size=0.2):
