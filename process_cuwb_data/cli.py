@@ -110,17 +110,14 @@ def cli_fetch_tray_features(environment, start, end, output):
 
 @click.command(name="generate-tray-carry-groundtruth",
                help="Generate a pickled dataframe of trainable groundtruth features")
-@click.option("--environment", type=str, required=True)
-@click.option("--start", type=click.DateTime(formats=date_formats), required=True)
-@click.option("--end", type=click.DateTime(formats=date_formats), required=True)
 @click.option("--groundtruth-csv", type=click.Path(exists=True),
               help="CSV formatted groundtruth data", required=True)
 @click.option("--output", type=click.Path(), default="%s/output/features" % (os.getcwd()),
               help="output folder, output includes data features pickle (features.pkl)")
-def cli_generate_tray_carry_groundtruth(environment, start, end, groundtruth_csv, output):
+def cli_generate_tray_carry_groundtruth(groundtruth_csv, output):
     Path(output).mkdir(parents=True, exist_ok=True)
 
-    df_groundtruth_features = generate_tray_carry_groundtruth(environment, start, end, groundtruth_csv)
+    df_groundtruth_features = generate_tray_carry_groundtruth(groundtruth_csv)
 
     if df_groundtruth_features is None:
         logger.warn("Unexpected result, unable to store groundtruth features")
@@ -132,16 +129,19 @@ def cli_generate_tray_carry_groundtruth(environment, start, end, groundtruth_csv
                help="Train and generate a pickled model and feature scaler given groundtruth features")
 @click.option("--groundtruth-features", type=click.Path(exists=True),
               help="Pickle formatted groundtruth features data (create with 'generate-tray-carry-groundtruth')")
+@click.option("--tune", is_flag=True,
+              default=False, help="Tune the classifier, yields ideal hyperparameters")
 @click.option("--output", type=click.Path(), default="%s/output/models" % (os.getcwd()),
               help="output folder, model output includes pickled model (<<DATE>>_model.pkl) and pickled scaler (<<DATE>>_scaler.pkl)")
-def cli_train_tray_carry_model(groundtruth_features, output):
+def cli_train_tray_carry_model(groundtruth_features, tune, output):
     Path(output).mkdir(parents=True, exist_ok=True)
 
     df_features = pd.read_pickle(groundtruth_features)
-    result = generate_tray_carry_model(df_features)
+    result = generate_tray_carry_model(df_features, tune=tune)
 
-    write_generic_pkl(result['model'], "{}_model".format(now), output)
-    write_generic_pkl(result['scaler'], "{}_scaler".format(now), output)
+    if result is not None:
+        write_generic_pkl(result['model'], "{}_model".format(now), output)
+        write_generic_pkl(result['scaler'], "{}_scaler".format(now), output)
 
 
 @click.command(name="infer-tray-carry",

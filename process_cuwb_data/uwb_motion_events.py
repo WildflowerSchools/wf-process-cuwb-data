@@ -13,6 +13,8 @@ def extract_carry_events_for_device(df_device_carry_predictions,
             self.device_id = None
             self.start = None
             self.end = None
+            self.quality_mean = None
+            self.quality_median = None
 
     last_prediction = CarryCategory.NOT_CARRIED
     carry_event = CarryEvent()
@@ -25,6 +27,16 @@ def extract_carry_events_for_device(df_device_carry_predictions,
                 carry_event.start = time
             else:
                 carry_event.end = time
+
+                quality_agg = df_device_carry_predictions.loc[
+                    (df_device_carry_predictions['device_id'] == row['device_id']) &
+                    (df_device_carry_predictions.index >= carry_event.start) &
+                    (df_device_carry_predictions.index <= carry_event.end)
+                ]['quality'].agg(['mean', 'median'])
+
+                carry_event.quality_mean = quality_agg['mean']
+                carry_event.quality_median = quality_agg['median']
+
                 carry_events.append(carry_event)
                 carry_event = CarryEvent()
 
@@ -48,6 +60,13 @@ def extract_carry_events_by_device(
         df_carry_events = extract_carry_events_for_device(
             df_device_carry_predictions, prediction_column_name, device_id_column_name)
         logger.info("Extracted {} carry events for device ID {}".format(len(df_carry_events), device_id))
+
+        if len(df_carry_events) > 0:
+            df_carry_events.drop(df_carry_events[df_carry_events['quality_median'] < 1000].index, inplace=True)
+            logger.info(
+                "Retained {} carry events for device ID {} after filtering by low quality score".format(
+                    len(df_carry_events), device_id))
+
         df_dict[device_id] = df_carry_events
 
     return pd.concat(df_dict.values())
