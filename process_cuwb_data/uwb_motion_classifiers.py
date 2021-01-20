@@ -22,7 +22,7 @@ DEFAULT_FEATURE_FIELD_NAMES = (
 class TrayMotionRandomForestClassifier:
     def __init__(self, n_estimators=100, max_depth=60, max_features='auto',
                  min_samples_leaf=1, min_samples_split=2,
-                 class_weight='balanced_subsample', criterion='entropy', verbose=0):
+                 class_weight='balanced_subsample', criterion='entropy', verbose=0, n_jobs=-1):
         self.n_estimators = n_estimators
         self.max_depth = max_depth
         self.max_features = max_features
@@ -31,6 +31,7 @@ class TrayMotionRandomForestClassifier:
         self.class_weight = class_weight
         self.criterion = criterion
         self.verbose = verbose
+        self.n_jobs = n_jobs
 
         self.__classifier = None
 
@@ -43,7 +44,8 @@ class TrayMotionRandomForestClassifier:
             min_samples_leaf=self.min_samples_leaf,
             class_weight=self.class_weight,
             criterion=self.criterion,
-            verbose=self.verbose
+            verbose=self.verbose,
+            n_jobs=self.n_jobs
         )
 
     @property
@@ -94,8 +96,8 @@ class TrayCarryClassifier:
             sc = StandardScaler()
             X_all_train = sc.fit_transform(X_all_train)
 
-        rfc = TrayMotionRandomForestClassifier(verbose=3).classifier
-        cv_rfc = sklearn.model_selection.GridSearchCV(estimator=rfc, param_grid=param_grid, n_jobs=-1, verbose=3)
+        rfc = TrayMotionRandomForestClassifier(verbose=self.verbose).classifier
+        cv_rfc = sklearn.model_selection.GridSearchCV(estimator=rfc, param_grid=param_grid, n_jobs=-1, verbose=self.verbose)
         cv_rfc.fit(X_all_train, y_all_train)
 
         logger.info("Ideal tuned params: {}".format(cv_rfc.best_params_))
