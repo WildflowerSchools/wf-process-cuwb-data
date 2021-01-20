@@ -17,6 +17,7 @@ BASE_DEPENDENCIES = [
     'scipy>=1.5.4',
     'scikit-learn>=0.23.2',
     'matplotlib>=3.3.3',
+    'nocasedict>=1.0.2',
     'python-slugify>=4.0.0',
     'python-dotenv>=0.14.0'
 ]

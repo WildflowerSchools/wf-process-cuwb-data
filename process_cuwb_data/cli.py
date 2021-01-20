@@ -141,7 +141,9 @@ def cli_train_tray_carry_model(groundtruth_features, tune, output):
 
     if result is not None:
         write_generic_pkl(result['model'], "{}_model".format(now), output)
-        write_generic_pkl(result['scaler'], "{}_scaler".format(now), output)
+
+        if result['scaler'] is not None:
+            write_generic_pkl(result['scaler'], "{}_scaler".format(now), output)
 
 
 @click.command(name="infer-tray-carry",

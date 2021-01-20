@@ -86,6 +86,8 @@ class TrayCarryClassifier:
                 'min_samples_split': [2, 5]
             }
 
+        df_groundtruth[self.prediction_field_name] = df_groundtruth[self.prediction_field_name].str.lower()
+
         X_all_train, X_all_test, y_all_train, y_all_test = self.train_test_split(df_groundtruth, test_size)
 
         if scale_features:
@@ -102,6 +104,8 @@ class TrayCarryClassifier:
               classifier=TrayMotionRandomForestClassifier().classifier):
         if not isinstance(classifier, RandomForestClassifier):
             raise Exception("Classifier model type is {}, must be RandomForestClassifier".format(type(classifier)))
+
+        df_groundtruth[self.prediction_field_name] = df_groundtruth[self.prediction_field_name].str.lower()
 
         X_all_train, X_all_test, y_all_train, y_all_test = self.train_test_split(df_groundtruth, test_size)
 
@@ -218,7 +222,8 @@ class TrayCarryClassifier:
                 df_features.groupby('predicted_state').size()))
 
         # Convert state from string to int
-        df_features['predicted_state'] = df_features['predicted_state'].map(CarryCategory.as_name_id_dict())
+        carry_category_mapping_dictionary = CarryCategory.as_name_id_dict()  # Category label lookup is case insensitive
+        df_features['predicted_state'] = df_features['predicted_state'].map(lambda x: carry_category_mapping_dictionary[x])
 
         df_dict = dict()
         for device_id in pd.unique(df_features['device_id']):

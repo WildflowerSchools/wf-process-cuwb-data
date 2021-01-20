@@ -249,14 +249,14 @@ def predict_tray_centroids(df_tray_features):
                                                                                                   'y_velocity_smoothed',
                                                                                                   'x_acceleration_normalized',
                                                                                                   'y_acceleration_normalized',
-                                                                                                  'z_acceleration_normalized']].round(2)
+                                                                                                  'z_acceleration_normalized']].round(1)
 
     # Round off tray movement to integers, this will help toward getting an estimate of the # of cluster locations
     motionless_mask = (df_tray_movement_features_rounded['x_velocity_smoothed'] == 0.0) & \
                       (df_tray_movement_features_rounded['y_velocity_smoothed'] == 0.0) & \
                       (df_tray_movement_features_rounded['x_acceleration_normalized'] == 0.0) & \
-                      (df_tray_movement_features_rounded['y_acceleration_normalized'] == 0.0) & \
-                      (df_tray_movement_features_rounded['z_acceleration_normalized'] == 0.0)
+                      (df_tray_movement_features_rounded['y_acceleration_normalized'] == 0.0)
+                      # (df_tray_movement_features_rounded['z_acceleration_normalized'] == 0.0)  # Ignoring z acceleration, seems to report erroneously
 
     ###################
     # Use MeanShift to estimate the number of no-movement clusters for each tray
@@ -356,12 +356,11 @@ def predict_tray_centroids(df_tray_features):
     df_tray_centroids = pd.concat(tray_centroids).reset_index(drop=True)
 
     # Output dataframe format (z_centroid added if DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE == 3):
-    # idx            start_datetime                end_datetime   x_centroid    y_centroid  device_id
-    # 0	  2020-01-17 13:00:00+00:00   2020-01-17 23:00:00+00:00     1.039953      7.852625  44fefd70-1790-4b8f-976c-58caf4d1d7e3
-    # 1	  2020-01-17 13:00:00+00:00   2020-01-17 23:00:00+00:00     6.390389      8.804649  9a93a83f-e146-42e9-973a-673f228b75c9
-    # 2	  2020-01-17 13:00:00+00:00   2020-01-17 23:00:00+00:00    -1.303979      9.555855  c7c8988c-0a25-45e8-b823-a85650366274
-    # 3         2020-01-17 13:00:00+00:00   2020-01-17 23:00:00+00:00
-    # 2.328303      1.865759  d9df153d-678d-4946-b78e-0c549c7d2156
+    # idx            start_datetime                end_datetime x_centroid y_centroid  device_id
+    # 0	  2020-01-17 13:00:00+00:00   2020-01-17 23:00:00+00:00   1.039953   7.852625  44fefd70-1790-4b8f-976c-58caf4d1d7e3
+    # 1	  2020-01-17 13:00:00+00:00   2020-01-17 23:00:00+00:00   6.390389   8.804649  9a93a83f-e146-42e9-973a-673f228b75c9
+    # 2	  2020-01-17 13:00:00+00:00   2020-01-17 23:00:00+00:00  -1.303979   9.555855  c7c8988c-0a25-45e8-b823-a85650366274
+    # 3   2020-01-17 13:00:00+00:00   2020-01-17 23:00:00+00:00   2.328303   1.865759  d9df153d-678d-4946-b78e-0c549c7d2156
     return df_tray_centroids
 
 
@@ -501,10 +500,14 @@ def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centr
         df_tray_assignments, how='left', left_on='device_id', right_on='device_id')
 
     # Filter out instances where tray and person are too far apart
-    df_grouped_carry_events_distances_from_people = df_carry_events_distances_from_people.groupby(['tray_track_id'])
-    filter_grouped_carry_events_distances = df_grouped_carry_events_distances_from_people.agg(
-        {'devices_distance_median': 'min'})['devices_distance_median'] < 1.25
-    df_nearest_person_to_each_track = df_carry_events_distances_from_people.loc[filter_grouped_carry_events_distances]
+    df_grouped_carry_events_distances_from_people = df_carry_events_distances_from_people.groupby(['tray_track_id']).agg({'devices_distance_median': 'min'})
+    df_grouped_carry_events_distances_from_people.index.name = 'track_id'
+
+    filter_grouped_carry_events_distances = df_grouped_carry_events_distances_from_people['devices_distance_median'] < 1.25
+    df_unique_track_ids = df_grouped_carry_events_distances_from_people[filter_grouped_carry_events_distances]
+
+    df_nearest_person_to_each_track = df_carry_events_distances_from_people[df_carry_events_distances_from_people['tray_track_id'].isin(df_unique_track_ids.index.tolist())]
+
     df_tray_interactions_pre_filter = df_final_carry_events_with_distances.merge(
         df_nearest_person_to_each_track, how='left').drop(['device_id'], 1)
 

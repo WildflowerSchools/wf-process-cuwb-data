@@ -36,7 +36,7 @@ def fetch_tray_device_assignments(
     return df_tray_device_assignments
 
 
-@cachier(stale_after=datetime.timedelta(days=1))
+#@cachier(stale_after=datetime.timedelta(days=1))
 def fetch_cuwb_data(
     environment_name,
     start_time,
@@ -179,7 +179,7 @@ def extract_status_data(
     return df
 
 
-@cachier(stale_after=datetime.timedelta(days=1))
+#@cachier(stale_after=datetime.timedelta(days=1))
 def fetch_motion_features(environment, start, end, entity_type='all', include_meta_fields=False):
     df = fetch_cuwb_data(environment,
                          start,
@@ -195,6 +195,9 @@ def fetch_motion_features(environment, start, end, entity_type='all', include_me
         entity_type=entity_type
     )
 
+    # TODO: Resolve assumption that each device is only assigned to a single material
+    # That assumption means if a tray is reassigned to a new material, the join will
+    # create duplicates records
     if include_meta_fields and len(df) > 0:
         df_meta_fields = df[[
             'device_id', 'device_name', 'device_tag_id',
@@ -202,6 +205,16 @@ def fetch_motion_features(environment, start, end, entity_type='all', include_me
             'person_id', 'person_name', 'person_short_name', 'tray_id',
             'tray_name', 'material_assignment_id', 'material_id', 'material_name']
         ].set_index('device_id').drop_duplicates()
+
+        duplicate_error = False
+        for device_id, count in df_meta_fields.index.value_counts().items():
+            if count > 1:
+                duplicate_error = True
+                logger.error("Unexpected duplicate device_id - '{}' when fetching CUWB data. This may be caused because a tray device had been assigned to multiple materials during given time period".format(device_id))
+
+        if duplicate_error:
+            return None
+
         return df_features.join(df_meta_fields, on='device_id', how='left')
     else:
         return df_features
@@ -259,7 +272,7 @@ def generate_tray_carry_model(groundtruth_features, tune=False):
         tc.tune(df_groundtruth=groundtruth_features)
         return None
     else:
-        return tc.train(df_groundtruth=groundtruth_features)
+        return tc.train(df_groundtruth=groundtruth_features, scale_features=False)
 
 
 def infer_tray_carry(model, scaler, df_tray_features):
@@ -306,3 +319,4 @@ def extract_tray_interactions(df_features, df_carry_events, tray_positions_csv=N
             return None
 
     return extract_tray_device_interactions(df_features, df_carry_events, df_tray_centroids)
+

@@ -15,6 +15,7 @@ def fetch_raw_cuwb_data(
         environment_assignment_info=False,
         entity_assignment_info=False
 ):
+    logger.info("Fetching raw CUWB tag device data for {} from {} to {}".format(environment_name, start_time, end_time))
     object_type_honeycomb = 'DEVICE'
     object_id_field_name_honeycomb = 'device_type'
     object_ids = [device_type]

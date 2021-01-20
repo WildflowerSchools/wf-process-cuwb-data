@@ -1,5 +1,7 @@
 from enum import Enum
 
+from nocasedict import NocaseDict
+
 
 class CarryCategory(Enum):
     def __new__(cls, *args):
@@ -23,7 +25,7 @@ class CarryCategory(Enum):
 
     @classmethod
     def as_name_id_dict(cls):
-        return {c.name: c.id for c in cls}
+        return NocaseDict({c.name: c.id for c in cls})
 
     @classmethod
     def as_id_list(cls):
