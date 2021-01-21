@@ -85,22 +85,37 @@ def get_estimated_tray_location_from_carry_events(df_features, df_carry_events):
         'position_smoothed', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
     for _, row in df_carry_events_with_track_ids_and_augmented_times.iterrows():
         device_id_mask = (df_tray_features['device_id'] == row['device_id'])
-        start_mask = (df_tray_features.index == row['start_augmented']) & device_id_mask
-        end_mask = (df_tray_features.index == row['end_augmented']) & device_id_mask
+        if row['start_augmented'] in df_tray_features.index:
+            start_mask = (df_tray_features.index == row['start_augmented']) & device_id_mask
+        elif row['start'] in df_tray_features.index:
+            start_mask = (df_tray_features.index == row['start']) & device_id_mask
+
+        if row['end_augmented'] in df_tray_features.index:
+            end_mask = (df_tray_features.index == row['end_augmented']) & device_id_mask
+        elif row['end'] in df_tray_features.index:
+            end_mask = (df_tray_features.index == row['end']) & device_id_mask
 
         cols = [*['device_id'], *position_cols]
-        start_position = df_tray_features.loc[start_mask][cols]
-        start_position = start_position.assign(carry_moment='start')
-        start_position = start_position.assign(tray_track_id=row['tray_track_id'])
-        start_position.index = [row['start']]
+        df_start_position = df_tray_features.loc[start_mask][cols]
+        if len(df_start_position) == 0:
+            logger.warning("Expected a carry event for '{}' at time {} to exist but none found, skipping carry event".format(df_tray_features['device_id'], row['start']))
+            continue
 
-        end_position = df_tray_features.loc[end_mask][cols]
-        end_position = end_position.assign(carry_moment='end')
-        end_position = end_position.assign(tray_track_id=row['tray_track_id'])
-        end_position.index = [row['end']]
+        df_start_position = df_start_position.assign(carry_moment='start')
+        df_start_position = df_start_position.assign(tray_track_id=row['tray_track_id'])
+        df_start_position.index = [row['start']]
 
-        carry_events_with_positions.append(start_position)
-        carry_events_with_positions.append(end_position)
+        df_end_position = df_tray_features.loc[end_mask][cols]
+        if len(df_end_position) == 0:
+            logger.warning("Expected a carry event for '{}' at time {} to exist but none found, skipping carry event".format(df_tray_features['device_id'], row['start']))
+            continue
+
+        df_end_position = df_end_position.assign(carry_moment='end')
+        df_end_position = df_end_position.assign(tray_track_id=row['tray_track_id'])
+        df_end_position.index = [row['end']]
+
+        carry_events_with_positions.append(df_start_position)
+        carry_events_with_positions.append(df_end_position)
 
     df_positions_for_carry_event_moments = pd.concat(carry_events_with_positions)
     return df_positions_for_carry_event_moments

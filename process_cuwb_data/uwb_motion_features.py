@@ -74,9 +74,35 @@ class FeatureExtraction:
                 'z_position_smoothed',
                 'x_velocity_smoothed',
                 'y_velocity_smoothed',
+                'z_velocity_smoothed',
+                # 'x_acceleration_dv_dt_smoothed',
+                # 'y_acceleration_dv_dt_smoothed',
+                # 'z_acceleration_dv_dt_smoothed',
                 'x_acceleration_normalized',
                 'y_acceleration_normalized',
-                'z_acceleration_normalized'
+                'z_acceleration_normalized',
+                'x_acceleration_mean',
+                'y_acceleration_mean',
+                'z_acceleration_mean',
+                'acceleration_average_mean',
+                'x_acceleration_stddev',
+                'y_acceleration_stddev',
+                'z_acceleration_stddev',
+                'acceleration_average_stddev',
+                'x_acceleration_skew',
+                'y_acceleration_skew',
+                'z_acceleration_skew',
+                'acceleration_average_skew',
+                'x_acceleration_energy',
+                'y_acceleration_energy',
+                'z_acceleration_energy',
+                'acceleration_average_energy',
+                'x_y_acceleration_correlation',
+                'x_z_acceleration_correlation',
+                'y_z_acceleration_correlation',
+                'x_acceleration_correlation_sum',
+                'y_acceleration_correlation_sum',
+                'z_acceleration_correlation_sum'
             ])
             df_dict[device_id] = df_features
         df_all = pd.concat(df_dict.values())
@@ -101,7 +127,8 @@ class FeatureExtraction:
 
         df_features = df_features.join(
             df_quality, how='inner')
-        df_features.dropna(inplace=True)
+        #df_features.dropna(inplace=True)
+        df_features.fillna(df_features.mean(), inplace=True)
         return df_features
 
     def extract_velocity_features(self, df):
@@ -125,13 +152,17 @@ class FeatureExtraction:
             'y_position_smoothed',
             'z_position_smoothed',
             'x_velocity_smoothed',
-            'y_velocity_smoothed'
+            'y_velocity_smoothed',
+            'z_velocity_smoothed'
         ])
         return df
 
     def extract_acceleration_features(self, df):
         df = df.copy()
         df = df.reindex(columns=[
+            # 'x_meters',
+            # 'y_meters',
+            # 'z_meters',
             'x_gs',
             'y_gs',
             'z_gs'
@@ -142,11 +173,7 @@ class FeatureExtraction:
         df = self.calculate_acceleration_features(
             df=df,
         )
-        df = df.reindex(columns=[
-            'x_acceleration_normalized',
-            'y_acceleration_normalized',
-            'z_acceleration_normalized',
-        ])
+        df = df.drop(columns=['x_gs', 'y_gs', 'z_gs']).sort_index()
         return df
 
     def regularize_index(self, df):
@@ -189,6 +216,10 @@ class FeatureExtraction:
             df['y_position_smoothed'],
             deriv=1
         )
+        df['z_velocity_smoothed'] = self.velocity_filter.filter(
+            df['z_position_smoothed'],
+            deriv=1
+        )
 
         if not inplace:
             return df
@@ -196,6 +227,29 @@ class FeatureExtraction:
     def calculate_acceleration_features(self, df, inplace=False):
         if not inplace:
             df = df.copy()
+
+        # x_smoothed = self.position_filter.filter(
+        #     series=df['x_meters']
+        # )
+        # y_smoothed = self.position_filter.filter(
+        #     series=df['y_meters']
+        # )
+        # z_smoothed = self.position_filter.filter(
+        #     series=df['z_meters']
+        # )
+        #
+        # df['x_acceleration_dv_dt_smoothed'] = self.velocity_filter.filter(
+        #     x_smoothed,
+        #     deriv=2
+        # )
+        # df['y_acceleration_dv_dt_smoothed'] = self.velocity_filter.filter(
+        #     y_smoothed,
+        #     deriv=2
+        # )
+        # df['z_acceleration_dv_dt_smoothed'] = self.velocity_filter.filter(
+        #     z_smoothed,
+        #     deriv=2
+        # )
 
         df['x_acceleration_normalized'] = np.subtract(
             df['x_gs'],
@@ -209,5 +263,31 @@ class FeatureExtraction:
             df['z_gs'],
             df['z_gs'].mean()
         )
+
+        window = int(1 / (pd.tseries.frequencies.to_offset(self.frequency).nanos / 1000000000))
+
+        df['x_acceleration_mean'] = df['x_acceleration_normalized'].rolling(window=window, center=True).mean()
+        df['y_acceleration_mean'] = df['y_acceleration_normalized'].rolling(window=window, center=True).mean()
+        df['z_acceleration_mean'] = df['z_acceleration_normalized'].rolling(window=window, center=True).mean()
+        df['acceleration_average_mean'] = df[['x_acceleration_mean', 'y_acceleration_mean', 'z_acceleration_mean']].mean(axis=1)
+        df['x_acceleration_stddev'] = df['x_acceleration_normalized'].rolling(window=window, center=True).std()
+        df['y_acceleration_stddev'] = df['y_acceleration_normalized'].rolling(window=window, center=True).std()
+        df['z_acceleration_stddev'] = df['z_acceleration_normalized'].rolling(window=window, center=True).std()
+        df['acceleration_average_stddev'] = df[['x_acceleration_stddev', 'y_acceleration_stddev', 'z_acceleration_stddev']].mean(axis=1)
+        df['x_acceleration_skew'] = df['x_acceleration_normalized'].rolling(window=window, center=True).skew()
+        df['y_acceleration_skew'] = df['y_acceleration_normalized'].rolling(window=window, center=True).skew()
+        df['z_acceleration_skew'] = df['z_acceleration_normalized'].rolling(window=window, center=True).skew()
+        df['acceleration_average_skew'] = df[['x_acceleration_skew', 'y_acceleration_skew', 'z_acceleration_skew']].mean(axis=1)
+        df['x_acceleration_energy'] = df['x_acceleration_normalized'].pow(2).rolling(window=window, center=True).sum().div(window)
+        df['y_acceleration_energy'] = df['y_acceleration_normalized'].pow(2).rolling(window=window, center=True).sum().div(window)
+        df['z_acceleration_energy'] = df['z_acceleration_normalized'].pow(2).rolling(window=window, center=True).sum().div(window)
+        df['acceleration_average_energy'] = df[['x_acceleration_energy', 'y_acceleration_energy', 'z_acceleration_energy']].mean(axis=1)
+        df['x_y_acceleration_correlation'] = df['x_acceleration_normalized'].rolling(window=window).corr(df['y_acceleration_normalized'])
+        df['x_z_acceleration_correlation'] = df['x_acceleration_normalized'].rolling(window=window).corr(df['z_acceleration_normalized'])
+        df['y_z_acceleration_correlation'] = df['y_acceleration_normalized'].rolling(window=window).corr(df['z_acceleration_normalized'])
+        df['x_acceleration_correlation_sum'] = df['x_y_acceleration_correlation'] + df['x_z_acceleration_correlation']
+        df['y_acceleration_correlation_sum'] = df['x_y_acceleration_correlation'] + df['y_z_acceleration_correlation']
+        df['z_acceleration_correlation_sum'] = df['x_z_acceleration_correlation'] + df['y_z_acceleration_correlation']
+
         if not inplace:
             return df

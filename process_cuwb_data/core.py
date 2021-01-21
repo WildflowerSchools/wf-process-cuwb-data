@@ -36,7 +36,7 @@ def fetch_tray_device_assignments(
     return df_tray_device_assignments
 
 
-#@cachier(stale_after=datetime.timedelta(days=1))
+@cachier(stale_after=datetime.timedelta(days=1))
 def fetch_cuwb_data(
     environment_name,
     start_time,
@@ -179,7 +179,7 @@ def extract_status_data(
     return df
 
 
-#@cachier(stale_after=datetime.timedelta(days=1))
+@cachier(stale_after=datetime.timedelta(days=1))
 def fetch_motion_features(environment, start, end, entity_type='all', include_meta_fields=False):
     df = fetch_cuwb_data(environment,
                          start,

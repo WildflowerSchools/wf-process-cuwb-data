@@ -10,18 +10,40 @@ from .log import logger
 from .uwb_motion_filters import TrayCarryHmmFilter
 
 DEFAULT_FEATURE_FIELD_NAMES = (
-    # 'quality', - Ignoring quality in classifier for now, filtering by quality median value post-categorization instead
+    'quality',
     'x_velocity_smoothed',
     'y_velocity_smoothed',
     'x_acceleration_normalized',
     'y_acceleration_normalized',
-    'z_acceleration_normalized'
+    'z_acceleration_normalized',
+    'x_acceleration_mean',
+    'y_acceleration_mean',
+    'z_acceleration_mean',
+    'acceleration_average_mean',
+    'x_acceleration_stddev',
+    'y_acceleration_stddev',
+    'z_acceleration_stddev',
+    'acceleration_average_stddev',
+    'x_acceleration_skew',
+    'y_acceleration_skew',
+    'z_acceleration_skew',
+    'acceleration_average_skew',
+    'x_acceleration_energy',
+    'y_acceleration_energy',
+    'z_acceleration_energy',
+    'acceleration_average_energy',
+    'x_y_acceleration_correlation',
+    'x_z_acceleration_correlation',
+    'y_z_acceleration_correlation',
+    'x_acceleration_correlation_sum',
+    'y_acceleration_correlation_sum',
+    'z_acceleration_correlation_sum'
 )
 
 
 class TrayMotionRandomForestClassifier:
-    def __init__(self, n_estimators=100, max_depth=60, max_features='auto',
-                 min_samples_leaf=1, min_samples_split=2,
+    def __init__(self, n_estimators=200, max_depth=30, max_features='auto',
+                 min_samples_leaf=1, min_samples_split=5,
                  class_weight='balanced_subsample', criterion='entropy', verbose=0, n_jobs=-1):
         self.n_estimators = n_estimators
         self.max_depth = max_depth
@@ -65,7 +87,7 @@ class TrayCarryClassifier:
         self.feature_field_names = list(feature_field_names)
         self.prediction_field_name = prediction_field_name
 
-    def train_test_split(self, df_groundtruth, test_size=0.2):
+    def train_test_split(self, df_groundtruth, test_size=0.3):
         X_all = df_groundtruth[self.feature_field_names].values
         y_all = df_groundtruth[self.prediction_field_name].values
 
@@ -78,7 +100,7 @@ class TrayCarryClassifier:
 
         return X_all_train, X_all_test, y_all_train, y_all_test
 
-    def tune(self, df_groundtruth, test_size=0.2, scale_features=True, param_grid=None):
+    def tune(self, df_groundtruth, test_size=0.3, scale_features=True, param_grid=None):
         if param_grid is None:
             param_grid = {
                 'n_estimators': [75, 100, 200],
@@ -96,13 +118,13 @@ class TrayCarryClassifier:
             sc = StandardScaler()
             X_all_train = sc.fit_transform(X_all_train)
 
-        rfc = TrayMotionRandomForestClassifier(verbose=self.verbose).classifier
-        cv_rfc = sklearn.model_selection.GridSearchCV(estimator=rfc, param_grid=param_grid, n_jobs=-1, verbose=self.verbose)
+        rfc = TrayMotionRandomForestClassifier(verbose=1).classifier
+        cv_rfc = sklearn.model_selection.GridSearchCV(estimator=rfc, param_grid=param_grid, n_jobs=-1, verbose=3)
         cv_rfc.fit(X_all_train, y_all_train)
 
         logger.info("Ideal tuned params: {}".format(cv_rfc.best_params_))
 
-    def train(self, df_groundtruth, test_size=0.2, scale_features=True,
+    def train(self, df_groundtruth, test_size=0.3, scale_features=True,
               classifier=TrayMotionRandomForestClassifier().classifier):
         if not isinstance(classifier, RandomForestClassifier):
             raise Exception("Classifier model type is {}, must be RandomForestClassifier".format(type(classifier)))
