@@ -1,5 +1,3 @@
-from cachier import cachier
-import datetime
 import numpy as np
 import pandas as pd
 
@@ -36,7 +34,6 @@ def fetch_tray_device_assignments(
     return df_tray_device_assignments
 
 
-@cachier(stale_after=datetime.timedelta(days=1))
 def fetch_cuwb_data(
     environment_name,
     start_time,
@@ -179,7 +176,6 @@ def extract_status_data(
     return df
 
 
-@cachier(stale_after=datetime.timedelta(days=1))
 def fetch_motion_features(environment, start, end, entity_type='all', include_meta_fields=False):
     df = fetch_cuwb_data(environment,
                          start,
@@ -210,7 +206,8 @@ def fetch_motion_features(environment, start, end, entity_type='all', include_me
         for device_id, count in df_meta_fields.index.value_counts().items():
             if count > 1:
                 duplicate_error = True
-                logger.error("Unexpected duplicate device_id - '{}' when fetching CUWB data. This may be caused because a tray device had been assigned to multiple materials during given time period".format(device_id))
+                logger.error(
+                    "Unexpected duplicate device_id - '{}' when fetching CUWB data. This may be caused because a tray device had been assigned to multiple materials during given time period".format(device_id))
 
         if duplicate_error:
             return None
@@ -319,4 +316,3 @@ def extract_tray_interactions(df_features, df_carry_events, tray_positions_csv=N
             return None
 
     return extract_tray_device_interactions(df_features, df_carry_events, df_tray_centroids)
-

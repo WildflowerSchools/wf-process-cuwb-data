@@ -1,11 +1,14 @@
+import datetime
 import pandas as pd
 
+from cachier import cachier
 from database_connection_honeycomb import DatabaseConnectionHoneycomb
 from minimal_honeycomb import MinimalHoneycombClient, to_honeycomb_datetime, from_honeycomb_datetime
 
 from .log import logger
 
 
+@cachier(stale_after=datetime.timedelta(days=1))
 def fetch_raw_cuwb_data(
         environment_name,
         start_time,

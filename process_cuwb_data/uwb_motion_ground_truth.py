@@ -43,9 +43,9 @@ def combine_features_with_ground_truth_data(
             raise Exception(msg)
 
         mask = (
-                (df_features['device_id'] == row['device_id']) &
-                (df_features.index >= row['start_datetime']) &
-                (df_features.index <= row['end_datetime'])
+            (df_features['device_id'] == row['device_id']) &
+            (df_features.index >= row['start_datetime']) &
+            (df_features.index <= row['end_datetime'])
         )
 
         df_features_masked = df_features.loc[mask].copy()

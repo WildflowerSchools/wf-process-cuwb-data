@@ -11,8 +11,57 @@ from .uwb_motion_filters import TrayCarryHmmFilter
 
 DEFAULT_FEATURE_FIELD_NAMES = (
     'quality',
-    'x_velocity_smoothed',
-    'y_velocity_smoothed',
+    'velocity_vector_magnitude',
+    'velocity_vector_magnitude_mean',
+    'velocity_vector_magnitude_stddev',
+    'velocity_vector_magnitude_skew',
+    'velocity_vector_magnitude_variance',
+    'velocity_vector_magnitude_kurtosis',
+    #
+    # Not using add'l velocity features, classifying carry/not-carry didn't show improved results
+    #
+    # 'x_velocity_smoothed_magnitude',
+    # 'y_velocity_smoothed_magnitude',
+    # 'z_velocity_smoothed_magnitude',
+    # 'x_velocity_smoothed',
+    # 'y_velocity_smoothed',
+    # 'z_velocity_smoothed',
+    # 'x_velocity_mean',
+    # 'y_velocity_mean',
+    # 'z_velocity_mean',
+    # 'velocity_average_mean',
+    # 'x_velocity_stddev',
+    # 'y_velocity_stddev',
+    # 'z_velocity_stddev',
+    # 'velocity_average_stddev',
+    # 'x_velocity_skew',
+    # 'y_velocity_skew',
+    # 'z_velocity_skew',
+    # 'velocity_average_skew',
+    # 'x_velocity_variance',
+    # 'y_velocity_variance',
+    # 'z_velocity_variance',
+    # 'velocity_average_variance',
+    # 'x_velocity_kurtosis',
+    # 'y_velocity_kurtosis',
+    # 'z_velocity_kurtosis',
+    # 'velocity_average_kurtosis',
+    # 'x_y_velocity_correlation',
+    # 'x_z_velocity_correlation',
+    # 'y_z_velocity_correlation',
+    # 'x_velocity_correlation_sum',
+    # 'y_velocity_correlation_sum',
+    # 'z_velocity_correlation_sum',
+    'acceleration_vector_magnitude',
+    'acceleration_vector_magnitude_mean',
+    'acceleration_vector_magnitude_sum',
+    'acceleration_vector_magnitude_min',
+    'acceleration_vector_magnitude_max',
+    'acceleration_vector_magnitude_stddev',
+    'acceleration_vector_magnitude_skew',
+    'acceleration_vector_magnitude_variance',
+    'acceleration_vector_magnitude_kurtosis',
+    'acceleration_vector_magnitude_energy',
     'x_acceleration_normalized',
     'y_acceleration_normalized',
     'z_acceleration_normalized',
@@ -20,6 +69,18 @@ DEFAULT_FEATURE_FIELD_NAMES = (
     'y_acceleration_mean',
     'z_acceleration_mean',
     'acceleration_average_mean',
+    'x_acceleration_sum',
+    'y_acceleration_sum',
+    'z_acceleration_sum',
+    'acceleration_average_sum',
+    'x_acceleration_min',
+    'y_acceleration_min',
+    'z_acceleration_min',
+    'acceleration_average_min',
+    'x_acceleration_max',
+    'y_acceleration_max',
+    'z_acceleration_max',
+    'acceleration_average_max',
     'x_acceleration_stddev',
     'y_acceleration_stddev',
     'z_acceleration_stddev',
@@ -28,6 +89,14 @@ DEFAULT_FEATURE_FIELD_NAMES = (
     'y_acceleration_skew',
     'z_acceleration_skew',
     'acceleration_average_skew',
+    'x_acceleration_variance',
+    'y_acceleration_variance',
+    'z_acceleration_variance',
+    'acceleration_average_variance',
+    'x_acceleration_kurtosis',
+    'y_acceleration_kurtosis',
+    'z_acceleration_kurtosis',
+    'acceleration_average_kurtosis',
     'x_acceleration_energy',
     'y_acceleration_energy',
     'z_acceleration_energy',
@@ -42,8 +111,8 @@ DEFAULT_FEATURE_FIELD_NAMES = (
 
 
 class TrayMotionRandomForestClassifier:
-    def __init__(self, n_estimators=200, max_depth=30, max_features='auto',
-                 min_samples_leaf=1, min_samples_split=5,
+    def __init__(self, n_estimators=100, max_depth=30, max_features='auto',
+                 min_samples_leaf=1, min_samples_split=2,
                  class_weight='balanced_subsample', criterion='entropy', verbose=0, n_jobs=-1):
         self.n_estimators = n_estimators
         self.max_depth = max_depth
@@ -247,7 +316,8 @@ class TrayCarryClassifier:
 
         # Convert state from string to int
         carry_category_mapping_dictionary = CarryCategory.as_name_id_dict()  # Category label lookup is case insensitive
-        df_features['predicted_state'] = df_features['predicted_state'].map(lambda x: carry_category_mapping_dictionary[x])
+        df_features['predicted_state'] = df_features['predicted_state'].map(
+            lambda x: carry_category_mapping_dictionary[x])
 
         df_dict = dict()
         for device_id in pd.unique(df_features['device_id']):
