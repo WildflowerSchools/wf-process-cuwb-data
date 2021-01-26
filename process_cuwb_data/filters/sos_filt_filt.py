@@ -8,4 +8,11 @@ class SosFiltFiltFilter:
         self.kwargs = kwargs
 
     def filter(self):
-        return sosfiltfilt(sos=self.sos, x=self.x, **self.kwargs)
+        padlen = None
+        if len(self.x) < 20:
+            padlen = 0
+
+        args = self.kwargs.copy()
+        args['padlen'] = padlen
+
+        return sosfiltfilt(sos=self.sos, x=self.x, **args)

@@ -14,12 +14,15 @@ DEFAULT_FEATURE_FIELD_NAMES = (
     'velocity_vector_magnitude',
     'velocity_vector_magnitude_mean',
     'velocity_vector_magnitude_stddev',
-    'velocity_vector_magnitude_skew',
-    'velocity_vector_magnitude_variance',
-    'velocity_vector_magnitude_kurtosis',
+    'velocity_vector_magnitude_xy',
+    'velocity_vector_magnitude_mean_xy',
+    'velocity_vector_magnitude_stddev_xy',
     #
-    # Not using add'l velocity features, classifying carry/not-carry didn't show improved results
+    # Not using add'l velocity features, add'l attributes didn't show improved results
     #
+    # 'velocity_vector_magnitude_skew_xy',
+    # 'velocity_vector_magnitude_variance_xy',
+    # 'velocity_vector_magnitude_kurtosis_xy',
     # 'x_velocity_smoothed_magnitude',
     # 'y_velocity_smoothed_magnitude',
     # 'z_velocity_smoothed_magnitude',
@@ -46,7 +49,7 @@ DEFAULT_FEATURE_FIELD_NAMES = (
     # 'y_velocity_kurtosis',
     # 'z_velocity_kurtosis',
     # 'velocity_average_kurtosis',
-    # 'x_y_velocity_correlation',
+    'x_y_velocity_correlation',
     # 'x_z_velocity_correlation',
     # 'y_z_velocity_correlation',
     # 'x_velocity_correlation_sum',

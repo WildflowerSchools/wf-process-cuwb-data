@@ -62,8 +62,21 @@ class TrayMotionSavGolFilter:
         self.delta = 1 / fs
 
     def filter(self, series, deriv):
+        if len(series) <= 1 or self.window_length == 0:
+            return None
+
+        window_length = self.window_length
+        while window_length > len(series):
+            window_length = int(window_length / 2)
+            if window_length % 2 == 0:
+                window_length += 1
+
+        polyorder = self.polyorder
+        if self.polyorder >= window_length:
+            polyorder = window_length - 1
+
         return SavGolFilter(
-            series, deriv=deriv, window_length=self.window_length, polyorder=self.polyorder, delta=self.delta).filter()
+            series, deriv=deriv, window_length=window_length, polyorder=polyorder, delta=self.delta).filter()
 
 
 class TrayCarryHeuristicFilter:

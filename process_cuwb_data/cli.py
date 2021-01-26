@@ -189,12 +189,20 @@ def cli_infer_tray_carry(environment, start, end, model, feature_scaler, output)
 def cli_infer_tray_interactions(environment, start, end, model, feature_scaler, output, tray_positions_csv):
     Path(output).mkdir(parents=True, exist_ok=True)
 
-    df_features = fetch_motion_features(environment, start, end, include_meta_fields=True)
-    if df_features is None or len(df_features) == 0:
+    df_tray_features = fetch_motion_features(
+        environment,
+        start,
+        end,
+        entity_type='tray',
+        fillna='average')
+    # include_meta_fields=True)
+    if df_tray_features is None or len(df_tray_features) == 0:
         logger.warn("No motion events detected")
         return
 
-    df_tray_features = df_features[df_features['entity_type'] == 'Tray']
+    #df_tray_features = df_features[df_features['entity_type'] == 'Tray']
+    #df_tray_features.fillna(df_features.mean(), inplace=True)
+
     df_carry_events = _infer_tray_carry(model, feature_scaler, df_tray_features)
     if df_carry_events is None or len(df_carry_events) == 0:
         logger.warn("No tray carry events detected")
@@ -205,6 +213,13 @@ def cli_infer_tray_interactions(environment, start, end, model, feature_scaler, 
     # df_carry_events = pd.read_pickle("./output/interactions/2020-12-15T09:21:09_interactions_df_carry_events.pkl")
 
     #df_tray_assignments = fetch_tray_device_assignments(environment, start, end)
+
+    df_features = fetch_motion_features(
+        environment,
+        start,
+        end,
+        # entity_type='people')
+        include_meta_fields=True)
     df_tray_interactions = extract_tray_interactions(df_features, df_carry_events, tray_positions_csv)
     if df_tray_interactions is None or len(df_tray_interactions) == 0:
         logger.warn("No tray interactions inferred")

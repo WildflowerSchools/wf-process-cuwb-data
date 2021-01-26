@@ -4,21 +4,12 @@ import pandas as pd
 from .io import load_csv
 from .log import logger
 from .honeycomb import fetch_environment_by_name, fetch_material_tray_devices_assignments, fetch_raw_cuwb_data
+from .uwb_extract_data import extract_by_data_type_and_format, extract_by_entity_type
 from .uwb_motion_classifiers import TrayCarryClassifier
 from .uwb_motion_events import extract_carry_events_by_device
 from .uwb_motion_features import FeatureExtraction
 from .uwb_motion_ground_truth import combine_features_with_ground_truth_data, validate_ground_truth
 from .uwb_motion_interactions import extract_tray_device_interactions, validate_tray_centroids_dataframe
-
-# CUWB Data Protocol: Byte size for accelerometer values
-ACCELEROMETER_BYTE_SIZE = 4
-
-# CUWB Data Protocol: Maximum integer for each byte size
-CUWB_DATA_MAX_INT = {
-    1: 127,
-    2: 32767,
-    4: 2147483647
-}
 
 
 def fetch_tray_device_assignments(
@@ -61,122 +52,11 @@ def fetch_cuwb_data(
         entity_assignment_info
     )
 
-    df = filter_cuwb_data_by_entity_type(df, entity_type)
-    return filter_and_format_cuwb_by_data_type(df, data_type)
+    df = extract_by_entity_type(df, entity_type)
+    return extract_by_data_type_and_format(df, data_type)
 
 
-def filter_cuwb_data_by_entity_type(df, entity_type='all'):
-    if entity_type == 'all' or entity_type is None or len(df) == 0:
-        return df
-
-    # Filter by entity type
-    if entity_type == 'tray':
-        return df[df['entity_type'].eq('Tray')]
-    elif entity_type == 'person':
-        return df[df['entity_type'].eq('Person')]
-    else:
-        error = "Invalid 'entity_type' value: {}".format(entity_type)
-        logger.error(error)
-        raise Exception(error)
-
-
-def filter_and_format_cuwb_by_data_type(df, data_type='raw'):
-    if data_type == 'raw' or data_type is None or len(df) == 0:
-        return df
-
-    # Filter and format by entity type
-    if data_type == 'position':
-        return extract_position_data(df)
-    elif data_type == 'accelerometer':
-        return extract_accelerometer_data(df)
-    elif data_type == 'status':
-        return extract_status_data(df)
-    else:
-        error = "Invalid 'data_type' value: {}".format(data_type)
-        logger.error(error)
-        raise Exception(error)
-
-
-def extract_position_data(
-    df
-):
-    if len(df) == 0:
-        return df
-
-    df = df.loc[df['type'] == 'position'].copy()
-    df['x_meters'] = df['x'] / 1000.0
-    df['y_meters'] = df['y'] / 1000.0
-    df['z_meters'] = df['z'] / 1000.0
-    df.drop(
-        columns=[
-            'battery_percentage',
-            'temperature',
-            'scale',
-            'x',
-            'y',
-            'z'
-        ],
-        inplace=True,
-        errors='ignore'
-    )
-    return df
-
-
-def extract_accelerometer_data(
-    df
-):
-    if len(df) == 0:
-        return df
-
-    df = df.loc[df['type'] == 'accelerometer'].copy()
-    df['x_gs'] = df['x'] * df['scale'] / \
-        CUWB_DATA_MAX_INT[ACCELEROMETER_BYTE_SIZE]
-    df['y_gs'] = df['y'] * df['scale'] / \
-        CUWB_DATA_MAX_INT[ACCELEROMETER_BYTE_SIZE]
-    df['z_gs'] = df['z'] * df['scale'] / \
-        CUWB_DATA_MAX_INT[ACCELEROMETER_BYTE_SIZE]
-    df.drop(
-        columns=[
-            'battery_percentage',
-            'temperature',
-            'x',
-            'y',
-            'z',
-            'scale',
-            'anchor_count',
-            'quality',
-            'smoothing'
-        ],
-        inplace=True,
-        errors='ignore'
-    )
-    return df
-
-
-def extract_status_data(
-    df
-):
-    if len(df) == 0:
-        return df
-
-    df = df.loc[df['type'] == 'status'].copy()
-    df.drop(
-        columns=[
-            'x',
-            'y',
-            'z',
-            'scale',
-            'anchor_count',
-            'quality',
-            'smoothing'
-        ],
-        inplace=True,
-        errors='ignore'
-    )
-    return df
-
-
-def fetch_motion_features(environment, start, end, entity_type='all', include_meta_fields=False):
+def fetch_motion_features(environment, start, end, entity_type='all', include_meta_fields=False, fillna=None):
     df = fetch_cuwb_data(environment,
                          start,
                          end,
@@ -186,9 +66,10 @@ def fetch_motion_features(environment, start, end, entity_type='all', include_me
                          entity_assignment_info=True)
 
     df_features = extract_motion_features(
-        df_position=filter_and_format_cuwb_by_data_type(df, data_type='position'),
-        df_acceleration=filter_and_format_cuwb_by_data_type(df, data_type='accelerometer'),
-        entity_type=entity_type
+        df_position=extract_by_data_type_and_format(df, data_type='position'),
+        df_acceleration=extract_by_data_type_and_format(df, data_type='accelerometer'),
+        entity_type=entity_type,
+        fillna=fillna
     )
 
     # TODO: Resolve assumption that each device is only assigned to a single material
@@ -217,9 +98,9 @@ def fetch_motion_features(environment, start, end, entity_type='all', include_me
         return df_features
 
 
-def extract_motion_features(df_position, df_acceleration, entity_type='all'):
+def extract_motion_features(df_position, df_acceleration, entity_type='all', fillna=None):
     f = FeatureExtraction()
-    return f.extract_motion_features_for_multiple_devices(df_position, df_acceleration, entity_type)
+    return f.extract_motion_features_for_multiple_devices(df_position, df_acceleration, entity_type, fillna=fillna)
 
 
 def generate_tray_carry_groundtruth(groundtruth_csv):

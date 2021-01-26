@@ -533,12 +533,7 @@ def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centr
     df_final_carry_events_with_distances = df_final_carry_events_with_distances.merge(
         df_tray_assignments, how='left', left_on='device_id', right_on='device_id')
 
-    #df_final_carry_events_with_distances['person_tray_track_id'] = pd.factorize(df_carry_events_distances_from_people['tray_track_id', 'person_id', 'device_id'])[0]
-
-    # Filter out instances where tray and person are too far apart
-    # df_grouped_carry_events_distances_from_people = df_carry_events_distances_from_people.groupby(['tray_track_id']).agg({'devices_distance_median': 'min'})
-    # df_grouped_carry_events_distances_from_people.index.name = 'person_tray_id'
-
+    # Find nearest person and filter out instances where tray and person are too far apart
     df_min_person_tray_track_ids = df_carry_events_distances_from_people.groupby(
         ['tray_track_id'])['devices_distance_median'].idxmin().rename("person_tray_track_id").to_frame()
     df_nearest_person_to_each_track = df_carry_events_distances_from_people[(
@@ -546,15 +541,6 @@ def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centr
         (df_carry_events_distances_from_people['devices_distance_median']
          < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_PERSON)
     )]
-
-    # filter = (df_grouped_carry_events_distances_from_people['devices_distance_median'] < 1.25 &
-    #           df_grouped_carry_events_distances_from_people.index.isin(df_min_distance_person_tray_ids['person_tray_id'].tolist()))
-
-    #filter_grouped_carry_events_distances = df_grouped_carry_events_distances_from_people['devices_distance_median'] < 1.25
-    #df_unique_track_ids = df_grouped_carry_events_distances_from_people[filter_grouped_carry_events_distances]
-
-    #df_nearest_person_to_each_track = df_carry_events_distances_from_people[df_carry_events_distances_from_people['tray_track_id'].isin(df_unique_track_ids.index.tolist())]
-    # df_nearest_person_to_each_track = df_grouped_carry_events_distances_from_people[filter]
 
     df_tray_interactions_pre_filter = df_final_carry_events_with_distances.merge(
         df_nearest_person_to_each_track, how='left')
@@ -566,12 +552,12 @@ def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centr
     df_tray_interactions = df_tray_interactions_pre_filter.loc[filter_trays_within_min_distance_from_source]
 
     # Final dataframe contains:
+    #   tray_device_id (str)
     #   start (date)
     #   end (date)
     #   person_device_id (str)
     #   person_name (str)
     #   tray_id (str)
-    #   tray_device_id (str)
     #   tray_name (str)
     #   material_assignment_id (str)
     #   material_id (str)

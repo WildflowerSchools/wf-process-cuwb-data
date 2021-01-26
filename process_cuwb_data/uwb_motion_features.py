@@ -13,9 +13,129 @@ class FeatureExtraction:
         self.position_filter = position_filter
         self.velocity_filter = velocity_filter
 
-    def extract_motion_features_for_multiple_devices(self, df_position, df_acceleration, entity_type='all'):
-        if ((len(df_position) == 0 or 'entity_type' not in df_position.columns) or
-                (len(df_acceleration) == 0 or 'entity_type' not in df_acceleration.columns)):
+    VELOCITY_COLUMNS = [
+        'quality',
+        'x_meters',
+        'y_meters',
+        'z_meters',
+        'x_position_smoothed',
+        'y_position_smoothed',
+        'z_position_smoothed',
+        'x_velocity_smoothed',
+        'y_velocity_smoothed',
+        'z_velocity_smoothed',
+        'x_velocity_smoothed_magnitude',
+        'y_velocity_smoothed_magnitude',
+        'z_velocity_smoothed_magnitude',
+        'velocity_vector_magnitude',
+        'velocity_vector_magnitude_xy',
+        'x_velocity_mean',
+        'y_velocity_mean',
+        'z_velocity_mean',
+        'velocity_average_mean',
+        'velocity_vector_magnitude_mean',
+        'velocity_vector_magnitude_mean_xy',
+        'x_velocity_stddev',
+        'y_velocity_stddev',
+        'z_velocity_stddev',
+        'velocity_average_stddev',
+        'velocity_vector_magnitude_stddev',
+        'velocity_vector_magnitude_stddev_xy',
+        'x_velocity_skew',
+        'y_velocity_skew',
+        'z_velocity_skew',
+        'velocity_average_skew',
+        'velocity_vector_magnitude_skew',
+        'velocity_vector_magnitude_skew_xy',
+        'x_velocity_variance',
+        'y_velocity_variance',
+        'z_velocity_variance',
+        'velocity_average_variance',
+        'velocity_vector_magnitude_variance',
+        'velocity_vector_magnitude_variance_xy',
+        'x_velocity_kurtosis',
+        'y_velocity_kurtosis',
+        'z_velocity_kurtosis',
+        'velocity_average_kurtosis',
+        'velocity_vector_magnitude_kurtosis',
+        'velocity_vector_magnitude_kurtosis_xy',
+        'x_y_velocity_correlation',
+        'x_z_velocity_correlation',
+        'y_z_velocity_correlation',
+        'x_velocity_correlation_sum',
+        'y_velocity_correlation_sum',
+        'z_velocity_correlation_sum'
+    ]
+
+    ACCELERATION_COLUMNS = [
+        'x_acceleration_normalized',
+        'y_acceleration_normalized',
+        'z_acceleration_normalized',
+        'acceleration_vector_magnitude',
+        'x_acceleration_mean',
+        'y_acceleration_mean',
+        'z_acceleration_mean',
+        'acceleration_average_mean',
+        'acceleration_vector_magnitude_mean',
+        'x_acceleration_sum',
+        'y_acceleration_sum',
+        'z_acceleration_sum',
+        'acceleration_average_sum',
+        'acceleration_vector_magnitude_sum',
+        'x_acceleration_min',
+        'y_acceleration_min',
+        'z_acceleration_min',
+        'acceleration_average_min',
+        'acceleration_vector_magnitude_min',
+        'x_acceleration_max',
+        'y_acceleration_max',
+        'z_acceleration_max',
+        'acceleration_average_max',
+        'acceleration_vector_magnitude_max',
+        'x_acceleration_stddev',
+        'y_acceleration_stddev',
+        'z_acceleration_stddev',
+        'acceleration_average_stddev',
+        'acceleration_vector_magnitude_stddev',
+        'x_acceleration_skew',
+        'y_acceleration_skew',
+        'z_acceleration_skew',
+        'acceleration_average_skew',
+        'acceleration_vector_magnitude_skew',
+        'x_acceleration_variance',
+        'y_acceleration_variance',
+        'z_acceleration_variance',
+        'acceleration_average_variance',
+        'acceleration_vector_magnitude_variance',
+        'x_acceleration_kurtosis',
+        'y_acceleration_kurtosis',
+        'z_acceleration_kurtosis',
+        'acceleration_average_kurtosis',
+        'acceleration_vector_magnitude_kurtosis',
+        'x_acceleration_energy',
+        'y_acceleration_energy',
+        'z_acceleration_energy',
+        'acceleration_average_energy',
+        'acceleration_vector_magnitude_energy',
+        'x_y_acceleration_correlation',
+        'x_z_acceleration_correlation',
+        'y_z_acceleration_correlation',
+        'x_acceleration_correlation_sum',
+        'y_acceleration_correlation_sum',
+        'z_acceleration_correlation_sum'
+    ]
+
+    def extract_motion_features_for_multiple_devices(
+            self, df_position=None, df_acceleration=None, entity_type='all', fillna=None, join='outer'):
+        if ((df_position is None and df_acceleration is None) or
+                (
+            (df_position is not None and len(df_position) == 0) and
+            (df_acceleration is not None and len(df_acceleration) == 0)
+        ) or
+                (
+            (df_position is not None and 'entity_type' not in df_position.columns) or
+            (df_acceleration is not None and 'entity_type' not in df_acceleration.columns)
+        )):
             return None
 
         if entity_type is None:
@@ -26,176 +146,107 @@ class FeatureExtraction:
             pos_indx = df_position['entity_type'].str.lower() == entity_type.lower()
             acc_indx = df_acceleration['entity_type'].str.lower() == entity_type.lower()
 
-        position_device_ids = df_position.loc[
-            pos_indx,
-            'device_id'
-        ].unique().tolist()
-        logger.info('Position data contains {} "{}" device IDs: {}'.format(
-            len(position_device_ids),
-            entity_type,
-            position_device_ids,
-        ))
-        acceleration_device_ids = df_acceleration.loc[
-            acc_indx,
-            'device_id'
-        ].unique().tolist()
-        logger.info('Acceleration data contains {} "{}" device IDs: {}'.format(
-            len(acceleration_device_ids),
-            entity_type,
-            acceleration_device_ids,
-        ))
-        device_ids = list(set(position_device_ids) & set(acceleration_device_ids))
-        logger.info('Position and acceleration data contain {} common device IDs: {}'.format(
-            len(device_ids),
-            device_ids
-        ))
+        position_device_ids = []
+        if df_position is not None:
+            position_device_ids = df_position.loc[
+                pos_indx,
+                'device_id'
+            ].unique().tolist()
+            logger.info('Position data contains {} "{}" device IDs: {}'.format(
+                len(position_device_ids),
+                entity_type,
+                position_device_ids,
+            ))
+
+        acceleration_device_ids = []
+        if df_acceleration is not None:
+            acceleration_device_ids = df_acceleration.loc[
+                acc_indx,
+                'device_id'
+            ].unique().tolist()
+            logger.info('Acceleration data contains {} "{}" device IDs: {}'.format(
+                len(acceleration_device_ids),
+                entity_type,
+                acceleration_device_ids,
+            ))
+
+        if df_position is not None and df_acceleration is not None:
+            common_device_ids = list(set(position_device_ids) & set(acceleration_device_ids))
+            logger.info('Position and acceleration data contain {} common device IDs: {}'.format(
+                len(common_device_ids),
+                common_device_ids
+            ))
+
+        all_device_ids = list(set(position_device_ids) | set(acceleration_device_ids))
+
         df_dict = dict()
-        for device_id in device_ids:
+        for device_id in all_device_ids:
             logger.info('Calculating motion features for device ID {}'.format(device_id))
-            df_position_reduced = df_position.loc[
-                df_position['device_id'] == device_id
-            ].copy().sort_index()
-            df_acceleration_reduced = df_acceleration.loc[
-                df_acceleration['device_id'] == device_id
-            ].copy().sort_index()
+
+            df_position_reduced = None
+            if df_position is not None:
+                df_position_reduced = df_position.loc[
+                    df_position['device_id'] == device_id
+                ].copy().sort_index()
+
+            df_acceleration_reduced = None
+            if df_acceleration is not None:
+                df_acceleration_reduced = df_acceleration.loc[
+                    df_acceleration['device_id'] == device_id
+                ].copy().sort_index()
+
             df_features = self.extract_motion_features(
                 df_position=df_position_reduced,
-                df_acceleration=df_acceleration_reduced
+                df_acceleration=df_acceleration_reduced,
+                fillna=fillna,
+                join=join
             )
             df_features['device_id'] = device_id
-            df_features = df_features.reindex(columns=[
-                'device_id',
-                'quality',
-                'x_meters',
-                'y_meters',
-                'z_meters',
-                'x_position_smoothed',
-                'y_position_smoothed',
-                'z_position_smoothed',
-                'x_velocity_smoothed',
-                'y_velocity_smoothed',
-                'z_velocity_smoothed',
-                'x_velocity_smoothed_magnitude',
-                'y_velocity_smoothed_magnitude',
-                'z_velocity_smoothed_magnitude',
-                'velocity_vector_magnitude',
-                'x_velocity_mean',
-                'y_velocity_mean',
-                'z_velocity_mean',
-                'velocity_average_mean',
-                'velocity_vector_magnitude_mean',
-                'x_velocity_stddev',
-                'y_velocity_stddev',
-                'z_velocity_stddev',
-                'velocity_average_stddev',
-                'velocity_vector_magnitude_stddev',
-                'x_velocity_skew',
-                'y_velocity_skew',
-                'z_velocity_skew',
-                'velocity_average_skew',
-                'velocity_vector_magnitude_skew',
-                'x_velocity_variance',
-                'y_velocity_variance',
-                'z_velocity_variance',
-                'velocity_average_variance',
-                'velocity_vector_magnitude_variance',
-                'x_velocity_kurtosis',
-                'y_velocity_kurtosis',
-                'z_velocity_kurtosis',
-                'velocity_average_kurtosis',
-                'velocity_vector_magnitude_kurtosis',
-                'x_y_velocity_correlation',
-                'x_z_velocity_correlation',
-                'y_z_velocity_correlation',
-                'x_velocity_correlation_sum',
-                'y_velocity_correlation_sum',
-                'z_velocity_correlation_sum',
-                # 'x_acceleration_dv_dt_smoothed',
-                # 'y_acceleration_dv_dt_smoothed',
-                # 'z_acceleration_dv_dt_smoothed',
-                'x_acceleration_normalized',
-                'y_acceleration_normalized',
-                'z_acceleration_normalized',
-                'acceleration_vector_magnitude',
-                'x_acceleration_mean',
-                'y_acceleration_mean',
-                'z_acceleration_mean',
-                'acceleration_average_mean',
-                'acceleration_vector_magnitude_mean',
-                'x_acceleration_sum',
-                'y_acceleration_sum',
-                'z_acceleration_sum',
-                'acceleration_average_sum',
-                'acceleration_vector_magnitude_sum',
-                'x_acceleration_min',
-                'y_acceleration_min',
-                'z_acceleration_min',
-                'acceleration_average_min',
-                'acceleration_vector_magnitude_min',
-                'x_acceleration_max',
-                'y_acceleration_max',
-                'z_acceleration_max',
-                'acceleration_average_max',
-                'acceleration_vector_magnitude_max',
-                'x_acceleration_stddev',
-                'y_acceleration_stddev',
-                'z_acceleration_stddev',
-                'acceleration_average_stddev',
-                'acceleration_vector_magnitude_stddev',
-                'x_acceleration_skew',
-                'y_acceleration_skew',
-                'z_acceleration_skew',
-                'acceleration_average_skew',
-                'acceleration_vector_magnitude_skew',
-                'x_acceleration_variance',
-                'y_acceleration_variance',
-                'z_acceleration_variance',
-                'acceleration_average_variance',
-                'acceleration_vector_magnitude_variance',
-                'x_acceleration_kurtosis',
-                'y_acceleration_kurtosis',
-                'z_acceleration_kurtosis',
-                'acceleration_average_kurtosis',
-                'acceleration_vector_magnitude_kurtosis',
-                'x_acceleration_energy',
-                'y_acceleration_energy',
-                'z_acceleration_energy',
-                'acceleration_average_energy',
-                'acceleration_vector_magnitude_energy',
-                'x_y_acceleration_correlation',
-                'x_z_acceleration_correlation',
-                'y_z_acceleration_correlation',
-                'x_acceleration_correlation_sum',
-                'y_acceleration_correlation_sum',
-                'z_acceleration_correlation_sum'
-            ])
-            # df_features.dropna(inplace=True)
+
             df_dict[device_id] = df_features
+
         df_all = pd.concat(df_dict.values())
         return df_all
 
     def extract_tray_motion_features_for_multiple_devices(self, df_position, df_acceleration):
         return self.extract_motion_features_for_multiple_devices(df_position, df_acceleration, entity_type="tray")
 
-    def extract_motion_features(self, df_position, df_acceleration):
-        df_velocity_features = self.extract_velocity_features(
-            df=df_position
-        )
-        df_acceleration_features = self.extract_acceleration_features(
-            df=df_acceleration
-        )
+    def extract_motion_features(self, df_position, df_acceleration, fillna=None, join='outer'):
+        df_velocity_features = pd.DataFrame(columns=FeatureExtraction.VELOCITY_COLUMNS)
+        if df_position is not None:
+            df_velocity_features = self.extract_velocity_features(
+                df=df_position
+            )
+
+            df_quality = self.regularize_index(
+                df_position[['quality']]
+            )
+
+            df_velocity_features = df_velocity_features.join(
+                df_quality, how='inner')
+
+        df_acceleration_features = pd.DataFrame(columns=FeatureExtraction.ACCELERATION_COLUMNS)
+        if df_acceleration is not None:
+            df_acceleration_features = self.extract_acceleration_features(
+                df=df_acceleration
+            )
+
         df_features = df_velocity_features.join(
-            df_acceleration_features, how='inner')
+            df_acceleration_features, how=join)
 
-        df_quality = self.regularize_index(
-            df_position[['quality']]
-        )
+        df_features = df_features.reindex(columns=[
+            'device_id',
+            *FeatureExtraction.VELOCITY_COLUMNS,
+            *FeatureExtraction.ACCELERATION_COLUMNS
+        ])
 
-        df_features = df_features.join(
-            df_quality, how='inner')
-        # df_features.dropna(inplace=True)
         df_features.replace([np.inf, -np.inf], np.nan, inplace=True)
-        df_features.fillna(df_features.mean(), inplace=True)
+
+        if fillna == 'average':
+            df_features.fillna(df_features.mean(), inplace=True)
+        elif fillna == 'drop':
+            df_features.dropna(inplace=True)
+
         return df_features
 
     def extract_velocity_features(self, df):
@@ -211,26 +262,12 @@ class FeatureExtraction:
         df = self.calculate_velocity_features(
             df=df
         )
-        # df = df.reindex(columns=[
-        #     'x_meters',
-        #     'y_meters',
-        #     'z_meters',
-        #     'x_position_smoothed',
-        #     'y_position_smoothed',
-        #     'z_position_smoothed',
-        #     'x_velocity_smoothed',
-        #     'y_velocity_smoothed',
-        #     'z_velocity_smoothed'
-        # ])
         df = df.sort_index()
         return df
 
     def extract_acceleration_features(self, df):
         df = df.copy()
         df = df.reindex(columns=[
-            # 'x_meters',
-            # 'y_meters',
-            # 'z_meters',
             'x_gs',
             'y_gs',
             'z_gs'
@@ -246,6 +283,10 @@ class FeatureExtraction:
 
     def regularize_index(self, df):
         df = df.copy()
+
+        if len(df) == 0:
+            return df
+
         df = df.loc[~df.index.duplicated()].copy()
         start = df.index.min().floor(self.frequency)
         end = df.index.max().ceil(self.frequency)
@@ -296,6 +337,9 @@ class FeatureExtraction:
         df['velocity_vector_magnitude'] = df[['x_velocity_smoothed_magnitude',
                                               'y_velocity_smoothed_magnitude', 'z_velocity_smoothed_magnitude']].pow(2).sum(axis=1).pow(.5)
 
+        df['velocity_vector_magnitude_xy'] = df[['x_velocity_smoothed_magnitude',
+                                                 'y_velocity_smoothed_magnitude']].pow(2).sum(axis=1).pow(.5)
+
         window = int(1 / (pd.tseries.frequencies.to_offset(self.frequency).nanos / 1000000000))
 
         df['x_velocity_mean'] = df['x_velocity_smoothed_magnitude'].rolling(window=window, center=True).mean()
@@ -305,6 +349,8 @@ class FeatureExtraction:
 
         df['velocity_vector_magnitude_mean'] = df['velocity_vector_magnitude'].rolling(
             window=window, center=True).mean()
+        df['velocity_vector_magnitude_mean_xy'] = df['velocity_vector_magnitude_xy'].rolling(
+            window=window, center=True).mean()
 
         df['x_velocity_stddev'] = df['x_velocity_smoothed_magnitude'].rolling(window=window, center=True).std()
         df['y_velocity_stddev'] = df['y_velocity_smoothed_magnitude'].rolling(window=window, center=True).std()
@@ -313,6 +359,8 @@ class FeatureExtraction:
 
         df['velocity_vector_magnitude_stddev'] = df['velocity_vector_magnitude'].rolling(
             window=window, center=True).std()
+        df['velocity_vector_magnitude_stddev_xy'] = df['velocity_vector_magnitude_xy'].rolling(
+            window=window, center=True).std()
 
         df['x_velocity_skew'] = df['x_velocity_smoothed_magnitude'].rolling(window=window, center=True).skew()
         df['y_velocity_skew'] = df['y_velocity_smoothed_magnitude'].rolling(window=window, center=True).skew()
@@ -320,6 +368,8 @@ class FeatureExtraction:
         df['velocity_average_skew'] = df[['x_velocity_skew', 'y_velocity_skew', 'z_velocity_skew']].mean(axis=1)
 
         df['velocity_vector_magnitude_skew'] = df['velocity_vector_magnitude'].rolling(
+            window=window, center=True).skew()
+        df['velocity_vector_magnitude_skew_xy'] = df['velocity_vector_magnitude_xy'].rolling(
             window=window, center=True).skew()
 
         df['x_velocity_variance'] = df['x_velocity_smoothed_magnitude'].rolling(window=window, center=True).var()
@@ -330,6 +380,8 @@ class FeatureExtraction:
 
         df['velocity_vector_magnitude_variance'] = df['velocity_vector_magnitude'].rolling(
             window=window, center=True).var()
+        df['velocity_vector_magnitude_variance_xy'] = df['velocity_vector_magnitude_xy'].rolling(
+            window=window, center=True).var()
 
         df['x_velocity_kurtosis'] = df['x_velocity_smoothed_magnitude'].rolling(window=window, center=True).kurt()
         df['y_velocity_kurtosis'] = df['y_velocity_smoothed_magnitude'].rolling(window=window, center=True).kurt()
@@ -338,6 +390,8 @@ class FeatureExtraction:
                                               'y_velocity_kurtosis', 'z_velocity_kurtosis']].mean(axis=1)
 
         df['velocity_vector_magnitude_kurtosis'] = df['velocity_vector_magnitude'].rolling(
+            window=window, center=True).kurt()
+        df['velocity_vector_magnitude_kurtosis_xy'] = df['velocity_vector_magnitude_xy'].rolling(
             window=window, center=True).kurt()
 
         df['x_y_velocity_correlation'] = df['x_velocity_smoothed_magnitude'].rolling(

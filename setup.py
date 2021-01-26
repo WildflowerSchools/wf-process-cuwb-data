@@ -15,7 +15,7 @@ BASE_DEPENDENCIES = [
     'pandas>=1.1.4',
     'numpy>=1.19.4',
     'scipy>=1.5.4',
-    'scikit-learn>=0.23.2',
+    'scikit-learn>=0.24',
     'matplotlib>=3.3.3',
     'nocasedict>=1.0.2',
     'python-slugify>=4.0.0',
@@ -25,7 +25,8 @@ BASE_DEPENDENCIES = [
 # ]
 #
 DEVELOPMENT_DEPENDENCIES = [
-    'autopep8>=1.5.2'
+    'autopep8>=1.5.2',
+    'pytest>=6.2.2'
 ]
 
 # Allow setup.py to be run from any path
