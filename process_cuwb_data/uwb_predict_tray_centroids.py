@@ -187,6 +187,7 @@ def predict_tray_centroids(df_tray_features_no_movement):
         max_idx = df_tray_centroid_grouped[['count']].idxmax()
 
         df_tray_centroid = df_tray_centroid_grouped.loc[max_idx][centroid_cols]
+
         df_tray_centroid = df_tray_centroid.assign(
             device_id=[device_id],
             start_datetime=df_tray_features_no_movement[df_tray_features_no_movement['device_id'] == device_id].index.min(

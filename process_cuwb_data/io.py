@@ -121,9 +121,7 @@ def datetime_filename_format(timestamp):
 
 
 def load_csv(
-        path,
-        start_time_field_name='start_time',
-        end_time_field_name='end_time'
+        path
 ):
     df = pd.read_csv(
         path
@@ -134,7 +132,7 @@ def load_csv(
     if 'start_datetime' in df.columns:
         df['start_datetime'] = pd.to_datetime(df['start_datetime'])
     if 'end_datetime' in df.columns:
-        df['end_datetime'] = pd.to_datetime(df['start_datetime'])
+        df['end_datetime'] = pd.to_datetime(df['end_datetime'])
 
     if len(df['start_datetime']) == 0:
         return df

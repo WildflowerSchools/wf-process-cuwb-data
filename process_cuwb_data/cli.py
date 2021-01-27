@@ -287,7 +287,7 @@ def cli_infer_tray_interactions(environment, start, end, model, feature_scaler, 
         logger.warn("No tray centroids inferred")
         return
 
-    logger.info("Rebuilding motion features for use in determining shelf distance from carry events and people distance from carry events")
+    logger.info("Rebuilding motion features for use in determining carry event's start/end tray <-> shelf distance and the average people distance from carry events")
     df_all_motion_features = extract_motion_features_from_raw(
         df_cuwb_features=df_cuwb_features,
         include_meta_fields=True)
