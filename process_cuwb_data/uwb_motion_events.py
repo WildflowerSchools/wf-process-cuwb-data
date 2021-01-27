@@ -6,6 +6,16 @@ from .log import logger
 
 def extract_carry_events_for_device(df_device_carry_predictions,
                                     prediction_column_name='predicted_state', device_id_column_name='device_id'):
+    """
+    Loop through carry predictions dataframe and build carry tracks. Carry tracks are periods of time when the
+    'prediction_column_name' field equals unbroken carry state CarryCategory.CARRIED. Any instances of
+    CarryCategory.NOT_CARRIED breaks the carry track.
+
+    :param df_device_carry_predictions:
+    :param prediction_column_name:
+    :param device_id_column_name:
+    :return:
+    """
     carry_events = []
 
     class CarryEvent:
@@ -13,7 +23,6 @@ def extract_carry_events_for_device(df_device_carry_predictions,
             self.device_id = None
             self.start = None
             self.end = None
-            self.quality_mean = None
             self.quality_median = None
 
     last_prediction = CarryCategory.NOT_CARRIED
@@ -32,9 +41,8 @@ def extract_carry_events_for_device(df_device_carry_predictions,
                     (df_device_carry_predictions['device_id'] == row['device_id']) &
                     (df_device_carry_predictions.index >= carry_event.start) &
                     (df_device_carry_predictions.index <= carry_event.end)
-                ]['quality'].agg(['mean', 'median'])
+                ]['quality'].agg(['median'])
 
-                carry_event.quality_mean = quality_agg['mean']
                 carry_event.quality_median = quality_agg['median']
 
                 carry_events.append(carry_event)

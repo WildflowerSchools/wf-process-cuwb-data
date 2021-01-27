@@ -7,21 +7,43 @@ import os
 import pandas as pd
 from pathlib import Path
 
-from .core import fetch_tray_device_assignments, extract_tray_carry_events_from_inferred, extract_tray_interactions, fetch_cuwb_data, fetch_motion_features, generate_tray_carry_groundtruth, generate_tray_carry_model, infer_tray_carry
-from .io import read_generic_pkl, write_cuwb_data_pkl, write_datafile_to_csv, write_generic_pkl
+from .core import estimate_tray_centroids, extract_motion_features_from_raw, extract_tray_carry_events_from_inferred, extract_tray_interactions, fetch_cuwb_data, fetch_motion_features, generate_tray_carry_groundtruth, generate_tray_carry_model, infer_tray_carry
+from .io import load_csv, read_generic_pkl, write_cuwb_data_pkl, write_datafile_to_csv, write_generic_pkl
 from .log import logger
+from .uwb_predict_tray_centroids import validate_tray_centroids_dataframe
 
 now = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 date_formats = list(itertools.chain.from_iterable(
     map(lambda d: ["{}".format(d), "{}%z".format(d), "{} %Z".format(d)], ['%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S'])))
 
 
-def _infer_tray_carry(model, feature_scaler, df_tray_features):
-    model = read_generic_pkl(model)
+def _load_model_and_scaler(model_path, feature_scaler_path=None):
+    model = read_generic_pkl(model_path)
 
-    if feature_scaler is not None:
-        feature_scaler = read_generic_pkl(feature_scaler)
+    feature_scaler = None
+    if feature_scaler_path is not None:
+        feature_scaler = read_generic_pkl(feature_scaler_path)
 
+    return model, feature_scaler
+
+
+def _load_tray_positions_from_csv(tray_positions_csv):
+    df_tray_centroids = None
+    if tray_positions_csv is not None:
+        try:
+            df_tray_centroids = load_csv(tray_positions_csv)
+            valid, msg = validate_tray_centroids_dataframe(df_tray_centroids)
+            if not valid:
+                logger.error(msg)
+                return None
+        except Exception as err:
+            logger.error(err)
+            return None
+
+    return df_tray_centroids
+
+
+def _infer_tray_carry(df_tray_features, model, feature_scaler=None):
     inferred = infer_tray_carry(model=model, scaler=feature_scaler, df_tray_features=df_tray_features)
 
     df_carry_events = extract_tray_carry_events_from_inferred(inferred)
@@ -146,6 +168,41 @@ def cli_train_tray_carry_model(groundtruth_features, tune, output):
             write_generic_pkl(result['scaler'], "{}_scaler".format(now), output)
 
 
+@click.command(name="estimate-tray-centroids",
+               help="Estimate tray shelf locations. Output is written to a CSV")
+@click.option("--environment", type=str, required=True)
+@click.option("--start", type=click.DateTime(formats=date_formats), required=True)
+@click.option("--end", type=click.DateTime(formats=date_formats), required=True)
+@click.option("--model", type=click.Path(exists=True), required=True,
+              help="Pickle formatted model object (create with 'train-tray-carry-model')")
+@click.option("--feature-scaler", type=click.Path(exists=True),
+              help="Pickle formatted feature scaling input (create with 'train-tray-carry-model')")
+@click.option("--output", type=click.Path(), default="%s/output/locations" % (os.getcwd()),
+              help="output folder, tray centroids as csv (<<DATE>>_tray_centroids.csv)")
+def cli_estimate_tray_centroids(environment, start, end, model, feature_scaler, output):
+    Path(output).mkdir(parents=True, exist_ok=True)
+
+    df_tray_features = fetch_motion_features(
+        environment,
+        start,
+        end,
+        entity_type='tray',
+        fillna='average'
+    )
+
+    model_obj, feature_scaler_obj = _load_model_and_scaler(model_path=model, feature_scaler_path=feature_scaler)
+
+    df_tray_centroids = estimate_tray_centroids(
+        model=model_obj,
+        scaler=feature_scaler_obj,
+        df_tray_features=df_tray_features)
+    if df_tray_centroids is None or len(df_tray_centroids) == 0:
+        logger.warn("No tray centroids inferred")
+        return
+    else:
+        write_datafile_to_csv(df_tray_centroids, "{}_tray_centroids".format(now), directory=output, index=False)
+
+
 @click.command(name="infer-tray-carry",
                help="Infer tray carrying events given a model and feature scaler. Output is written to a CSV")
 @click.option("--environment", type=str, required=True)
@@ -165,7 +222,11 @@ def cli_infer_tray_carry(environment, start, end, model, feature_scaler, output)
         logger.warn("No tray motion events detected")
         return None
 
-    df_carry_events = _infer_tray_carry(model, feature_scaler, df_tray_features)
+    model_obj, feature_scaler_obj = _load_model_and_scaler(model, feature_scaler)
+    df_carry_events = _infer_tray_carry(
+        df_tray_features=df_tray_features,
+        model=model_obj,
+        feature_scaler=feature_scaler_obj)
     if df_carry_events is None or len(df_carry_events) == 0:
         logger.warn("No tray carry events detected")
         return
@@ -189,38 +250,49 @@ def cli_infer_tray_carry(environment, start, end, model, feature_scaler, output)
 def cli_infer_tray_interactions(environment, start, end, model, feature_scaler, output, tray_positions_csv):
     Path(output).mkdir(parents=True, exist_ok=True)
 
-    df_tray_features = fetch_motion_features(
+    df_cuwb_features = fetch_cuwb_data(
         environment,
         start,
         end,
+        environment_assignment_info=True,
+        entity_assignment_info=True
+    )
+
+    df_tray_features = extract_motion_features_from_raw(
+        df_cuwb_features=df_cuwb_features,
         entity_type='tray',
         fillna='average')
-    # include_meta_fields=True)
     if df_tray_features is None or len(df_tray_features) == 0:
         logger.warn("No motion events detected")
         return
 
-    #df_tray_features = df_features[df_features['entity_type'] == 'Tray']
-    #df_tray_features.fillna(df_features.mean(), inplace=True)
-
-    df_carry_events = _infer_tray_carry(model, feature_scaler, df_tray_features)
+    model_obj, feature_scaler_obj = _load_model_and_scaler(model, feature_scaler)
+    df_carry_events = _infer_tray_carry(
+        df_tray_features=df_tray_features,
+        model=model_obj,
+        feature_scaler=feature_scaler_obj)
     if df_carry_events is None or len(df_carry_events) == 0:
         logger.warn("No tray carry events detected")
         return
 
-    # For speedy testing/debugging on Ben's local
-    # df_features = pd.read_pickle("./output/interactions/2020-12-15T09:21:09_interactions_df_features.pkl")
-    # df_carry_events = pd.read_pickle("./output/interactions/2020-12-15T09:21:09_interactions_df_carry_events.pkl")
+    if tray_positions_csv is not None:
+        df_tray_centroids = _load_tray_positions_from_csv(tray_positions_csv)
+    else:
+        df_tray_centroids = estimate_tray_centroids(
+            model=model_obj,
+            scaler=feature_scaler_obj,
+            df_tray_features=df_tray_features)
 
-    #df_tray_assignments = fetch_tray_device_assignments(environment, start, end)
+    if df_tray_centroids is None or len(df_tray_centroids) == 0:
+        logger.warn("No tray centroids inferred")
+        return
 
-    df_features = fetch_motion_features(
-        environment,
-        start,
-        end,
-        # entity_type='people')
+    logger.info("Rebuilding motion features for use in determining shelf distance from carry events and people distance from carry events")
+    df_all_motion_features = extract_motion_features_from_raw(
+        df_cuwb_features=df_cuwb_features,
         include_meta_fields=True)
-    df_tray_interactions = extract_tray_interactions(df_features, df_carry_events, tray_positions_csv)
+
+    df_tray_interactions = extract_tray_interactions(df_all_motion_features, df_carry_events, df_tray_centroids)
     if df_tray_interactions is None or len(df_tray_interactions) == 0:
         logger.warn("No tray interactions inferred")
         return
@@ -244,5 +316,6 @@ cli.add_command(cli_fetch_cuwb_data)
 cli.add_command(cli_fetch_tray_features)
 cli.add_command(cli_generate_tray_carry_groundtruth)
 cli.add_command(cli_train_tray_carry_model)
+cli.add_command(cli_estimate_tray_centroids)
 cli.add_command(cli_infer_tray_carry)
 cli.add_command(cli_infer_tray_interactions)

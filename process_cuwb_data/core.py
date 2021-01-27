@@ -9,7 +9,8 @@ from .uwb_motion_classifiers import TrayCarryClassifier
 from .uwb_motion_events import extract_carry_events_by_device
 from .uwb_motion_features import FeatureExtraction
 from .uwb_motion_ground_truth import combine_features_with_ground_truth_data, validate_ground_truth
-from .uwb_motion_interactions import extract_tray_device_interactions, validate_tray_centroids_dataframe
+from .uwb_motion_interactions import extract_tray_device_interactions
+from .uwb_predict_tray_centroids import classifier_filter_no_movement_from_tray_features, predict_tray_centroids
 
 
 def fetch_tray_device_assignments(
@@ -57,17 +58,21 @@ def fetch_cuwb_data(
 
 
 def fetch_motion_features(environment, start, end, entity_type='all', include_meta_fields=False, fillna=None):
-    df = fetch_cuwb_data(environment,
-                         start,
-                         end,
-                         entity_type=entity_type,
-                         data_type='raw',
-                         environment_assignment_info=True,
-                         entity_assignment_info=True)
+    df_cuwb_features = fetch_cuwb_data(environment,
+                                       start,
+                                       end,
+                                       entity_type=entity_type,
+                                       environment_assignment_info=True,
+                                       entity_assignment_info=True)
 
-    df_features = extract_motion_features(
-        df_position=extract_by_data_type_and_format(df, data_type='position'),
-        df_acceleration=extract_by_data_type_and_format(df, data_type='accelerometer'),
+    return extract_motion_features_from_raw(df_cuwb_features, entity_type=entity_type,
+                                            include_meta_fields=include_meta_fields, fillna=fillna)
+
+
+def extract_motion_features_from_raw(df_cuwb_features, entity_type='all', include_meta_fields=False, fillna=None):
+    df_motion_features = extract_motion_features(
+        df_position=extract_by_data_type_and_format(df_cuwb_features, data_type='position'),
+        df_acceleration=extract_by_data_type_and_format(df_cuwb_features, data_type='accelerometer'),
         entity_type=entity_type,
         fillna=fillna
     )
@@ -75,8 +80,8 @@ def fetch_motion_features(environment, start, end, entity_type='all', include_me
     # TODO: Resolve assumption that each device is only assigned to a single material
     # That assumption means if a tray is reassigned to a new material, the join will
     # create duplicates records
-    if include_meta_fields and len(df) > 0:
-        df_meta_fields = df[[
+    if include_meta_fields and len(df_cuwb_features) > 0:
+        df_meta_fields = df_cuwb_features[[
             'device_id', 'device_name', 'device_tag_id',
             'device_mac_address', 'device_part_number', 'device_serial_number', 'entity_type',
             'person_id', 'person_name', 'person_short_name', 'tray_id',
@@ -93,9 +98,9 @@ def fetch_motion_features(environment, start, end, entity_type='all', include_me
         if duplicate_error:
             return None
 
-        return df_features.join(df_meta_fields, on='device_id', how='left')
+        return df_motion_features.join(df_meta_fields, on='device_id', how='left')
     else:
-        return df_features
+        return df_motion_features
 
 
 def extract_motion_features(df_position, df_acceleration, entity_type='all', fillna=None):
@@ -153,6 +158,21 @@ def generate_tray_carry_model(groundtruth_features, tune=False):
         return tc.train(df_groundtruth=groundtruth_features, scale_features=False)
 
 
+def estimate_tray_centroids(model, scaler, df_tray_features):
+    """
+    Estimate the shelf location of each Tray (in x,y,z coords)
+
+    :param model: Tray carry classifier (RandomForest Model)
+    :param scaler: Tray carry scaling model used to standardize features
+    :param df_tray_features: Dataframe with uwb data containing uwb_motion_classifiers.DEFAULT_FEATURE_FIELD_NAMES
+    :return: Dataframe with tray centroid predictions
+    """
+    df_tray_features_no_movement = classifier_filter_no_movement_from_tray_features(
+        model=model, scaler=scaler, df_tray_features=df_tray_features)
+    #df_tray_features_no_movement = heuristic_filter_no_movement_from_tray_features(df_tray_features)
+    return predict_tray_centroids(df_tray_features_no_movement=df_tray_features_no_movement)
+
+
 def infer_tray_carry(model, scaler, df_tray_features):
     """
     Classifies each moment of features dataframe into a carried or not carried state
@@ -176,24 +196,13 @@ def extract_tray_carry_events_from_inferred(df_inferred):
     return extract_carry_events_by_device(df_inferred)
 
 
-def extract_tray_interactions(df_features, df_carry_events, tray_positions_csv=None):
+def extract_tray_interactions(df_motion_features, df_carry_events, df_tray_centroids):
     """
     Extract carry interactions (person, tray, carry_event - FROM_SHELF/TO_SHELF/etc) from carried events (see extract_tray_carry_events_from_inferred)
 
+    :param df_motion_features
     :param df_carry_events: Dataframe with carry events (device_id, start, end)
+    :param df_tray_centroids
     :return: Dataframe containing carry interactions (person_id, device_id, start, end, carry_event)
     """
-
-    df_tray_centroids = None
-    if tray_positions_csv is not None:
-        try:
-            df_tray_centroids = load_csv(tray_positions_csv)
-            valid, msg = validate_tray_centroids_dataframe(df_tray_centroids)
-            if not valid:
-                logger.error(msg)
-                return None
-        except Exception as err:
-            logger.error(err)
-            return None
-
-    return extract_tray_device_interactions(df_features, df_carry_events, df_tray_centroids)
+    return extract_tray_device_interactions(df_motion_features, df_carry_events, df_tray_centroids)

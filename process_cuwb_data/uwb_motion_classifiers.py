@@ -1,12 +1,13 @@
 import matplotlib.pyplot as plt
+import multiprocessing
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 import sklearn.model_selection
 from sklearn.preprocessing import StandardScaler
 
-from .uwb_motion_carry_categories import CarryCategory
 from .log import logger
+from .uwb_motion_carry_categories import CarryCategory
 from .uwb_motion_filters import TrayCarryHmmFilter
 
 DEFAULT_FEATURE_FIELD_NAMES = (
@@ -252,11 +253,29 @@ class TrayCarryClassifier:
             confusion_matrix_plot=disp
         )
 
+    def inference_filter_and_smooth_predictions(self, device_id, df_device_features, prediction_column_name):
+        logger.info("Filter tray carry classification anomalies (hmm model) for device ID {}".format(device_id))
+        df_device_features = TrayCarryHmmFilter().filter(df_device_features, prediction_column_name)
+
+        logger.info("Smooth tray carry classification for device ID {}".format(device_id))
+        df_device_features = self.inference_post_filter_smooth_predictions(df_device_features, prediction_column_name)
+
+        logger.info(
+            "Carry Prediction (post filter and smoothing) for device ID {}:\n{}".format(
+                device_id,
+                df_device_features.groupby(prediction_column_name).size()))
+
+        return (device_id, df_device_features)
+        #df_dict[device_id] = df_device_features
+
+        return (x, x * x)
+
     def inference_post_filter_smooth_predictions(self, df, prediction_column_name, window=10, inplace=False):
         """
         Smooth out predicted instances of carry/not-carry changes that don't occur within a stable
         rolling window of carry events. Stable rolling windows are when the number of frames (windows)
-        are uniform.
+        are uniform. i.e. A carry isn't recognized (stable) unless the state of "Carried" occurs 10 (window)
+        times in a row.
 
         :param df: Dataframe to smooth
         :param prediction_column_name: Predicted carry column
@@ -267,27 +286,31 @@ class TrayCarryClassifier:
         if not inplace:
             df = df.copy()
 
+        # 1) First use a rolling window to classify moments that fall into stable or not-stable periods
+        # 2) Then look for the moments when stability changes (NS -> S or S -> NS)
+        # 3) Capture the moment right before the stability change and store both the index and the carry state
+        # 4) Update all moments between these stability changes with the most recent stable carry state value
+
         rolling_window = df[prediction_column_name].rolling(window=window, center=True)
         carry_stability = (rolling_window.min() == rolling_window.max())
 
-        last_prediction = None
-        for ii_idx, (time_idx, row) in enumerate(df.iterrows()):
-            row_carry_stability = carry_stability.loc[time_idx]
-            if ii_idx == 0:
-                last_prediction = row[prediction_column_name]
-                continue
+        rolling_stability_change_window = carry_stability.rolling(window=2)
+        carry_stability_change_moments = (rolling_stability_change_window.min() !=
+                                          rolling_stability_change_window.max())
 
-            if row[prediction_column_name] != last_prediction:
-                if row_carry_stability == False:
-                    df.loc[time_idx, prediction_column_name] = int(not bool(row[prediction_column_name]))
+        change_moments = carry_stability_change_moments[carry_stability_change_moments == True]
+        for ii_idx, (time_idx, row) in enumerate(change_moments.iteritems()):
+            range_mask = (df.index > time_idx)
+            if ii_idx < len(change_moments) - 1:
+                range_mask = range_mask & (df.index <= change_moments.index[ii_idx + 1])
 
-            if row_carry_stability == True:
-                last_prediction = row[prediction_column_name]
+            df.loc[range_mask, prediction_column_name] = df.iloc[df.index.get_loc(
+                time_idx) + 1][prediction_column_name]  # df.loc[time_idx + ][prediction_column_name]
 
         if not inplace:
             return df
 
-    def inference(self, df_features):
+    def inference(self, df_features, prediction_column_name='predicted_state'):
         if df_features is None or len(df_features) == 0:
             return None
 
@@ -311,35 +334,42 @@ class TrayCarryClassifier:
         if self.scaler is not None:
             classifier_features = self.scaler.transform(classifier_features)
 
-        df_features['predicted_state'] = self.model.predict(classifier_features)
+        df_features[prediction_column_name] = self.model.predict(classifier_features)
 
         logger.info(
             "Carry Prediction (pre filter and smoothing):\n{}".format(
-                df_features.groupby('predicted_state').size()))
+                df_features.groupby(prediction_column_name).size()))
 
-        # Convert state from string to int
+        # Convert carry state from string to int
         carry_category_mapping_dictionary = CarryCategory.as_name_id_dict()  # Category label lookup is case insensitive
-        df_features['predicted_state'] = df_features['predicted_state'].map(
+        df_features[prediction_column_name] = df_features[prediction_column_name].map(
             lambda x: carry_category_mapping_dictionary[x])
 
-        df_dict = dict()
+        # HMM Model and smoothing can take awhile, use multiprocessing to help speed things up
+        p = multiprocessing.Pool()
+
+        # df_dict = dict()
+        results = []
         for device_id in pd.unique(df_features['device_id']):
             df_device_features = df_features.loc[df_features['device_id'] == device_id].copy().sort_index()
+            results.append(
+                p.apply_async(
+                    self.inference_filter_and_smooth_predictions,
+                    kwds=dict(
+                        device_id=device_id,
+                        df_device_features=df_device_features,
+                        prediction_column_name=prediction_column_name)))
 
-            logger.info("Filter tray carry classification anomalies for device ID {}".format(device_id))
-            df_device_features = TrayCarryHmmFilter().filter(df_device_features, 'predicted_state')
-
-            logger.info("Smooth tray carry classification for device ID {}".format(device_id))
-            df_device_features = self.inference_post_filter_smooth_predictions(df_device_features, 'predicted_state')
-
-            df_dict[device_id] = df_device_features
+        df_dict = dict(p.get() for p in results)
+        p.close()
 
         df_features = pd.concat(df_dict.values())
-        # Convert state from int to string
-        df_features['predicted_state'] = df_features['predicted_state'].map(CarryCategory.as_id_name_dict())
+
+        # Convert carry state from int to string
+        df_features[prediction_column_name] = df_features[prediction_column_name].map(CarryCategory.as_id_name_dict())
 
         logger.info(
             "Carry Prediction (post filter and smoothing):\n{}".format(
-                df_features.groupby('predicted_state').size()))
+                df_features.groupby(prediction_column_name).size()))
 
         return df_features
