@@ -1,14 +1,14 @@
 import numpy as np
 import pandas as pd
 
-from .io import load_csv
-from .log import logger
+from .utils.io import load_csv
+from .utils.log import logger
 from .honeycomb import fetch_environment_by_name, fetch_material_tray_devices_assignments, fetch_raw_cuwb_data
 from .uwb_extract_data import extract_by_data_type_and_format, extract_by_entity_type
-from .uwb_motion_classifiers import TrayCarryClassifier
+from .uwb_motion_classifier_tray_carry import TrayCarryClassifier
 from .uwb_motion_events import extract_carry_events_by_device
 from .uwb_motion_features import FeatureExtraction
-from .uwb_motion_ground_truth import combine_features_with_ground_truth_data, validate_ground_truth
+import process_cuwb_data.uwb_motion_ground_truth as ground_truth
 from .uwb_motion_interactions import extract_tray_device_interactions
 from .uwb_predict_tray_centroids import classifier_filter_no_movement_from_tray_features, predict_tray_centroids
 
@@ -109,9 +109,26 @@ def extract_motion_features(df_position, df_acceleration, entity_type='all', fil
 
 
 def generate_tray_carry_groundtruth(groundtruth_csv):
+    return generate_groundtruth(groundtruth_csv, groundtruth_type=ground_truth.GROUNDTRUTH_TYPE_TRAY_CARRY)
+
+
+def generate_human_activity_groundtruth(groundtruth_csv):
+    return generate_groundtruth(groundtruth_csv, groundtruth_type=ground_truth.GROUNDTRUTH_TYPE_HUMAN_ACTIVITY)
+
+
+def generate_groundtruth(groundtruth_csv, groundtruth_type):
     try:
         df_groundtruth = load_csv(groundtruth_csv)
-        valid, msg = validate_ground_truth(df_groundtruth)
+
+        if groundtruth_type == ground_truth.GROUNDTRUTH_TYPE_TRAY_CARRY:
+            entity_type = 'tray'
+        elif groundtruth_type == ground_truth.GROUNDTRUTH_TYPE_HUMAN_ACTIVITY:
+            entity_type = 'person'
+        else:
+            logger.error("Unable to build groundtruth, unknown type requested: {}".format(groundtruth_type))
+            return None
+
+        valid, msg = ground_truth.validate_ground_truth(df_groundtruth, groundtruth_type=groundtruth_type)
         if not valid:
             logger.error(msg)
             return None
@@ -130,17 +147,24 @@ def generate_tray_carry_groundtruth(groundtruth_csv):
         df_environment_features = fetch_motion_features(environment=environment,
                                                         start=(start - pd.DateOffset(minutes=60)),
                                                         end=(end + pd.DateOffset(minutes=60)),
-                                                        entity_type='tray')
+                                                        entity_type=entity_type)
 
         if df_features is None:
             df_features = df_environment_features.copy()
         else:
             df_features = df_features.append(df_environment_features)
 
+    df_groundtruth_features = None
     try:
-        df_groundtruth_features = combine_features_with_ground_truth_data(df_features, df_groundtruth)
+        if groundtruth_type == ground_truth.GROUNDTRUTH_TYPE_TRAY_CARRY:
+            df_groundtruth_features = ground_truth.combine_features_with_tray_carry_ground_truth_data(df_features, df_groundtruth)
+        elif groundtruth_type == ground_truth.GROUNDTRUTH_TYPE_HUMAN_ACTIVITY:
+            df_groundtruth_features = ground_truth.combine_features_with_human_activity_ground_truth_data(df_features, df_groundtruth)
     except Exception as err:
         logger.error(err)
+        return None
+
+    if df_groundtruth_features is None:
         return None
 
     logger.info("Tray Carry groundtruth features breakdown by device\n{}".format(

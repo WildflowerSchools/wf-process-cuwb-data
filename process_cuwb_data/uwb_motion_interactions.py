@@ -6,9 +6,9 @@ from scipy.spatial.distance import cdist
 import sys
 import time
 
-from .log import logger
-from .util import dataframe_tuple_columns_to_underscores
-from .uwb_motion_interaction_types import InteractionType
+from process_cuwb_data.utils.log import logger
+from process_cuwb_data.utils.util import dataframe_tuple_columns_to_underscores
+from process_cuwb_data.uwb_motion_enum_interaction_types import InteractionType
 
 
 # TODO: Ignoring z-axis when computing distance for now, reconsider after further testing CUWB anchors

@@ -7,9 +7,9 @@ import os
 import pandas as pd
 from pathlib import Path
 
-from .core import estimate_tray_centroids, extract_motion_features_from_raw, extract_tray_carry_events_from_inferred, extract_tray_interactions, fetch_cuwb_data, fetch_motion_features, generate_tray_carry_groundtruth, generate_tray_carry_model, infer_tray_carry
-from .io import load_csv, read_generic_pkl, write_cuwb_data_pkl, write_datafile_to_csv, write_generic_pkl
-from .log import logger
+from .core import estimate_tray_centroids, extract_motion_features_from_raw, extract_tray_carry_events_from_inferred, extract_tray_interactions, fetch_cuwb_data, fetch_motion_features, generate_human_activity_groundtruth, generate_tray_carry_groundtruth, generate_tray_carry_model, infer_tray_carry
+from process_cuwb_data.utils.io import load_csv, read_generic_pkl, write_cuwb_data_pkl, write_datafile_to_csv, write_generic_pkl
+from process_cuwb_data.utils.log import logger
 from .uwb_predict_tray_centroids import validate_tray_centroids_dataframe
 
 now = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
@@ -65,7 +65,7 @@ def _infer_tray_carry(df_tray_features, model, feature_scaler=None):
 @click.option("--environment-assignments/--no-environment-assignments", is_flag=True,
               default=False, help="Show assignment IDs in addition to device IDs")
 @click.option("--entity-assignments/--no-entity-assignments", is_flag=True,
-              default=False, help="Map CUWB device IDs to specifc trays and people")
+              default=False, help="Map CUWB device IDs to specific trays and people")
 @click.option("--output", type=click.Path(), default="%s/output/data" % (os.getcwd()),
               help="output folder for cuwb data")
 def cli_fetch_cuwb_data(environment, start, end, entity_type, data_type,
@@ -144,7 +144,24 @@ def cli_generate_tray_carry_groundtruth(groundtruth_csv, output):
     if df_groundtruth_features is None:
         logger.warn("Unexpected result, unable to store groundtruth features")
     else:
-        write_generic_pkl(df_groundtruth_features, "{}_features".format(now), output)
+        write_generic_pkl(df_groundtruth_features, "{}_tray_carry_features".format(now), output)
+
+
+@click.command(name="generate-human-activity-groundtruth",
+               help="Generate a pickled dataframe of trainable groundtruth features")
+@click.option("--groundtruth-csv", type=click.Path(exists=True),
+              help="CSV formatted groundtruth data", required=True)
+@click.option("--output", type=click.Path(), default="%s/output/features" % (os.getcwd()),
+              help="output folder, output includes data features pickle (features.pkl)")
+def cli_generate_human_activity_groundtruth(groundtruth_csv, output):
+    Path(output).mkdir(parents=True, exist_ok=True)
+
+    df_groundtruth_features = generate_human_activity_groundtruth(groundtruth_csv)
+
+    if df_groundtruth_features is None:
+        logger.warn("Unexpected result, unable to store groundtruth features")
+    else:
+        write_generic_pkl(df_groundtruth_features, "{}_human_activity_features".format(now), output)
 
 
 @click.command(name="train-tray-carry-model",
@@ -187,7 +204,7 @@ def cli_estimate_tray_centroids(environment, start, end, model, feature_scaler, 
         start,
         end,
         entity_type='tray',
-        fillna='average'
+        fillna='interpolate'
     )
 
     model_obj, feature_scaler_obj = _load_model_and_scaler(model_path=model, feature_scaler_path=feature_scaler)
@@ -261,7 +278,7 @@ def cli_infer_tray_interactions(environment, start, end, model, feature_scaler, 
     df_tray_features = extract_motion_features_from_raw(
         df_cuwb_features=df_cuwb_features,
         entity_type='tray',
-        fillna='average')
+        fillna='interpolate')
     if df_tray_features is None or len(df_tray_features) == 0:
         logger.warn("No motion events detected")
         return
@@ -314,6 +331,7 @@ def cli(env_file):
 
 cli.add_command(cli_fetch_cuwb_data)
 cli.add_command(cli_fetch_tray_features)
+cli.add_command(cli_generate_human_activity_groundtruth)
 cli.add_command(cli_generate_tray_carry_groundtruth)
 cli.add_command(cli_train_tray_carry_model)
 cli.add_command(cli_estimate_tray_centroids)

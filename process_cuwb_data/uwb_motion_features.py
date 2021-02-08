@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 from .uwb_motion_filters import TrayMotionButterFiltFiltFilter, TrayMotionSavGolFilter
-from .log import logger
+from process_cuwb_data.utils.log import logger
 
 
 class FeatureExtraction:
@@ -246,6 +246,12 @@ class FeatureExtraction:
             df_features.fillna(df_features.mean(), inplace=True)
         elif fillna == 'drop':
             df_features.dropna(inplace=True)
+        elif fillna == 'pad':
+            df_features.fillna(method="pad", inplace=True)
+        elif fillna == 'forward_backward':
+            df_features = df_features.fillna(method='ffill').fillna(method='bfill')
+        elif fillna == 'interpolate':  # linear interpolation, use bfill to fill in nan's at front of dataframe
+            df_features = df_features.interpolate().fillna(method='bfill')
 
         return df_features
 

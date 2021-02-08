@@ -1,7 +1,7 @@
 import pandas as pd
 
-from .uwb_motion_carry_categories import CarryCategory
-from .log import logger
+from process_cuwb_data.uwb_motion_enum_carry_categories import CarryCategory
+from process_cuwb_data.utils.log import logger
 
 
 def extract_carry_events_for_device(df_device_carry_predictions,

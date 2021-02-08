@@ -6,8 +6,8 @@ from sklearn.ensemble import RandomForestClassifier
 import sklearn.model_selection
 from sklearn.preprocessing import StandardScaler
 
-from .log import logger
-from .uwb_motion_carry_categories import CarryCategory
+from process_cuwb_data.utils.log import logger
+from process_cuwb_data.uwb_motion_enum_carry_categories import CarryCategory
 from .uwb_motion_filters import TrayCarryHmmFilter
 
 DEFAULT_FEATURE_FIELD_NAMES = (
@@ -266,9 +266,6 @@ class TrayCarryClassifier:
                 df_device_features.groupby(prediction_column_name).size()))
 
         return (device_id, df_device_features)
-        #df_dict[device_id] = df_device_features
-
-        return (x, x * x)
 
     def inference_post_filter_smooth_predictions(self, df, prediction_column_name, window=10, inplace=False):
         """

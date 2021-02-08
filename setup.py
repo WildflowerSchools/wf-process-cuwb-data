@@ -9,17 +9,19 @@ BASE_DEPENDENCIES = [
     'cachier>=1.5.0',
     'click>=7.1.1',
     'click-log>=0.3.2',
-    'wf-database-connection-honeycomb>=0.5.0',
-    'wf-minimal-honeycomb-python>=0.6.0',
-    'wf-geom-render>=0.3.0',
-    'pandas>=1.1.4',
-    'numpy>=1.19.4',
-    'scipy>=1.5.4',
-    'scikit-learn>=0.24',
+    'keras>=2.4.3',
     'matplotlib>=3.3.3',
     'nocasedict>=1.0.2',
+    'numpy~=1.19.4',
+    'pandas>=1.1.4',
+    'python-dotenv>=0.14.0',
     'python-slugify>=4.0.0',
-    'python-dotenv>=0.14.0'
+    'scikit-learn>=0.24',
+    'scipy>=1.5.4',
+    'tensorflow>=2.4.1',
+    'wf-database-connection-honeycomb>=0.5.0',
+    'wf-geom-render>=0.3.0',
+    'wf-minimal-honeycomb-python>=0.6.0'
 ]
 # TEST_DEPENDENCIES = [
 # ]
