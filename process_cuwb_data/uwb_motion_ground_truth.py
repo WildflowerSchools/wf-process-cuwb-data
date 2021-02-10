@@ -81,8 +81,10 @@ def combine_features_with_ground_truth_data(
 
 
 def combine_features_with_tray_carry_ground_truth_data(df_features, df_groundtruth):
-    return combine_features_with_ground_truth_data(df_features=df_features, df_groundtruth=df_groundtruth, groundtruth_type=GROUNDTRUTH_TYPE_TRAY_CARRY)
+    return combine_features_with_ground_truth_data(
+        df_features=df_features, df_groundtruth=df_groundtruth, groundtruth_type=GROUNDTRUTH_TYPE_TRAY_CARRY)
 
 
 def combine_features_with_human_activity_ground_truth_data(df_features, df_groundtruth):
-    return combine_features_with_ground_truth_data(df_features=df_features, df_groundtruth=df_groundtruth, groundtruth_type=GROUNDTRUTH_TYPE_HUMAN_ACTIVITY)
+    return combine_features_with_ground_truth_data(
+        df_features=df_features, df_groundtruth=df_groundtruth, groundtruth_type=GROUNDTRUTH_TYPE_HUMAN_ACTIVITY)

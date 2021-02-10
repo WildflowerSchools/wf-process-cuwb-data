@@ -144,3 +144,49 @@ class TrayCarryHmmFilter:
 
         if not inplace:
             return df_predictions
+
+
+class SmoothLabelsFilter:
+    def __init__(self,
+                 window=10):
+        self.window = window
+
+    def filter(self, df_predictions, prediction_column_name, inplace=False):
+        """
+        Smooth out predicted labels by smoothing out changes that don't occur within a stable
+        rolling window of carry events. Stable rolling windows are when the number of frames (windows)
+        are uniform. i.e. A carry isn't recognized (stable) unless the state of "Carried" occurs 10 (window)
+        times in a row.
+
+        :param df: Dataframe to smooth
+        :param prediction_column_name: Predicted carry column
+        :param window: Number of frames that must be uniform to be considered a "stable" event period
+        :param inplace: Modify dataframe in-place
+        :return: Modified dataframe (if inplace is False)
+        """
+        if not inplace:
+            df_predictions = df_predictions.copy()
+
+        # 1) First use a rolling window to classify moments that fall into stable or not-stable periods
+        # 2) Then look for the moments when stability changes (NS -> S or S -> NS)
+        # 3) Capture the moment right before the stability change and store both the index and the carry state
+        # 4) Update all moments between these stability changes with the most recent stable carry state value
+
+        rolling_window = df_predictions[prediction_column_name].rolling(window=self.window, center=True)
+        carry_stability = (rolling_window.min() == rolling_window.max())
+
+        rolling_stability_change_window = carry_stability.rolling(window=2)
+        carry_stability_change_moments = (rolling_stability_change_window.min() !=
+                                          rolling_stability_change_window.max())
+
+        change_moments = carry_stability_change_moments[carry_stability_change_moments == True]
+        for ii_idx, (time_idx, row) in enumerate(change_moments.iteritems()):
+            range_mask = (df_predictions.index > time_idx)
+            if ii_idx < len(change_moments) - 1:
+                range_mask = range_mask & (df_predictions.index <= change_moments.index[ii_idx + 1])
+
+            df_predictions.loc[range_mask, prediction_column_name] = df_predictions.iloc[df_predictions.index.get_loc(
+                time_idx) + 1][prediction_column_name]
+
+        if not inplace:
+            return df_predictions

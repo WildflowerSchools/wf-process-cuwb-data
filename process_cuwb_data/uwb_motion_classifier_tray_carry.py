@@ -302,7 +302,7 @@ class TrayCarryClassifier:
                 range_mask = range_mask & (df.index <= change_moments.index[ii_idx + 1])
 
             df.loc[range_mask, prediction_column_name] = df.iloc[df.index.get_loc(
-                time_idx) + 1][prediction_column_name]  # df.loc[time_idx + ][prediction_column_name]
+                time_idx) + 1][prediction_column_name]
 
         if not inplace:
             return df

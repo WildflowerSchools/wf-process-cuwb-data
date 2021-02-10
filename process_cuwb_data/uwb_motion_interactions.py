@@ -63,7 +63,9 @@ def get_estimated_tray_location_from_carry_events(df_features, df_carry_events):
     position_cols = map_column_name_to_dimension_space(
         'position_smoothed', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
     for _, row in df_carry_events_with_track_ids_and_augmented_times.iterrows():
-        # TODO: Rather than use the start_augmented time, consider trying to find the moment between 'start_augmented' and actual 'start' when a given tray is nearest to a given tray's centroid or shelf location
+        # TODO: Rather than use the start_augmented time, consider trying to find
+        # the moment between 'start_augmented' and actual 'start' when a given
+        # tray is nearest to a given tray's centroid or shelf location
         device_id_mask = (df_tray_features['device_id'] == row['device_id'])
         if row['start_augmented'] in df_tray_features.index:
             start_mask = (df_tray_features.index == row['start_augmented']) & device_id_mask

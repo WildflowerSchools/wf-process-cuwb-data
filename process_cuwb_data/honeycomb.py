@@ -8,7 +8,7 @@ from minimal_honeycomb import MinimalHoneycombClient, to_honeycomb_datetime, fro
 from process_cuwb_data.utils.log import logger
 
 
-#@cachier(stale_after=datetime.timedelta(days=1))
+# @cachier(stale_after=datetime.timedelta(days=1))
 def fetch_raw_cuwb_data(
         environment_name,
         start_time,

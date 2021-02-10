@@ -5,6 +5,7 @@ from .utils.io import load_csv
 from .utils.log import logger
 from .honeycomb import fetch_environment_by_name, fetch_material_tray_devices_assignments, fetch_raw_cuwb_data
 from .uwb_extract_data import extract_by_data_type_and_format, extract_by_entity_type
+from .uwb_motion_classifier_human_activity import HumanActivityClassifier
 from .uwb_motion_classifier_tray_carry import TrayCarryClassifier
 from .uwb_motion_events import extract_carry_events_by_device
 from .uwb_motion_features import FeatureExtraction
@@ -157,9 +158,11 @@ def generate_groundtruth(groundtruth_csv, groundtruth_type):
     df_groundtruth_features = None
     try:
         if groundtruth_type == ground_truth.GROUNDTRUTH_TYPE_TRAY_CARRY:
-            df_groundtruth_features = ground_truth.combine_features_with_tray_carry_ground_truth_data(df_features, df_groundtruth)
+            df_groundtruth_features = ground_truth.combine_features_with_tray_carry_ground_truth_data(
+                df_features, df_groundtruth)
         elif groundtruth_type == ground_truth.GROUNDTRUTH_TYPE_HUMAN_ACTIVITY:
-            df_groundtruth_features = ground_truth.combine_features_with_human_activity_ground_truth_data(df_features, df_groundtruth)
+            df_groundtruth_features = ground_truth.combine_features_with_human_activity_ground_truth_data(
+                df_features, df_groundtruth)
     except Exception as err:
         logger.error(err)
         return None
@@ -173,13 +176,33 @@ def generate_groundtruth(groundtruth_csv, groundtruth_type):
     return df_groundtruth_features
 
 
-def generate_tray_carry_model(groundtruth_features, tune=False):
+def generate_human_activity_model(df_groundtruth_features):
+    ha = HumanActivityClassifier()
+    df_groundtruth_features = df_groundtruth_features.interpolate().fillna(method='bfill')
+    return ha.fit(df_groundtruth=df_groundtruth_features, scale_features=False)
+
+
+def infer_human_activity(model, scaler, df_person_features):
+    """
+    Classifies each moment of features dataframe into a human activity state
+
+    :param model: Human Activity carry classifier (RandomForest Model)
+    :param scaler: Human Activity scaling model used to standardize features
+    :param df_person_features: Dataframe with uwb data containing uwb_motion_classifiers.DEFAULT_FEATURE_FIELD_NAMES
+    :return: Dataframe with uwb data containing a "predicted_state" column
+    """
+    tc = HumanActivityClassifier(model=model, feature_scaler=scaler)
+    return tc.predict(df_person_features)
+
+
+def generate_tray_carry_model(df_groundtruth_features, tune=False):
     tc = TrayCarryClassifier()
+    df_groundtruth_features = df_groundtruth_features.interpolate().fillna(method='bfill')
     if tune:
-        tc.tune(df_groundtruth=groundtruth_features)
+        tc.tune(df_groundtruth=df_groundtruth_features)
         return None
     else:
-        return tc.train(df_groundtruth=groundtruth_features, scale_features=False)
+        return tc.train(df_groundtruth=df_groundtruth_features, scale_features=False)
 
 
 def estimate_tray_centroids(model, scaler, df_tray_features):
