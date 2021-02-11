@@ -189,7 +189,7 @@ def infer_human_activity(model, scaler, df_person_features):
     :param model: Human Activity carry classifier (RandomForest Model)
     :param scaler: Human Activity scaling model used to standardize features
     :param df_person_features: Dataframe with uwb data containing uwb_motion_classifiers.DEFAULT_FEATURE_FIELD_NAMES
-    :return: Dataframe with uwb data containing a "predicted_state" column
+    :return: Dataframe with uwb data containing a "predicted_tray_carry_label" column
     """
     tc = HumanActivityClassifier(model=model, feature_scaler=scaler)
     return tc.predict(df_person_features)
@@ -202,7 +202,7 @@ def generate_tray_carry_model(df_groundtruth_features, tune=False):
         tc.tune(df_groundtruth=df_groundtruth_features)
         return None
     else:
-        return tc.train(df_groundtruth=df_groundtruth_features, scale_features=False)
+        return tc.fit(df_groundtruth=df_groundtruth_features, scale_features=False)
 
 
 def estimate_tray_centroids(model, scaler, df_tray_features):
@@ -227,17 +227,17 @@ def infer_tray_carry(model, scaler, df_tray_features):
     :param model: Tray carry classifier (RandomForest Model)
     :param scaler: Tray carry scaling model used to standardize features
     :param df_tray_features: Dataframe with uwb data containing uwb_motion_classifiers.DEFAULT_FEATURE_FIELD_NAMES
-    :return: Dataframe with uwb data containing a "predicted_state" column
+    :return: Dataframe with uwb data containing a "predicted_tray_carry_label" column
     """
     tc = TrayCarryClassifier(model=model, feature_scaler=scaler)
-    return tc.inference(df_tray_features)
+    return tc.predict(df_tray_features)
 
 
 def extract_tray_carry_events_from_inferred(df_inferred):
     """
     Extract carry events from inferred carried or not carried states (see infer_tray_carry)
 
-    :param df_inferred: Dataframe with uwb data containing a "predicted_state" column
+    :param df_inferred: Dataframe with uwb data containing a "predicted_tray_carry_label" column
     :return: Dataframe containing carry events (device_id (tray ID), start, end)
     """
     return extract_carry_events_by_device(df_inferred)

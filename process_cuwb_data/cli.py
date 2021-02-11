@@ -291,13 +291,20 @@ def cli_infer_tray_interactions(environment, start, end, tray_carry_model, tray_
                                 human_activity_model, human_activity_feature_scaler, output, tray_positions_csv):
     Path(output).mkdir(parents=True, exist_ok=True)
 
-    df_cuwb_features = fetch_cuwb_data(
-        environment,
-        start,
-        end,
-        environment_assignment_info=True,
-        entity_assignment_info=True
-    )
+    # df_cuwb_features = fetch_cuwb_data(
+    #     environment,
+    #     start,
+    #     end,
+    #     environment_assignment_info=True,
+    #     entity_assignment_info=True
+    # )
+
+    # One hour of greenbrier data
+    # df_cuwb_features = read_generic_pkl("/Users/btalberg/Projects/WildFlower/wf-process-cuwb-data/output/features/2021-02-10T09:35:59_greenbrier_cuwb_features.pkl")
+
+    # Full day at greenbrier
+    df_cuwb_features = read_generic_pkl(
+        "/Users/btalberg/Projects/WildFlower/wf-process-cuwb-data/output/features/2021-02-10T11:07:54_greenbrier_cuwb_features.pkl")
 
     # Build human activity predictions
     df_person_features = extract_motion_features_from_raw(
@@ -308,6 +315,7 @@ def cli_infer_tray_interactions(environment, start, end, tray_carry_model, tray_
         logger.warn("No person motion events detected")
         return
 
+    # Remove person features that are missing acceleration data, need this data for the RandomForest classifier
     df_person_features_with_nan = df_person_features[df_person_features.isna().any(axis=1)]
     devices_without_acceleration = list(pd.unique(df_person_features_with_nan['device_id']))
     if len(devices_without_acceleration) > 0:
@@ -355,6 +363,15 @@ def cli_infer_tray_interactions(environment, start, end, tray_carry_model, tray_
     df_all_motion_features = extract_motion_features_from_raw(
         df_cuwb_features=df_cuwb_features,
         include_meta_fields=True)
+
+    # Append the Person Activity labels to the motion features dataframe, name column "human_activity_category"
+    df_all_motion_features = pd.merge(df_all_motion_features.reset_index(),
+                                      df_person_features_with_har[['device_id',
+                                                                   'predicted_human_activity_label']].reset_index(),
+                                      how='left',
+                                      on=['index', 'device_id'])\
+        .set_index('index')\
+        .rename(columns={'predicted_human_activity_label': 'human_activity_category'})
 
     df_tray_interactions = extract_tray_interactions(df_all_motion_features, df_carry_events, df_tray_centroids)
     if df_tray_interactions is None or len(df_tray_interactions) == 0:

@@ -254,7 +254,7 @@ def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centr
             'person_tray_distance': [
                 'median',
                 'min',
-                'max']}).reset_index()  # .set_index('tray_track_id')
+                'max']}).reset_index()
     df_child_tray_distances_aggregated.columns = df_child_tray_distances_aggregated.columns.to_flat_index()
     dataframe_tuple_columns_to_underscores(df_child_tray_distances_aggregated, inplace=True)
 
@@ -369,7 +369,32 @@ def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centr
     df_tray_interactions_pre_filter = df_final_carry_events_with_distances.merge(
         df_nearest_person_to_each_track, how='left')
 
-    # Filter out instances where tray distance from source/shelf is too far apart
+    # Determine each person's activity at the start and end of the carry track
+    # Append that activity to the tray interactions dataframe that is being constructed
+    df_nearest_persons_human_activity_at_start = pd.merge(df_features[['device_id', 'human_activity_category']].reset_index(),
+                                                          df_tray_interactions_pre_filter[[
+                                                              'tray_track_id', 'device_id_person', 'start']][df_tray_interactions_pre_filter['device_id_person'].notnull()],
+                                                          how='right',
+                                                          left_on=['index', 'device_id'],
+                                                          right_on=['start', 'device_id_person'])
+    df_nearest_persons_human_activity_at_end = pd.merge(df_features[['device_id', 'human_activity_category']].reset_index(),
+                                                        df_tray_interactions_pre_filter[[
+                                                            'tray_track_id', 'device_id_person', 'end']][df_tray_interactions_pre_filter['device_id_person'].notnull()],
+                                                        how='right',
+                                                        left_on=['index', 'device_id'],
+                                                        right_on=['end', 'device_id_person'])
+
+    df_tray_interactions_pre_filter = df_tray_interactions_pre_filter.merge(df_nearest_persons_human_activity_at_start[['tray_track_id', 'human_activity_category']],
+                                                                            how='left',
+                                                                            on='tray_track_id').rename(columns={'human_activity_category': 'human_activity_category_start'})
+
+    df_tray_interactions_pre_filter = df_tray_interactions_pre_filter.merge(df_nearest_persons_human_activity_at_end[['tray_track_id', 'human_activity_category']],
+                                                                            how='left',
+                                                                            on='tray_track_id').rename(columns={'human_activity_category': 'human_activity_category_end'})
+
+    # Apply a filter that will retain instances where tray distance from
+    # source/shelf is within min distance
+    # (CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF)
     filter_trays_within_min_distance_from_source = (
         (df_tray_interactions_pre_filter['tray_start_distance_from_source'] < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF) |
         (df_tray_interactions_pre_filter['tray_end_distance_from_source'] < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF))
@@ -392,15 +417,18 @@ def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centr
     #   tray_start_distance_from_source (float)
     #   tray_end_distance_from_source (float)
     #   interaction_type (str)
+    #   human_activity_category_start (str)
+    #   human_activity_category_end (str)
     logger.info("Tray motion interactions\n{}".format(df_tray_interactions))
-    df_tray_interactions = df_tray_interactions.rename(
-        columns={
-            'device_id': 'tray_device_id',
-            'device_id_person': 'person_device_id',
-            'person_name_person': 'person_name'})
-    df_tray_interactions = df_tray_interactions.drop(
-        labels=['tray_track_id', 'material_name_tray', 'device_id_tray'],
-        axis=1)
+    df_tray_interactions = df_tray_interactions\
+        .rename(
+            columns={
+                'device_id': 'tray_device_id',
+                'device_id_person': 'person_device_id',
+                'person_name_person': 'person_name'})\
+        .drop(
+            labels=['tray_track_id', 'material_name_tray', 'device_id_tray'],
+            axis=1)
 
     interaction_types = []
     for _, row in df_tray_interactions.iterrows():

@@ -42,9 +42,9 @@ def validate_tray_centroids_dataframe(df_tray_centroids):
 
 def classifier_filter_no_movement_from_tray_features(model, scaler, df_tray_features):
     tc = TrayCarryClassifier(model=model, feature_scaler=scaler)
-    df_features_with_predictions = tc.inference(df_tray_features, prediction_column_name='predicted_state')
+    df_features_with_predictions = tc.predict(df_tray_features)
 
-    motionless_mask = df_features_with_predictions['predicted_state'] == CarryCategory.NOT_CARRIED.name
+    motionless_mask = df_features_with_predictions['predicted_tray_carry_label'] == CarryCategory.NOT_CARRIED.name
     df_tray_features_no_movement = df_tray_features[motionless_mask].copy()
     return df_tray_features_no_movement
 

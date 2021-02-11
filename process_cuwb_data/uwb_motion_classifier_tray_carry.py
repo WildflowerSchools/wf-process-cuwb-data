@@ -1,14 +1,10 @@
-import matplotlib.pyplot as plt
 import multiprocessing
-import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-import sklearn.model_selection
-from sklearn.preprocessing import StandardScaler
 
-from process_cuwb_data.utils.log import logger
-from process_cuwb_data.uwb_motion_enum_carry_categories import CarryCategory
-from .uwb_motion_filters import TrayCarryHmmFilter
+from process_cuwb_data.uwb_motion_classifier_random_forest import UWBRandomForestClassifier
+from .utils.log import logger
+from .uwb_motion_enum_carry_categories import CarryCategory
+from .uwb_motion_filters import SmoothLabelsFilter, TrayCarryHmmFilter
 
 DEFAULT_FEATURE_FIELD_NAMES = (
     'quality',
@@ -114,232 +110,93 @@ DEFAULT_FEATURE_FIELD_NAMES = (
 )
 
 
-class TrayMotionRandomForestClassifier:
-    def __init__(self, n_estimators=100, max_depth=30, max_features='auto',
-                 min_samples_leaf=1, min_samples_split=2,
-                 class_weight='balanced_subsample', criterion='entropy', verbose=0, n_jobs=-1):
-        self.n_estimators = n_estimators
-        self.max_depth = max_depth
-        self.max_features = max_features
-        self.min_samples_leaf = min_samples_leaf
-        self.min_samples_split = min_samples_split
-        self.class_weight = class_weight
-        self.criterion = criterion
-        self.verbose = verbose
-        self.n_jobs = n_jobs
-
-        self.__classifier = None
-
-    def attrs(self):
-        return dict(
-            n_estimators=self.n_estimators,
-            max_depth=self.max_depth,
-            max_features=self.max_features,
-            min_samples_split=self.min_samples_split,
-            min_samples_leaf=self.min_samples_leaf,
-            class_weight=self.class_weight,
-            criterion=self.criterion,
-            verbose=self.verbose,
-            n_jobs=self.n_jobs
-        )
-
-    @property
-    def classifier(self):
-        if self.__classifier is None:
-            self.__classifier = RandomForestClassifier(
-                **self.attrs()
-            )
-        return self.__classifier
-
-
-class TrayCarryClassifier:
+class TrayCarryClassifier(UWBRandomForestClassifier):
     def __init__(self, model=None, feature_scaler=None, feature_field_names=DEFAULT_FEATURE_FIELD_NAMES,
-                 prediction_field_name='ground_truth_state'):
+                 prediction_field_name='predicted_tray_carry_label'):
+        super().__init__(n_estimators=100, max_depth=30, max_features='auto',
+                         min_samples_leaf=1, min_samples_split=2,
+                         class_weight='balanced_subsample', criterion='entropy', verbose=0, n_jobs=-1)
+
         self.model = model
         self.scaler = feature_scaler
         self.feature_field_names = list(feature_field_names)
         self.prediction_field_name = prediction_field_name
 
-    def train_test_split(self, df_groundtruth, test_size=0.3):
-        X_all = df_groundtruth[self.feature_field_names].values
-        y_all = df_groundtruth[self.prediction_field_name].values
-
-        X_all_train, X_all_test, y_all_train, y_all_test = sklearn.model_selection.train_test_split(
-            X_all,
-            y_all,
+    def tune(self, df_groundtruth,
+             test_size=0.3,
+             scale_features=False,
+             param_grid=None,
+             *args,
+             **kwargs):
+        # We create another instance of the wfRandomForestClassifier to be sure the classifier is fresh
+        rfc = UWBRandomForestClassifier(verbose=1)
+        cv_rfc = rfc.tune(
+            df_groundtruth,
+            prediction_field_name=self.prediction_field_name,
             test_size=test_size,
-            stratify=y_all
-        )
-
-        return X_all_train, X_all_test, y_all_train, y_all_test
-
-    def tune(self, df_groundtruth, test_size=0.3, scale_features=True, param_grid=None):
-        if param_grid is None:
-            param_grid = {
-                'n_estimators': [75, 100, 200],
-                'max_features': ['auto'],
-                'max_depth': [None, 30, 50, 60],
-                'criterion': ['gini', 'entropy'],
-                'min_samples_split': [2, 5]
-            }
-
-        df_groundtruth[self.prediction_field_name] = df_groundtruth[self.prediction_field_name].str.lower()
-
-        X_all_train, X_all_test, y_all_train, y_all_test = self.train_test_split(df_groundtruth, test_size)
-
-        if scale_features:
-            sc = StandardScaler()
-            X_all_train = sc.fit_transform(X_all_train)
-
-        rfc = TrayMotionRandomForestClassifier(verbose=1).classifier
-        cv_rfc = sklearn.model_selection.GridSearchCV(estimator=rfc, param_grid=param_grid, n_jobs=-1, verbose=3)
-        cv_rfc.fit(X_all_train, y_all_train)
+            scale_features=scale_features,
+            param_grid=param_grid)
 
         logger.info("Ideal tuned params: {}".format(cv_rfc.best_params_))
 
-    def train(self, df_groundtruth, test_size=0.3, scale_features=True,
-              classifier=TrayMotionRandomForestClassifier().classifier):
-        if not isinstance(classifier, RandomForestClassifier):
-            raise Exception("Classifier model type is {}, must be RandomForestClassifier".format(type(classifier)))
+        return cv_rfc
 
-        df_groundtruth[self.prediction_field_name] = df_groundtruth[self.prediction_field_name].str.lower()
+    def fit(self, df_groundtruth,
+            test_size=0.3,
+            scale_features=True,
+            classifier=None,
+            *args,
+            **kwargs):
+        if classifier is not None:
+            self.classifier = classifier
 
-        X_all_train, X_all_test, y_all_train, y_all_test = self.train_test_split(df_groundtruth, test_size)
+        result = super().fit(df_groundtruth=df_groundtruth,
+                             feature_field_names=self.feature_field_names,
+                             prediction_field_name=self.prediction_field_name,
+                             test_size=test_size,
+                             scale_features=scale_features)
 
-        values_train, counts_train = np.unique(y_all_train, return_counts=True)
-        values_test, counts_test = np.unique(y_all_test, return_counts=True)
+        self.model = result['model']
+        self.scaler = result['scaler']
 
-        logger.info("Training label balance:\n{}".format(dict(zip(values_train, counts_train / np.sum(counts_train)))))
-        logger.info("Test label balance:\n{}".format(dict(zip(values_test, counts_test / np.sum(counts_test)))))
+        return result
 
-        sc = None
-        if scale_features:
-            sc = StandardScaler()
-            X_all_train = sc.fit_transform(X_all_train)
-            X_all_test = sc.transform(X_all_test)
-
-        classifier.fit(X_all_train, y_all_train)
-
-        logger.info(
-            "Confusion Matrix:\n{}".format(
-                sklearn.metrics.confusion_matrix(
-                    y_all_test,
-                    classifier.predict(X_all_test))))
-
-        logger.info('Classification Report:\n{}'.format(
-            sklearn.metrics.classification_report(
-                y_all_test,
-                classifier.predict(X_all_test))))
-
-        disp = sklearn.metrics.plot_confusion_matrix(
-            classifier,
-            X_all_test,
-            y_all_test,
-            cmap=plt.cm.Blues,
-            normalize=None,
-            values_format='n'
-        )
-        disp.ax_.set_title(
-            'Random forest ({} estimators, {} max depth): test set'.format(
-                classifier.n_estimators,
-                classifier.max_depth))
-
-        self.model = classifier
-        self.scaler = sc
-
-        return dict(
-            model=classifier,
-            scaler=sc,
-            confusion_matrix_plot=disp
-        )
-
-    def inference_filter_and_smooth_predictions(self, device_id, df_device_features, prediction_column_name):
+    def filter_and_smooth_predictions(self, device_id, df_device_features, window=10):
         logger.info("Filter tray carry classification anomalies (hmm model) for device ID {}".format(device_id))
-        df_device_features = TrayCarryHmmFilter().filter(df_device_features, prediction_column_name)
+        df_device_features = TrayCarryHmmFilter().filter(df_device_features, self.prediction_field_name)
 
         logger.info("Smooth tray carry classification for device ID {}".format(device_id))
-        df_device_features = self.inference_post_filter_smooth_predictions(df_device_features, prediction_column_name)
+        df_device_features = SmoothLabelsFilter(
+            window=window).filter(
+            df_predictions=df_device_features,
+            prediction_column_name=self.prediction_field_name)
 
         logger.info(
             "Carry Prediction (post filter and smoothing) for device ID {}:\n{}".format(
                 device_id,
-                df_device_features.groupby(prediction_column_name).size()))
+                df_device_features.groupby(self.prediction_field_name).size()))
 
         return (device_id, df_device_features)
 
-    def inference_post_filter_smooth_predictions(self, df, prediction_column_name, window=10, inplace=False):
-        """
-        Smooth out predicted instances of carry/not-carry changes that don't occur within a stable
-        rolling window of carry events. Stable rolling windows are when the number of frames (windows)
-        are uniform. i.e. A carry isn't recognized (stable) unless the state of "Carried" occurs 10 (window)
-        times in a row.
-
-        :param df: Dataframe to smooth
-        :param prediction_column_name: Predicted carry column
-        :param window: Number of frames that must be uniform to be considered a "stable" event period
-        :param inplace: Modify dataframe in-place
-        :return: Modified dataframe (if inplace is False)
-        """
-        if not inplace:
-            df = df.copy()
-
-        # 1) First use a rolling window to classify moments that fall into stable or not-stable periods
-        # 2) Then look for the moments when stability changes (NS -> S or S -> NS)
-        # 3) Capture the moment right before the stability change and store both the index and the carry state
-        # 4) Update all moments between these stability changes with the most recent stable carry state value
-
-        rolling_window = df[prediction_column_name].rolling(window=window, center=True)
-        carry_stability = (rolling_window.min() == rolling_window.max())
-
-        rolling_stability_change_window = carry_stability.rolling(window=2)
-        carry_stability_change_moments = (rolling_stability_change_window.min() !=
-                                          rolling_stability_change_window.max())
-
-        change_moments = carry_stability_change_moments[carry_stability_change_moments == True]
-        for ii_idx, (time_idx, row) in enumerate(change_moments.iteritems()):
-            range_mask = (df.index > time_idx)
-            if ii_idx < len(change_moments) - 1:
-                range_mask = range_mask & (df.index <= change_moments.index[ii_idx + 1])
-
-            df.loc[range_mask, prediction_column_name] = df.iloc[df.index.get_loc(
-                time_idx) + 1][prediction_column_name]
-
-        if not inplace:
-            return df
-
-    def inference(self, df_features, prediction_column_name='predicted_state'):
-        if df_features is None or len(df_features) == 0:
+    def predict(self, df_features,
+                *args,
+                **kwargs):
+        predictions = super().predict(
+            df_features=df_features,
+            model=self.model,
+            scaler=self.scaler,
+            feature_field_names=self.feature_field_names)
+        if predictions is None:
             return None
-
-        if self.model is None:
-            logger.error("TrayCarryClassifier model must generated via training or supplied at init time")
-            raise Exception("TrayCarryClassifier model required, is None")
-
-        if not isinstance(self.model, RandomForestClassifier):
-            raise Exception(
-                "TrayCarryClassifier model type is {}, must be RandomForestClassifier".format(
-                    type(
-                        self.model)))
-
-        if self.scaler is not None and not isinstance(self.scaler, StandardScaler):
-            raise Exception("Feature scaler type is {}, must be StandardScaler".format(type(self.scaler)))
-
-        df_features = df_features.copy()
-
-        classifier_features = df_features[self.feature_field_names]
-
-        if self.scaler is not None:
-            classifier_features = self.scaler.transform(classifier_features)
-
-        df_features[prediction_column_name] = self.model.predict(classifier_features)
+        df_features[self.prediction_field_name] = predictions
 
         logger.info(
             "Carry Prediction (pre filter and smoothing):\n{}".format(
-                df_features.groupby(prediction_column_name).size()))
+                df_features.groupby(self.prediction_field_name).size()))
 
         # Convert carry state from string to int
         carry_category_mapping_dictionary = CarryCategory.as_name_id_dict()  # Category label lookup is case insensitive
-        df_features[prediction_column_name] = df_features[prediction_column_name].map(
+        df_features[self.prediction_field_name] = df_features[self.prediction_field_name].map(
             lambda x: carry_category_mapping_dictionary[x])
 
         # HMM Model and smoothing can take awhile, use multiprocessing to help speed things up
@@ -351,11 +208,10 @@ class TrayCarryClassifier:
             df_device_features = df_features.loc[df_features['device_id'] == device_id].copy().sort_index()
             results.append(
                 p.apply_async(
-                    self.inference_filter_and_smooth_predictions,
+                    self.filter_and_smooth_predictions,
                     kwds=dict(
                         device_id=device_id,
-                        df_device_features=df_device_features,
-                        prediction_column_name=prediction_column_name)))
+                        df_device_features=df_device_features)))
 
         df_dict = dict(p.get() for p in results)
         p.close()
@@ -363,10 +219,11 @@ class TrayCarryClassifier:
         df_features = pd.concat(df_dict.values())
 
         # Convert carry state from int to string
-        df_features[prediction_column_name] = df_features[prediction_column_name].map(CarryCategory.as_id_name_dict())
+        df_features[self.prediction_field_name] = df_features[self.prediction_field_name].map(
+            CarryCategory.as_id_name_dict())
 
         logger.info(
             "Carry Prediction (post filter and smoothing):\n{}".format(
-                df_features.groupby(prediction_column_name).size()))
+                df_features.groupby(self.prediction_field_name).size()))
 
         return df_features
