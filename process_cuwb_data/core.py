@@ -33,7 +33,7 @@ def fetch_cuwb_data(
     end_time,
     entity_type='all',
     data_type='raw',
-    read_chunk_size=2,
+    read_chunk_size=100,
     device_type='UWBTAG',
     environment_assignment_info=False,
     entity_assignment_info=False

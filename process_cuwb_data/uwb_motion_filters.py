@@ -155,7 +155,7 @@ class SmoothLabelsFilter:
         """
         Smooth out predicted labels by smoothing out changes that don't occur within a stable
         rolling window of carry events. Stable rolling windows are when the number of frames (windows)
-        are uniform. i.e. A carry isn't recognized (stable) unless the state of "Carried" occurs 10 (window)
+        are uniform. i.e. A carry isn't recognized (stable) unless the state of "Carried" occurs n (window)
         times in a row.
 
         :param df: Dataframe to smooth
@@ -182,11 +182,13 @@ class SmoothLabelsFilter:
         change_moments = carry_stability_change_moments[carry_stability_change_moments == True]
         for ii_idx, (time_idx, row) in enumerate(change_moments.iteritems()):
             range_mask = (df_predictions.index > time_idx)
+
             if ii_idx < len(change_moments) - 1:
                 range_mask = range_mask & (df_predictions.index <= change_moments.index[ii_idx + 1])
 
-            df_predictions.loc[range_mask, prediction_column_name] = df_predictions.iloc[df_predictions.index.get_loc(
-                time_idx) + 1][prediction_column_name]
+            prediction_change_idx = df_predictions.index.get_loc(time_idx) + 1
+            if prediction_change_idx < len(df_predictions):
+                df_predictions.loc[range_mask, prediction_column_name] = df_predictions.iloc[prediction_change_idx][prediction_column_name]
 
         if not inplace:
             return df_predictions
