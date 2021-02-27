@@ -19,7 +19,7 @@ BASE_DEPENDENCIES = [
     'scikit-learn>=0.24',
     'scipy>=1.5.4',
     'tensorflow>=2.4.1',
-    'wf-honeycomb-io>=0.0.1',
+    'wf-honeycomb-io>=0.1.0',
     'wf-geom-render>=0.3.0'
 ]
 # TEST_DEPENDENCIES = [
