@@ -1,9 +1,9 @@
+from honeycomb_io import fetch_environment_by_name, fetch_material_tray_devices_assignments, fetch_raw_cuwb_data
 import numpy as np
 import pandas as pd
 
 from .utils.io import load_csv
 from .utils.log import logger
-from .honeycomb import fetch_environment_by_name, fetch_material_tray_devices_assignments, fetch_raw_cuwb_data
 from .uwb_extract_data import extract_by_data_type_and_format, extract_by_entity_type
 from .uwb_motion_classifier_human_activity import HumanActivityClassifier
 from .uwb_motion_classifier_tray_carry import TrayCarryClassifier
@@ -33,7 +33,6 @@ def fetch_cuwb_data(
     end_time,
     entity_type='all',
     data_type='raw',
-    read_chunk_size=2,
     device_type='UWBTAG',
     environment_assignment_info=False,
     entity_assignment_info=False
@@ -45,13 +44,12 @@ def fetch_cuwb_data(
         raise Exception("Invalid 'data_type' value: {}".format(type))
 
     df = fetch_raw_cuwb_data(
-        environment_name,
-        start_time,
-        end_time,
-        read_chunk_size,
-        device_type,
-        environment_assignment_info,
-        entity_assignment_info
+        environment_name=environment_name,
+        start_time=start_time,
+        end_time=end_time,
+        device_type=device_type,
+        environment_assignment_info=environment_assignment_info,
+        entity_assignment_info=entity_assignment_info
     )
 
     df = extract_by_entity_type(df, entity_type)

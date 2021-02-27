@@ -12,16 +12,15 @@ BASE_DEPENDENCIES = [
     'keras>=2.4.3',
     'matplotlib>=3.3.3',
     'nocasedict>=1.0.2',
-    'numpy~=1.19.4',
+    'numpy~=1.20.1',
     'pandas>=1.1.4',
     'python-dotenv>=0.14.0',
     'python-slugify>=4.0.0',
     'scikit-learn>=0.24',
     'scipy>=1.5.4',
-    'tensorflow>=2.4.1',
-    'wf-database-connection-honeycomb>=0.5.0',
-    'wf-geom-render>=0.3.0',
-    'wf-minimal-honeycomb-python>=0.6.0'
+    #'tensorflow>=2.4.1',
+    'wf-honeycomb-io>=0.1.0',
+    'wf-geom-render>=0.3.0'
 ]
 # TEST_DEPENDENCIES = [
 # ]
