@@ -1,9 +1,9 @@
+from honeycomb_io import fetch_environment_by_name, fetch_material_tray_devices_assignments, fetch_raw_cuwb_data
 import numpy as np
 import pandas as pd
 
 from .utils.io import load_csv
 from .utils.log import logger
-from .honeycomb import fetch_environment_by_name, fetch_material_tray_devices_assignments, fetch_raw_cuwb_data
 from .uwb_extract_data import extract_by_data_type_and_format, extract_by_entity_type
 from .uwb_motion_classifier_human_activity import HumanActivityClassifier
 from .uwb_motion_classifier_tray_carry import TrayCarryClassifier
