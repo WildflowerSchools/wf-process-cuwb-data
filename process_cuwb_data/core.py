@@ -1,4 +1,4 @@
-from honeycomb_io import fetch_environment_by_name, fetch_material_tray_devices_assignments, fetch_raw_cuwb_data
+from honeycomb_io import fetch_cuwb_position_data, fetch_cuwb_accelerometer_data, add_device_assignment_info, add_device_entity_assignment_info, add_tray_material_assignment_info, fetch_environment_by_name, fetch_material_tray_devices_assignments, fetch_raw_cuwb_data
 import numpy as np
 import pandas as pd
 
@@ -55,6 +55,120 @@ def fetch_cuwb_data(
     df = extract_by_entity_type(df, entity_type)
     return extract_by_data_type_and_format(df, data_type)
 
+def fetch_motion_features_new(
+    environment,
+    start,
+    end,
+    entity_type='all',
+    include_meta_fields=False,
+    fillna=None
+):
+    # Fetch position data
+    df_position = fetch_cuwb_position_data(
+        start=start,
+        end=end,
+        device_ids=None,
+        environment_id=None,
+        environment_name=environment,
+        device_types=['UWBTAG'],
+        output_format='dataframe'
+    )
+    # Add metadata
+    df_position = add_device_assignment_info(df_position)
+    df_position = add_device_entity_assignment_info(df_position)
+    df_position = add_tray_material_assignment_info(df_position)
+    # Filter on entity type
+    df_position = filter_entity_type(df_position, entity_type=entity_type)
+    # Reorganize columns as expected by extract_motion_features()
+    df_position['type'] = 'position'
+    df_position.rename(
+        columns={
+            'x': 'x_meters',
+            'y': 'y_meters',
+            'z': 'z_meters'
+        },
+        inplace=True
+    )
+    df_position.reset_index(drop=True, inplace=True)
+    df_position.set_index('timestamp', inplace=True)
+    # Fetch acceleration data
+    df_acceleration = fetch_cuwb_accelerometer_data(
+        start=start,
+        end=end,
+        device_ids=None,
+        environment_id=None,
+        environment_name=environment,
+        device_types=['UWBTAG'],
+        output_format='dataframe'
+    )
+    # Add metadata
+    df_acceleration = add_device_assignment_info(df_acceleration)
+    df_acceleration = add_device_entity_assignment_info(df_acceleration)
+    df_acceleration = add_tray_material_assignment_info(df_acceleration)
+    # Filter on entity type
+    df_acceleration = filter_entity_type(df_acceleration, entity_type=entity_type)
+    # Reorganize columns as expected by extract_motion_features()
+    df_acceleration['type'] = 'accelerometer'
+    df_acceleration.rename(
+        columns={
+        'x': 'x_gs',
+        'y': 'y_gs',
+        'z': 'z_gs'
+        },
+        inplace=True
+    )
+    df_acceleration.reset_index(drop=True, inplace=True)
+    df_acceleration.set_index('timestamp', inplace=True)
+    # Extract motion features
+    df_motion_features = extract_motion_features(
+        df_position=df_position,
+        df_acceleration=df_acceleration,
+        entity_type=entity_type,
+        fillna=fillna
+    )
+    # Add metadata fields if requested
+    if include_meta_fields and (len(df_position) > 0 or len(df_acceleration) > 0):
+        df_all_datatypes = pd.concat((df_position, df_acceleration))
+        df_meta_fields = (
+            df_all_datatypes.loc[:, [
+                'device_id',
+                'device_name',
+                'device_tag_id',
+                'device_mac_address',
+                'device_part_number',
+                'device_serial_number',
+                'entity_type',
+                'person_id',
+                'person_name',
+                'person_short_name',
+                'tray_id',
+                'tray_name',
+                'material_assignment_id',
+                'material_id',
+                'material_name'
+            ]]
+            .set_index('device_id')
+            .drop_duplicates()
+            .copy()
+        )
+        # We don't need to check for duplicate device IDs because our functions
+        # for fetching device assignments, device entity assignments, and tray
+        # material assignments all enforce uniqueness by default
+        return df_motion_features.join(df_meta_fields, on='device_id', how='left')
+    else:
+        return df_motion_features
+
+def filter_entity_type(dataframe, entity_type='all'):
+    if entity_type == 'all':
+        return dataframe
+    elif entity_type == 'tray':
+        return dataframe.loc[dataframe['entity_type'] == 'Tray'].copy()
+    elif entity_type == 'person':
+        return dataframe.loc[dataframe['entity_type'] == 'Person'].copy()
+    else:
+        error = "Invalid 'entity_type' value: {}".format(entity_type)
+        logger.error(error)
+        raise Exception(error)
 
 def fetch_motion_features(environment, start, end, entity_type='all', include_meta_fields=False, fillna=None):
     df_cuwb_features = fetch_cuwb_data(environment,
