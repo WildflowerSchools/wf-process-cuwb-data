@@ -49,9 +49,9 @@ class UWBRandomForestClassifier:
         self.__classifier = classifier
 
     def train_test_split(self, df_groundtruth, test_size=0.3, feature_field_names=[],
-                         prediction_field_name='predicted_label'):
+                         ground_truth_label_field_name='ground_truth_state'):
         X_all = df_groundtruth[feature_field_names].values
-        y_all = df_groundtruth[prediction_field_name].values
+        y_all = df_groundtruth[ground_truth_label_field_name].values
 
         X_all_train, X_all_test, y_all_train, y_all_test = sklearn.model_selection.train_test_split(
             X_all,
@@ -64,7 +64,7 @@ class UWBRandomForestClassifier:
 
     def tune(self,
              df_groundtruth,
-             prediction_field_name='predicted_label',
+             ground_truth_label_field_name='ground_truth_state',
              test_size=0.3,
              scale_features=False,
              param_grid=None,
@@ -79,7 +79,7 @@ class UWBRandomForestClassifier:
                 'min_samples_split': [2, 5]
             }
 
-        df_groundtruth[prediction_field_name] = df_groundtruth[prediction_field_name].str.lower()
+        df_groundtruth[ground_truth_label_field_name] = df_groundtruth[ground_truth_label_field_name].str.lower()
 
         X_all_train, X_all_test, y_all_train, y_all_test = self.train_test_split(df_groundtruth, test_size)
 
@@ -94,7 +94,7 @@ class UWBRandomForestClassifier:
 
     def fit(self, df_groundtruth,
             feature_field_names=[],
-            prediction_field_name='predicted_label',
+            ground_truth_label_field_name='ground_truth_state',
             test_size=0.3,
             scale_features=False,
             *args,
@@ -102,12 +102,12 @@ class UWBRandomForestClassifier:
         if not isinstance(self.classifier, skRandomForestClassifier):
             raise Exception("Classifier model type is {}, must be RandomForestClassifier".format(type(self.classifier)))
 
-        df_groundtruth[prediction_field_name] = df_groundtruth[prediction_field_name].str.lower()
+        df_groundtruth[ground_truth_label_field_name] = df_groundtruth[ground_truth_label_field_name].str.lower()
 
         X_all_train, X_all_test, y_all_train, y_all_test = self.train_test_split(
             df_groundtruth,
             feature_field_names=feature_field_names,
-            prediction_field_name=prediction_field_name,
+            ground_truth_label_field_name=ground_truth_label_field_name,
             test_size=test_size)
 
         values_train, counts_train = np.unique(y_all_train, return_counts=True)

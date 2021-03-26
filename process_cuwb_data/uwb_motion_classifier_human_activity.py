@@ -138,6 +138,7 @@ DEFAULT_FEATURE_FIELD_NAMES = (
 class HumanActivityClassifier(UWBRandomForestClassifier):
     def __init__(self, model=None, feature_scaler=None,
                  feature_field_names=DEFAULT_FEATURE_FIELD_NAMES,
+                 ground_truth_label_field_name='ground_truth_state',
                  prediction_field_name='predicted_human_activity_label'):
         super().__init__(n_estimators=100, max_depth=30, max_features='auto',
                          min_samples_leaf=1, min_samples_split=2,
@@ -145,14 +146,15 @@ class HumanActivityClassifier(UWBRandomForestClassifier):
         self.model = model
         self.scaler = feature_scaler
         self.feature_field_names = list(feature_field_names)
+        self.ground_truth_label_field_name = ground_truth_label_field_name
         self.prediction_field_name = prediction_field_name
 
-    def filter_and_smooth_predictions(self, device_id, df_device_features, window=5):
+    def filter_and_smooth_predictions(self, device_id, df_device_features, window=3):
         logger.info("Smooth human activity classification for device ID {}".format(device_id))
         df_device_features = SmoothLabelsFilter(
             window=window).filter(
-            df_predictions=df_device_features,
-            prediction_column_name=self.prediction_field_name)
+                df_predictions=df_device_features,
+                prediction_column_name=self.prediction_field_name)
 
         logger.info(
             "Human Activity (post filter and smoothing) for device ID {}:\n{}".format(
@@ -172,7 +174,7 @@ class HumanActivityClassifier(UWBRandomForestClassifier):
 
         result = super().fit(df_groundtruth=df_groundtruth,
                              feature_field_names=self.feature_field_names,
-                             prediction_field_name=self.prediction_field_name,
+                             ground_truth_label_field_name=self.ground_truth_label_field_name,
                              test_size=test_size,
                              scale_features=scale_features)
 

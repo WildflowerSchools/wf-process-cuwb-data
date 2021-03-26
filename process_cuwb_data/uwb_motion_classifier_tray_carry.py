@@ -112,6 +112,7 @@ DEFAULT_FEATURE_FIELD_NAMES = (
 
 class TrayCarryClassifier(UWBRandomForestClassifier):
     def __init__(self, model=None, feature_scaler=None, feature_field_names=DEFAULT_FEATURE_FIELD_NAMES,
+                 ground_truth_label_field_name='ground_truth_state',
                  prediction_field_name='predicted_tray_carry_label'):
         super().__init__(n_estimators=100, max_depth=30, max_features='auto',
                          min_samples_leaf=1, min_samples_split=2,
@@ -120,6 +121,7 @@ class TrayCarryClassifier(UWBRandomForestClassifier):
         self.model = model
         self.scaler = feature_scaler
         self.feature_field_names = list(feature_field_names)
+        self.ground_truth_label_field_name = ground_truth_label_field_name
         self.prediction_field_name = prediction_field_name
 
     def tune(self, df_groundtruth,
@@ -152,7 +154,7 @@ class TrayCarryClassifier(UWBRandomForestClassifier):
 
         result = super().fit(df_groundtruth=df_groundtruth,
                              feature_field_names=self.feature_field_names,
-                             prediction_field_name=self.prediction_field_name,
+                             ground_truth_label_field_name=self.ground_truth_label_field_name,
                              test_size=test_size,
                              scale_features=scale_features)
 
