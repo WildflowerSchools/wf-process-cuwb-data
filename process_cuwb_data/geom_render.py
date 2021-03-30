@@ -8,6 +8,7 @@ import os
 
 from process_cuwb_data.utils.log import logger
 
+
 def fetch_geoms_2d(
     environment_name,
     start_time,

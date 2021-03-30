@@ -36,6 +36,10 @@ def extract_by_data_type_and_format(df, data_type='raw'):
         return extract_position_data(df)
     elif data_type == 'accelerometer':
         return extract_accelerometer_data(df)
+    elif data_type == 'gyroscope':
+        return extract_accelerometer_data(df)
+    elif data_type == 'magnetometer':
+        return extract_accelerometer_data(df)
     elif data_type == 'status':
         return extract_status_data(df)
     else:

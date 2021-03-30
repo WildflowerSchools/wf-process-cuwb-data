@@ -1,9 +1,11 @@
-from honeycomb_io import fetch_cuwb_position_data, fetch_cuwb_accelerometer_data, add_device_assignment_info, add_device_entity_assignment_info, add_tray_material_assignment_info, fetch_environment_by_name, fetch_material_tray_devices_assignments, fetch_raw_cuwb_data
+from honeycomb_io import fetch_environment_by_name, fetch_material_tray_devices_assignments, fetch_raw_cuwb_data
 import numpy as np
 import pandas as pd
 
+from .honeycomb_imu_data import fetch_imu_data
 from .utils.io import load_csv
 from .utils.log import logger
+from .utils.util import filter_data_type_and_format
 from .uwb_extract_data import extract_by_data_type_and_format, extract_by_entity_type
 from .uwb_motion_classifier_human_activity import HumanActivityClassifier
 from .uwb_motion_classifier_tray_carry import TrayCarryClassifier
@@ -15,28 +17,57 @@ from .uwb_predict_tray_centroids import classifier_filter_no_movement_from_tray_
 
 
 def fetch_tray_device_assignments(
-        environment_name,
-        start_time,
-        end_time):
-    environment = fetch_environment_by_name(environment_name=environment_name)
+        environment,
+        start,
+        end):
+    environment = fetch_environment_by_name(environment_name=environment)
     if environment is None:
         return None
 
     environment_id = environment['environment_id']
-    df_tray_device_assignments = fetch_material_tray_devices_assignments(environment_id, start_time, end_time)
+    df_tray_device_assignments = fetch_material_tray_devices_assignments(environment_id, start, end)
     return df_tray_device_assignments
 
 
 def fetch_cuwb_data(
-    environment_name,
-    start_time,
-    end_time,
+    environment,
+    start,
+    end,
     entity_type='all',
-    data_type='raw',
-    read_chunk_size=100,
-    device_type='UWBTAG',
-    environment_assignment_info=False,
-    entity_assignment_info=False
+    data_type='all'
+):
+    if entity_type not in ['tray', 'person', 'all']:
+        raise Exception("Invalid 'entity_type' value: {}".format(entity_type))
+
+    if data_type not in ['position', 'accelerometer', 'gyroscope', 'magnetometer', 'all']:
+        raise Exception("Invalid 'data_type' value: {}".format(data_type))
+
+    if data_type == 'all':
+        imu_types_to_fetch = ['position', 'accelerometer', 'gyroscope', 'magnetometer']
+    else:
+        imu_types_to_fetch = [data_type]
+
+    df_imu_data = pd.DataFrame()
+    for imu_type in imu_types_to_fetch:
+        df_imu_data = df_imu_data.append(fetch_imu_data(
+            imu_type=imu_type,
+            environment=environment,
+            start=start,
+            end=end,
+            entity_type=entity_type))
+
+    return extract_by_entity_type(df_imu_data, entity_type)
+
+
+def fetch_cuwb_data_from_datapoints(
+        environment_name,
+        start_time,
+        end_time,
+        entity_type='all',
+        data_type='raw',
+        device_type='UWBTAG',
+        environment_assignment_info=False,
+        entity_assignment_info=False
 ):
     if entity_type not in ['tray', 'person', 'all']:
         raise Exception("Invalid 'entity_type' value: {}".format(type))
@@ -56,80 +87,45 @@ def fetch_cuwb_data(
     df = extract_by_entity_type(df, entity_type)
     return extract_by_data_type_and_format(df, data_type)
 
-def fetch_motion_features_new(
+
+def fetch_motion_features(
     environment,
     start,
     end,
+    df_uwb_data=None,
     entity_type='all',
-    include_meta_fields=False,
+    include_meta_fields=True,
     fillna=None
 ):
-    # Fetch position data
-    df_position = fetch_cuwb_position_data(
-        start=start,
-        end=end,
-        device_ids=None,
-        environment_id=None,
-        environment_name=environment,
-        device_types=['UWBTAG'],
-        output_format='dataframe'
-    )
-    # Add metadata
-    df_position = add_device_assignment_info(df_position)
-    df_position = add_device_entity_assignment_info(df_position)
-    df_position = add_tray_material_assignment_info(df_position)
-    # Filter on entity type
-    df_position = filter_entity_type(df_position, entity_type=entity_type)
-    # Reorganize columns as expected by extract_motion_features()
-    df_position['type'] = 'position'
-    df_position.rename(
-        columns={
-            'x': 'x_meters',
-            'y': 'y_meters',
-            'z': 'z_meters'
-        },
-        inplace=True
-    )
-    df_position.reset_index(drop=True, inplace=True)
-    df_position.set_index('timestamp', inplace=True)
-    # Fetch acceleration data
-    df_acceleration = fetch_cuwb_accelerometer_data(
-        start=start,
-        end=end,
-        device_ids=None,
-        environment_id=None,
-        environment_name=environment,
-        device_types=['UWBTAG'],
-        output_format='dataframe'
-    )
-    # Add metadata
-    df_acceleration = add_device_assignment_info(df_acceleration)
-    df_acceleration = add_device_entity_assignment_info(df_acceleration)
-    df_acceleration = add_tray_material_assignment_info(df_acceleration)
-    # Filter on entity type
-    df_acceleration = filter_entity_type(df_acceleration, entity_type=entity_type)
-    # Reorganize columns as expected by extract_motion_features()
-    df_acceleration['type'] = 'accelerometer'
-    df_acceleration.rename(
-        columns={
-        'x': 'x_gs',
-        'y': 'y_gs',
-        'z': 'z_gs'
-        },
-        inplace=True
-    )
-    df_acceleration.reset_index(drop=True, inplace=True)
-    df_acceleration.set_index('timestamp', inplace=True)
-    # Extract motion features
+    if df_uwb_data is None:
+        df_uwb_data = fetch_cuwb_data(
+            environment,
+            start,
+            end,
+            data_type='all',
+            entity_type='all'
+        )
+
+    df_position = filter_data_type_and_format(df_uwb_data, 'position')
+    df_accelerometer = filter_data_type_and_format(df_uwb_data, 'accelerometer')
+    df_gyroscope = filter_data_type_and_format(df_uwb_data, 'gyroscope')
+    df_magnetometer = filter_data_type_and_format(df_uwb_data, 'magnetometer')
     df_motion_features = extract_motion_features(
         df_position=df_position,
-        df_acceleration=df_acceleration,
+        df_acceleration=df_accelerometer,
+        df_gyroscope=df_gyroscope,
+        df_magnetometer=df_magnetometer,
         entity_type=entity_type,
         fillna=fillna
     )
+
     # Add metadata fields if requested
-    if include_meta_fields and (len(df_position) > 0 or len(df_acceleration) > 0):
-        df_all_datatypes = pd.concat((df_position, df_acceleration))
+    if include_meta_fields and\
+            (len(df_position) > 0 or
+             len(df_accelerometer) > 0 or
+             len(df_gyroscope) > 0 or
+             len(df_magnetometer) > 0):
+        df_all_datatypes = pd.concat((df_position, df_accelerometer, df_gyroscope, df_magnetometer))
         df_meta_fields = (
             df_all_datatypes.loc[:, [
                 'device_id',
@@ -159,31 +155,26 @@ def fetch_motion_features_new(
     else:
         return df_motion_features
 
-def filter_entity_type(dataframe, entity_type='all'):
-    if entity_type == 'all':
-        return dataframe
-    elif entity_type == 'tray':
-        return dataframe.loc[dataframe['entity_type'] == 'Tray'].copy()
-    elif entity_type == 'person':
-        return dataframe.loc[dataframe['entity_type'] == 'Person'].copy()
-    else:
-        error = "Invalid 'entity_type' value: {}".format(entity_type)
-        logger.error(error)
-        raise Exception(error)
 
-def fetch_motion_features(environment, start, end, entity_type='all', include_meta_fields=False, fillna=None):
-    df_cuwb_features = fetch_cuwb_data(environment,
-                                       start,
-                                       end,
-                                       entity_type=entity_type,
-                                       environment_assignment_info=True,
-                                       entity_assignment_info=True)
+def fetch_motion_features_from_datapoints(
+        environment, start, end, entity_type='all', include_meta_fields=False, fillna=None):
+    df_cuwb_features = fetch_cuwb_data_from_datapoints(environment,
+                                                       start,
+                                                       end,
+                                                       entity_type=entity_type,
+                                                       environment_assignment_info=True,
+                                                       entity_assignment_info=True)
 
-    return extract_motion_features_from_raw(df_cuwb_features, entity_type=entity_type,
-                                            include_meta_fields=include_meta_fields, fillna=fillna)
+    return extract_motion_features_from_raw_datapoints(df_cuwb_features,
+                                                       entity_type=entity_type,
+                                                       include_meta_fields=include_meta_fields,
+                                                       fillna=fillna)
 
 
-def extract_motion_features_from_raw(df_cuwb_features, entity_type='all', include_meta_fields=False, fillna=None):
+def extract_motion_features_from_raw_datapoints(df_cuwb_features,
+                                                entity_type='all',
+                                                include_meta_fields=False,
+                                                fillna=None):
     df_motion_features = extract_motion_features(
         df_position=extract_by_data_type_and_format(df_cuwb_features, data_type='position'),
         df_acceleration=extract_by_data_type_and_format(df_cuwb_features, data_type='accelerometer'),
@@ -217,9 +208,20 @@ def extract_motion_features_from_raw(df_cuwb_features, entity_type='all', includ
         return df_motion_features
 
 
-def extract_motion_features(df_position, df_acceleration, entity_type='all', fillna=None):
+def extract_motion_features(df_position,
+                            df_acceleration,
+                            df_gyroscope=None,
+                            df_magnetometer=None,
+                            entity_type='all',
+                            fillna=None):
     f = FeatureExtraction()
-    return f.extract_motion_features_for_multiple_devices(df_position, df_acceleration, entity_type, fillna=fillna)
+    return f.extract_motion_features_for_multiple_devices(
+        df_position=df_position,
+        df_acceleration=df_acceleration,
+        df_gyroscope=df_gyroscope,
+        df_magnetometer=df_magnetometer,
+        entity_type=entity_type,
+        fillna=fillna)
 
 
 def generate_tray_carry_groundtruth(groundtruth_csv):
@@ -258,10 +260,10 @@ def generate_groundtruth(groundtruth_csv, groundtruth_type):
 
         # Until fetch_motion_features can return data safely within exact
         # bounds, add 60 minutes offsets to start and end
-        df_environment_features = fetch_motion_features(environment=environment,
-                                                        start=(start - pd.DateOffset(minutes=60)),
-                                                        end=(end + pd.DateOffset(minutes=60)),
-                                                        entity_type=entity_type)
+        df_environment_features = fetch_motion_features_from_datapoints(environment=environment,
+                                                                        start=(start - pd.DateOffset(minutes=60)),
+                                                                        end=(end + pd.DateOffset(minutes=60)),
+                                                                        entity_type=entity_type)
 
         if df_features is None:
             df_features = df_environment_features.copy()

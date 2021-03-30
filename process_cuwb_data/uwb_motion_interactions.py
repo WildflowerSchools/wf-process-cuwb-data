@@ -369,28 +369,29 @@ def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centr
     df_tray_interactions_pre_filter = df_final_carry_events_with_distances.merge(
         df_nearest_person_to_each_track, how='left')
 
-    # Determine each person's activity at the start and end of the carry track
-    # Append that activity to the tray interactions dataframe that is being constructed
-    df_nearest_persons_human_activity_at_start = pd.merge(df_features[['device_id', 'human_activity_category']].reset_index(),
-                                                          df_tray_interactions_pre_filter[[
-                                                              'tray_track_id', 'device_id_person', 'start']][df_tray_interactions_pre_filter['device_id_person'].notnull()],
-                                                          how='right',
-                                                          left_on=['index', 'device_id'],
-                                                          right_on=['start', 'device_id_person'])
-    df_nearest_persons_human_activity_at_end = pd.merge(df_features[['device_id', 'human_activity_category']].reset_index(),
-                                                        df_tray_interactions_pre_filter[[
-                                                            'tray_track_id', 'device_id_person', 'end']][df_tray_interactions_pre_filter['device_id_person'].notnull()],
-                                                        how='right',
-                                                        left_on=['index', 'device_id'],
-                                                        right_on=['end', 'device_id_person'])
-
-    df_tray_interactions_pre_filter = df_tray_interactions_pre_filter.merge(df_nearest_persons_human_activity_at_start[['tray_track_id', 'human_activity_category']],
-                                                                            how='left',
-                                                                            on='tray_track_id').rename(columns={'human_activity_category': 'human_activity_category_start'})
-
-    df_tray_interactions_pre_filter = df_tray_interactions_pre_filter.merge(df_nearest_persons_human_activity_at_end[['tray_track_id', 'human_activity_category']],
-                                                                            how='left',
-                                                                            on='tray_track_id').rename(columns={'human_activity_category': 'human_activity_category_end'})
+    # # Determine each person's activity at the start and end of the carry track
+    # # Append that activity to the tray interactions dataframe that is being constructed
+    # df_nearest_persons_human_activity_at_start = pd.merge(df_features[['device_id', 'human_activity_category']].reset_index(),
+    #                                                       df_tray_interactions_pre_filter[[
+    #                                                           'tray_track_id', 'device_id_person', 'start']][df_tray_interactions_pre_filter['device_id_person'].notnull()],
+    #                                                       how='right',
+    #                                                       left_on=['index', 'device_id'],
+    #                                                       right_on=['start', 'device_id_person'])
+    # df_nearest_persons_human_activity_at_end = pd.merge(df_features[['device_id', 'human_activity_category']].reset_index(),
+    #                                                     df_tray_interactions_pre_filter[[
+    #                                                         'tray_track_id', 'device_id_person', 'end']][df_tray_interactions_pre_filter['device_id_person'].notnull()],
+    #                                                     how='right',
+    #                                                     left_on=['index', 'device_id'],
+    #                                                     right_on=['end', 'device_id_person'])
+    #
+    # df_tray_interactions_pre_filter = df_tray_interactions_pre_filter.merge(df_nearest_persons_human_activity_at_start[['tray_track_id', 'human_activity_category']],
+    #                                                                         how='left',
+    #                                                                         on='tray_track_id').rename(columns={'human_activity_category': 'human_activity_category_start'})
+    #
+    # df_tray_interactions_pre_filter = df_tray_interactions_pre_filter.merge(df_nearest_persons_human_activity_at_end[['tray_track_id', 'human_activity_category']],
+    #                                                                         how='left',
+    # on='tray_track_id').rename(columns={'human_activity_category':
+    # 'human_activity_category_end'})
 
     # Apply a filter that will retain instances where tray distance from
     # source/shelf is within min distance

@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 
+from .utils.util import filter_entity_type
 from .uwb_motion_filters import TrayMotionButterFiltFiltFilter, TrayMotionSavGolFilter
 from process_cuwb_data.utils.log import logger
 
@@ -15,9 +16,9 @@ class FeatureExtraction:
 
     VELOCITY_COLUMNS = [
         'quality',
-        'x_meters',
-        'y_meters',
-        'z_meters',
+        'x_mps',
+        'y_mps',
+        'z_mps',
         'x_position_smoothed',
         'y_position_smoothed',
         'z_position_smoothed',
@@ -125,26 +126,55 @@ class FeatureExtraction:
         'z_acceleration_correlation_sum'
     ]
 
+    GYROSCOPE_COLUMNS = [
+        'x_dps',
+        'y_dps',
+        'z_dps'
+    ]
+
+    MAGNETOMETER_COLUMNS = [
+        'x_μT',
+        'y_μT',
+        'z_μT'
+    ]
+
     def extract_motion_features_for_multiple_devices(
-            self, df_position=None, df_acceleration=None, entity_type='all', fillna=None, join='outer'):
+            self,
+            df_position=None,
+            df_acceleration=None,
+            df_gyroscope=None,
+            df_magnetometer=None,
+            entity_type='all',
+            fillna=None,
+            join='outer'):
         if ((df_position is None and df_acceleration is None) or
                 (
             (df_position is not None and len(df_position) == 0) and
-            (df_acceleration is not None and len(df_acceleration) == 0)
+            (df_acceleration is not None and len(df_acceleration) == 0) and
+            (df_gyroscope is not None and len(df_gyroscope) == 0) and
+            (df_magnetometer is not None and len(df_magnetometer) == 0)
         ) or
                 (
             (df_position is not None and 'entity_type' not in df_position.columns) or
-            (df_acceleration is not None and 'entity_type' not in df_acceleration.columns)
+            (df_acceleration is not None and 'entity_type' not in df_acceleration.columns) or
+            (df_gyroscope is not None and 'entity_type' not in df_gyroscope.columns) or
+            (df_magnetometer is not None and 'entity_type' not in df_magnetometer.columns)
         )):
             return None
 
         if entity_type is None:
             entity_type = 'all'
 
-        pos_indx, acc_indx = slice(None), slice(None)
+        pos_indx, acc_indx, gyr_indx, mag_indx = slice(None), slice(None), slice(None), slice(None)
         if entity_type != 'all':
-            pos_indx = df_position['entity_type'].str.lower() == entity_type.lower()
-            acc_indx = df_acceleration['entity_type'].str.lower() == entity_type.lower()
+            if df_position is not None:
+                pos_indx = df_position['entity_type'].str.lower() == entity_type.lower()
+            if df_acceleration is not None:
+                acc_indx = df_acceleration['entity_type'].str.lower() == entity_type.lower()
+            if df_gyroscope is not None:
+                gyr_indx = df_gyroscope['entity_type'].str.lower() == entity_type.lower()
+            if df_magnetometer is not None:
+                mag_indx = df_magnetometer['entity_type'].str.lower() == entity_type.lower()
 
         position_device_ids = []
         if df_position is not None:
@@ -170,34 +200,68 @@ class FeatureExtraction:
                 acceleration_device_ids,
             ))
 
-        if df_position is not None and df_acceleration is not None:
-            common_device_ids = list(set(position_device_ids) & set(acceleration_device_ids))
-            logger.info('Position and acceleration data contain {} common device IDs: {}'.format(
-                len(common_device_ids),
-                common_device_ids
+        gyroscope_device_ids = []
+        if df_gyroscope is not None:
+            gyroscope_device_ids = df_gyroscope.loc[
+                gyr_indx,
+                'device_id'
+            ].unique().tolist()
+            logger.info('Gyroscope data contains {} "{}" device IDs: {}'.format(
+                len(gyroscope_device_ids),
+                entity_type,
+                gyroscope_device_ids,
             ))
 
-        all_device_ids = list(set(position_device_ids) | set(acceleration_device_ids))
+        magnetometer_device_ids = []
+        if df_magnetometer is not None:
+            magnetometer_device_ids = df_magnetometer.loc[
+                mag_indx,
+                'device_id'
+            ].unique().tolist()
+            logger.info('Magnetometer data contains {} "{}" device IDs: {}'.format(
+                len(magnetometer_device_ids),
+                entity_type,
+                magnetometer_device_ids,
+            ))
+
+        all_device_ids = list(set(position_device_ids) |
+                              set(acceleration_device_ids) |
+                              set(gyroscope_device_ids) |
+                              set(magnetometer_device_ids))
 
         df_dict = dict()
         for device_id in all_device_ids:
             logger.info('Calculating motion features for device ID {}'.format(device_id))
 
-            df_position_reduced = None
+            df_position_for_device = None
             if df_position is not None:
-                df_position_reduced = df_position.loc[
+                df_position_for_device = df_position.loc[
                     df_position['device_id'] == device_id
                 ].copy().sort_index()
 
-            df_acceleration_reduced = None
+            df_acceleration_for_device = None
             if df_acceleration is not None:
-                df_acceleration_reduced = df_acceleration.loc[
+                df_acceleration_for_device = df_acceleration.loc[
                     df_acceleration['device_id'] == device_id
                 ].copy().sort_index()
 
+            df_gyroscope_for_device = None
+            if df_gyroscope is not None:
+                df_gyroscope_for_device = df_gyroscope.loc[
+                    df_gyroscope['device_id'] == device_id
+                ].copy().sort_index()
+
+            df_magnetomter_for_device = None
+            if df_magnetometer is not None:
+                df_magnetomter_for_device = df_magnetometer.loc[
+                    df_magnetometer['device_id'] == device_id
+                ].copy().sort_index()
+
             df_features = self.extract_motion_features(
-                df_position=df_position_reduced,
-                df_acceleration=df_acceleration_reduced,
+                df_position=df_position_for_device,
+                df_acceleration=df_acceleration_for_device,
+                df_gyroscope=df_gyroscope_for_device,
+                df_magnetomter=df_magnetomter_for_device,
                 fillna=fillna,
                 join=join
             )
@@ -208,10 +272,21 @@ class FeatureExtraction:
         df_all = pd.concat(df_dict.values())
         return df_all
 
-    def extract_tray_motion_features_for_multiple_devices(self, df_position, df_acceleration):
-        return self.extract_motion_features_for_multiple_devices(df_position, df_acceleration, entity_type="tray")
+    def extract_tray_motion_features_for_multiple_devices(
+            self, df_position, df_acceleration, df_gyroscope, df_magnetometer):
+        return self.extract_motion_features_for_multiple_devices(df_position=df_position,
+                                                                 df_acceleration=df_acceleration,
+                                                                 df_gyroscope=df_gyroscope,
+                                                                 df_magnetometer=df_magnetometer,
+                                                                 entity_type="tray")
 
-    def extract_motion_features(self, df_position, df_acceleration, fillna=None, join='outer'):
+    def extract_motion_features(self,
+                                df_position,
+                                df_acceleration,
+                                df_gyroscope=None,
+                                df_magnetomter=None,
+                                fillna=None,
+                                join='outer'):
         df_velocity_features = pd.DataFrame(columns=FeatureExtraction.VELOCITY_COLUMNS)
         if df_position is not None:
             df_velocity_features = self.extract_velocity_features(
@@ -231,13 +306,35 @@ class FeatureExtraction:
                 df=df_acceleration
             )
 
-        df_features = df_velocity_features.join(
-            df_acceleration_features, how=join)
+        df_gyroscope_features = pd.DataFrame(columns=FeatureExtraction.GYROSCOPE_COLUMNS)
+        if df_gyroscope is not None:
+            df_gyroscope_features = self.extract_gyroscope_features(
+                df=df_gyroscope
+            )
+
+        df_magnetometer_features = pd.DataFrame(columns=FeatureExtraction.MAGNETOMETER_COLUMNS)
+        if df_magnetomter is not None:
+            df_magnetometer_features = self.extract_magnetometer_features(
+                df=df_magnetomter
+            )
+
+        df_features = df_velocity_features\
+            .join(
+                df_acceleration_features,
+                how=join)\
+            .join(
+                df_gyroscope_features,
+                how=join)\
+            .join(
+                df_magnetometer_features,
+                how=join)
 
         df_features = df_features.reindex(columns=[
             'device_id',
             *FeatureExtraction.VELOCITY_COLUMNS,
-            *FeatureExtraction.ACCELERATION_COLUMNS
+            *FeatureExtraction.ACCELERATION_COLUMNS,
+            *FeatureExtraction.GYROSCOPE_COLUMNS,
+            *FeatureExtraction.MAGNETOMETER_COLUMNS
         ])
 
         df_features.replace([np.inf, -np.inf], np.nan, inplace=True)
@@ -257,11 +354,28 @@ class FeatureExtraction:
 
     def extract_velocity_features(self, df):
         df = df.copy()
-        df = df.reindex(columns=[
-            'x_meters',
-            'y_meters',
-            'z_meters'
-        ])
+
+        if 'x' in df.columns:
+            df.rename(
+                columns={
+                    'x': 'x_mps',
+                    'y': 'y_mps',
+                    'z': 'z_mps'
+                },
+                inplace=True
+            )
+
+        if 'x_meters' in df.columns:
+            df.rename(
+                columns={
+                    'x_meters': 'x_mps',
+                    'y_meters': 'y_mps',
+                    'z_meters': 'z_mps'
+                },
+                inplace=True
+            )
+
+        df = df.reindex(columns=['x_mps', 'y_mps', 'z_mps'])
         df = self.regularize_index(
             df
         )
@@ -273,11 +387,17 @@ class FeatureExtraction:
 
     def extract_acceleration_features(self, df):
         df = df.copy()
-        df = df.reindex(columns=[
-            'x_gs',
-            'y_gs',
-            'z_gs'
-        ])
+        if 'x' in df.columns:
+            df.rename(
+                columns={
+                    'x': 'x_gs',
+                    'y': 'y_gs',
+                    'z': 'z_gs'
+                },
+                inplace=True
+            )
+
+        df = df.reindex(columns=['x_gs', 'y_gs', 'z_gs'])
         df = self.regularize_index(
             df
         )
@@ -285,6 +405,44 @@ class FeatureExtraction:
             df=df,
         )
         df = df.drop(columns=['x_gs', 'y_gs', 'z_gs']).sort_index()
+        return df
+
+    def extract_gyroscope_features(self, df):
+        df = df.copy()
+
+        if 'x' in df.columns:
+            df.rename(
+                columns={
+                    'x': 'x_dps',
+                    'y': 'y_dps',
+                    'z': 'z_dps'
+                },
+                inplace=True
+            )
+
+        df = df.reindex(columns=['x_dps', 'y_dps', 'z_dps'])
+        df = self.regularize_index(
+            df
+        )
+        return df
+
+    def extract_magnetometer_features(self, df):
+        df = df.copy()
+
+        if 'x' in df.columns:
+            df.rename(
+                columns={
+                    'x': 'x_μT',
+                    'y': 'y_μT',
+                    'z': 'z_μT'
+                },
+                inplace=True
+            )
+
+        df = df.reindex(columns=['x_μT', 'y_μT', 'z_μT'])
+        df = self.regularize_index(
+            df
+        )
         return df
 
     def regularize_index(self, df):
@@ -310,14 +468,24 @@ class FeatureExtraction:
         if not inplace:
             df = df.copy()
 
+        if 'x' in df.columns:
+            df.rename(
+                columns={
+                    'x': 'x_mps',
+                    'y': 'y_mps',
+                    'z': 'z_mps'
+                },
+                inplace=True
+            )
+
         df['x_position_smoothed'] = self.position_filter.filter(
-            series=df['x_meters']
+            series=df['x_mps']
         )
         df['y_position_smoothed'] = self.position_filter.filter(
-            series=df['y_meters']
+            series=df['y_mps']
         )
         df['z_position_smoothed'] = self.position_filter.filter(
-            series=df['z_meters']
+            series=df['z_mps']
         )
         # Old method of computing velocity, switched to savgol with deriv=1
         #df['x_velocity_smoothed']=df['x_position_smoothed'].diff().divide(df.index.to_series().diff().apply(lambda dt: dt.total_seconds()))
@@ -416,6 +584,16 @@ class FeatureExtraction:
     def calculate_acceleration_features(self, df, inplace=False):
         if not inplace:
             df = df.copy()
+
+        if 'x' in df.columns:
+            df.rename(
+                columns={
+                    'x': 'x_gs',
+                    'y': 'y_gs',
+                    'z': 'z_gs'
+                },
+                inplace=True
+            )
 
         df['x_acceleration_normalized'] = np.absolute(np.subtract(
             df['x_gs'],

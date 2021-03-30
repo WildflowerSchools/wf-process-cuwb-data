@@ -188,7 +188,8 @@ class SmoothLabelsFilter:
 
             prediction_change_idx = df_predictions.index.get_loc(time_idx) + 1
             if prediction_change_idx < len(df_predictions):
-                df_predictions.loc[range_mask, prediction_column_name] = df_predictions.iloc[prediction_change_idx][prediction_column_name]
+                df_predictions.loc[range_mask,
+                                   prediction_column_name] = df_predictions.iloc[prediction_change_idx][prediction_column_name]
 
         if not inplace:
             return df_predictions

@@ -6,6 +6,7 @@ VERSION = open(os.path.join(BASEDIR, 'VERSION')).read().strip()
 
 # Dependencies (format is 'PYPI_PACKAGE_NAME[>=]=VERSION_NUMBER')
 BASE_DEPENDENCIES = [
+    'boto3>=1.17',
     'cachier>=1.5.0',
     'click>=7.1.1',
     'click-log>=0.3.2',
@@ -19,7 +20,7 @@ BASE_DEPENDENCIES = [
     'scikit-learn>=0.24',
     'scipy>=1.5.4',
     #'tensorflow>=2.4.1',
-    'wf-honeycomb-io>=0.1.0',
+    'wf-honeycomb-io>=1.3.0',
     'wf-geom-render>=0.3.0'
 ]
 # TEST_DEPENDENCIES = [
