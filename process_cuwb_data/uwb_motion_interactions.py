@@ -396,10 +396,10 @@ def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centr
     # Apply a filter that will retain instances where tray distance from
     # source/shelf is within min distance
     # (CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF)
-    filter_trays_within_min_distance_from_source = (
-        (df_tray_interactions_pre_filter['tray_start_distance_from_source'] < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF) |
-        (df_tray_interactions_pre_filter['tray_end_distance_from_source'] < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF))
-    df_tray_interactions = df_tray_interactions_pre_filter.loc[filter_trays_within_min_distance_from_source]
+    # filter_trays_within_min_distance_from_source = (
+    #     (df_tray_interactions_pre_filter['tray_start_distance_from_source'] < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF) |
+    #     (df_tray_interactions_pre_filter['tray_end_distance_from_source'] < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF))
+    df_tray_interactions = df_tray_interactions_pre_filter.copy() # df_tray_interactions_pre_filter.loc[filter_trays_within_min_distance_from_source]
 
     # Final dataframe contains:
     #   tray_device_id (str)
@@ -440,7 +440,7 @@ def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centr
         elif row['tray_end_distance_from_source'] < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF:
             interaction_types.append(InteractionType.CARRYING_TO_SHELF.name)
         else:
-            interaction_types.append(InteractionType.CARRYING_TO_SHELF.unknown)
+            interaction_types.append(InteractionType.CARRYING_FROM_AND_TO_NON_SHELF_LOCATION.name)
 
     df_tray_interactions = df_tray_interactions.assign(interaction_type=interaction_types)
     return df_tray_interactions

@@ -138,6 +138,13 @@ class FeatureExtraction:
         'z_μT'
     ]
 
+    ALL_FEATURE_COLUMNS = [
+        *VELOCITY_COLUMNS,
+        *ACCELERATION_COLUMNS,
+        *GYROSCOPE_COLUMNS,
+        *MAGNETOMETER_COLUMNS
+    ]
+
     def extract_motion_features_for_multiple_devices(
             self,
             df_position=None,

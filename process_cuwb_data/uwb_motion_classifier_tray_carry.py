@@ -183,6 +183,8 @@ class TrayCarryClassifier(UWBRandomForestClassifier):
     def predict(self, df_features,
                 *args,
                 **kwargs):
+        df_features = df_features.copy()
+
         predictions = super().predict(
             df_features=df_features,
             model=self.model,

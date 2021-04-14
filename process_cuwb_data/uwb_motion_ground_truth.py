@@ -1,6 +1,7 @@
 import pandas as pd
 
 from process_cuwb_data.uwb_motion_enum_carry_categories import CarryCategory
+from process_cuwb_data.uwb_motion_enum_groundtruth_data_source import GroundtruthDataSource
 from process_cuwb_data.uwb_motion_enum_human_activities import HumanActivity
 
 
@@ -27,6 +28,9 @@ def validate_ground_truth(df_groundtruth, groundtruth_type):
     if len(missing_columns) > 0:
         return False, "Groundtruth data missing column(s) {}".format(missing_columns)
 
+    if 'data_source' not in df_groundtruth.columns:
+        df_groundtruth['data_source'] = GroundtruthDataSource.IMU_TABLES.name
+
     for index, row in df_groundtruth.iterrows():
         try:
             category_enum_class(row['ground_truth_state'])
@@ -35,6 +39,12 @@ def validate_ground_truth(df_groundtruth, groundtruth_type):
                 row['ground_truth_state'], category_enum_class.as_name_list())
             return False, msg
 
+        try:
+            GroundtruthDataSource(row['data_source'])
+        except ValueError:
+            msg = "Invalid data_source '{}', valid options include {}".format(
+                row['data_source'], GroundtruthDataSource.as_name_list())
+            return False, msg
     return True, ""
 
 

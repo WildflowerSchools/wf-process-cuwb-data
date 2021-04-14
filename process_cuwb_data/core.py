@@ -66,8 +66,8 @@ def fetch_cuwb_data_from_datapoints(
         entity_type='all',
         data_type='raw',
         device_type='UWBTAG',
-        environment_assignment_info=False,
-        entity_assignment_info=False
+        environment_assignment_info=True,
+        entity_assignment_info=True
 ):
     if entity_type not in ['tray', 'person', 'all']:
         raise Exception("Invalid 'entity_type' value: {}".format(type))
@@ -156,16 +156,20 @@ def fetch_motion_features(
         return df_motion_features
 
 
-def fetch_motion_features_from_datapoints(
-        environment, start, end, entity_type='all', include_meta_fields=False, fillna=None):
-    df_cuwb_features = fetch_cuwb_data_from_datapoints(environment,
-                                                       start,
-                                                       end,
-                                                       entity_type=entity_type,
-                                                       environment_assignment_info=True,
-                                                       entity_assignment_info=True)
+def fetch_motion_features_from_datapoints(environment,
+                                          start,
+                                          end,
+                                          df_uwb_data=None,
+                                          entity_type='all',
+                                          include_meta_fields=False,
+                                          fillna=None):
+    if df_uwb_data is None:
+        df_uwb_data = fetch_cuwb_data_from_datapoints(environment,
+                                                           start,
+                                                           end,
+                                                           entity_type=entity_type)
 
-    return extract_motion_features_from_raw_datapoints(df_cuwb_features,
+    return extract_motion_features_from_raw_datapoints(df_uwb_data,
                                                        entity_type=entity_type,
                                                        include_meta_fields=include_meta_fields,
                                                        fillna=fillna)
@@ -258,12 +262,22 @@ def generate_groundtruth(groundtruth_csv, groundtruth_type):
         start = group_df.agg({'start_datetime': [np.min]}).iloc[0]['start_datetime']
         end = group_df.agg({'end_datetime': [np.max]}).iloc[0]['end_datetime']
 
-        # Until fetch_motion_features can return data safely within exact
-        # bounds, add 60 minutes offsets to start and end
-        df_environment_features = fetch_motion_features_from_datapoints(environment=environment,
-                                                                        start=(start - pd.DateOffset(minutes=60)),
-                                                                        end=(end + pd.DateOffset(minutes=60)),
-                                                                        entity_type=entity_type)
+        # Ground truth may be stored in the old datapoints table + s3 buckets
+        # Check 'data_source' type and fetch accordingly
+        from .uwb_motion_enum_groundtruth_data_source import GroundtruthDataSource
+        if 'data_source' in group_df.columns and \
+            GroundtruthDataSource(group_df.iloc[0]['data_source']) == GroundtruthDataSource.DATAPOINTS:
+
+            # When a groundtruth example is stored in the old datapoints format, add 60 minutes offsets to start and end
+            df_environment_features = fetch_motion_features_from_datapoints(environment=environment,
+                                                                            start=(start - pd.DateOffset(minutes=60)),
+                                                                            end=(end + pd.DateOffset(minutes=60)),
+                                                                            entity_type=entity_type)
+        else:
+            df_environment_features = fetch_motion_features(environment=environment,
+                                                            start=start,
+                                                            end=end,
+                                                            entity_type=entity_type)
 
         if df_features is None:
             df_features = df_environment_features.copy()
@@ -312,7 +326,7 @@ def infer_human_activity(model, scaler, df_person_features):
 
 def generate_tray_carry_model(df_groundtruth_features, tune=False):
     tc = TrayCarryClassifier()
-    df_groundtruth_features = df_groundtruth_features.interpolate().fillna(method='bfill')
+    df_groundtruth_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = df_groundtruth_features[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate().fillna(method='bfill')
     if tune:
         tc.tune(df_groundtruth=df_groundtruth_features)
         return None
@@ -329,6 +343,9 @@ def estimate_tray_centroids(model, scaler, df_tray_features):
     :param df_tray_features: Dataframe with uwb data containing uwb_motion_classifiers.DEFAULT_FEATURE_FIELD_NAMES
     :return: Dataframe with tray centroid predictions
     """
+
+    df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate().fillna(method='bfill')
+
     df_tray_features_no_movement = classifier_filter_no_movement_from_tray_features(
         model=model, scaler=scaler, df_tray_features=df_tray_features)
     #df_tray_features_no_movement = heuristic_filter_no_movement_from_tray_features(df_tray_features)
@@ -345,6 +362,7 @@ def infer_tray_carry(model, scaler, df_tray_features):
     :return: Dataframe with uwb data containing a "predicted_tray_carry_label" column
     """
     tc = TrayCarryClassifier(model=model, feature_scaler=scaler)
+    df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate().fillna(method='bfill')
     return tc.predict(df_tray_features)
 
 
@@ -367,4 +385,5 @@ def extract_tray_interactions(df_motion_features, df_carry_events, df_tray_centr
     :param df_tray_centroids
     :return: Dataframe containing carry interactions (person_id, device_id, start, end, carry_event)
     """
+    df_motion_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = df_motion_features[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate().fillna(method='bfill')
     return extract_tray_device_interactions(df_motion_features, df_carry_events, df_tray_centroids)

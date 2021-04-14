@@ -7,7 +7,7 @@ import os
 import pandas as pd
 from pathlib import Path
 
-from .core import estimate_tray_centroids, extract_tray_carry_events_from_inferred, extract_tray_interactions, fetch_cuwb_data, fetch_motion_features, generate_human_activity_groundtruth, generate_human_activity_model, generate_tray_carry_groundtruth, generate_tray_carry_model, infer_human_activity, infer_tray_carry
+from .core import estimate_tray_centroids, extract_tray_carry_events_from_inferred, extract_tray_interactions, fetch_cuwb_data, fetch_cuwb_data_from_datapoints, fetch_motion_features, generate_human_activity_groundtruth, generate_human_activity_model, generate_tray_carry_groundtruth, generate_tray_carry_model, infer_human_activity, infer_tray_carry
 from process_cuwb_data.utils.io import load_csv, read_generic_pkl, write_cuwb_data_pkl, write_datafile_to_csv, write_generic_pkl
 from process_cuwb_data.utils.log import logger
 from .uwb_predict_tray_centroids import validate_tray_centroids_dataframe
@@ -97,18 +97,27 @@ def _infer_human_activity(df_person_features, model, scaler=None):
                                                  case_sensitive=False), default='all', help="CUWB entity type")
 @click.option("--data-type", type=click.Choice(['position', 'accelerometer', 'gyroscope', 'magnetometer', 'all'],
                                                case_sensitive=False), default='all', help="Data to return")
+@click.option("--data-source", type=click.Choice(['datapoints', 'imu_tables'],
+                                               case_sensitive=False), default='imu_tables', help="Source data resides (datapoints was retired 03/23/2021)")
 @click.option("--output", type=click.Path(), default="%s/output/uwb_data" % (os.getcwd()),
               help="output folder for CUWB data")
-def cli_fetch_cuwb_data(environment, start, end, entity_type, data_type, output):
+def cli_fetch_cuwb_data(environment, start, end, entity_type, data_type, data_source, output):
     Path(output).mkdir(parents=True, exist_ok=True)
 
-    df = fetch_cuwb_data(
-        environment,
-        start,
-        end,
-        entity_type=entity_type,
-        data_type=data_type
-    )
+    if data_source == 'datapoints':
+        df = fetch_cuwb_data_from_datapoints(environment,
+                                        start,
+                                        end,
+                                        entity_type=entity_type,
+                                        data_type=data_type)
+    else:
+        df = fetch_cuwb_data(
+            environment,
+            start,
+            end,
+            entity_type=entity_type,
+            data_type=data_type
+        )
 
     if df is None or len(df) == 0:
         logger.warning("No CUWB data found")
@@ -284,6 +293,7 @@ def cli_estimate_tray_centroids(environment, start, end, cuwb_data, motion_featu
 @click.command(name="infer-tray-carry",
                help="Infer tray carrying events given a model and feature scaler. Output is written to a CSV")
 @add_options(_cli_options_env_start_end)
+@add_options(_cli_options_uwb_data)
 @add_options(_cli_options_uwb_motion_data)
 @click.option("--model", type=click.Path(exists=True), required=True,
               help="Pickle formatted model object (create with 'train-tray-carry-model')")
@@ -291,15 +301,20 @@ def cli_estimate_tray_centroids(environment, start, end, cuwb_data, motion_featu
               help="Pickle formatted feature scaling input (create with 'train-tray-carry-model')")
 @click.option("--output", type=click.Path(), default="%s/output/inference" % (os.getcwd()),
               help="output folder, carry events as csv (<<DATE>>_carry_events.csv)")
-def cli_infer_tray_carry(environment, start, end, motion_feature_data, model, feature_scaler, output):
+def cli_infer_tray_carry(environment, start, end, cuwb_data, motion_feature_data, model, feature_scaler, output):
     Path(output).mkdir(parents=True, exist_ok=True)
+
+    df_uwb_data = None
+    if cuwb_data is not None:
+        df_uwb_data = read_generic_pkl(cuwb_data)
+        df_uwb_data = df_uwb_data.loc[(df_uwb_data.index >= start) & (df_uwb_data.index <= end)]
 
     if motion_feature_data is None:
         df_uwb_motion_features = fetch_motion_features(
             environment,
             start,
             end,
-            include_meta_fields=True,
+            df_uwb_data=df_uwb_data,
             fillna='interpolate'
         )
     else:
@@ -307,8 +322,7 @@ def cli_infer_tray_carry(environment, start, end, motion_feature_data, model, fe
         df_uwb_motion_features = df_uwb_motion_features.loc[(
             df_uwb_motion_features.index >= start) & (df_uwb_motion_features.index <= end)]
 
-    df_tray_features = df_uwb_motion_features[df_uwb_motion_features['entity_type']
-                                              == "Tray"].interpolate().fillna(method='bfill')
+    df_tray_features = df_uwb_motion_features[df_uwb_motion_features['entity_type'] == "Tray"]
 
     if df_tray_features is None or len(df_tray_features) == 0:
         logger.warn("No tray motion events detected")
@@ -343,8 +357,7 @@ def cli_infer_human_activity(environment, start, end, motion_feature_data, model
         df_uwb_motion_features = fetch_motion_features(
             environment,
             start,
-            end,
-            include_meta_fields=True
+            end
         )
     else:
         df_uwb_motion_features = read_generic_pkl(motion_feature_data)
@@ -373,8 +386,8 @@ def cli_infer_human_activity(environment, start, end, motion_feature_data, model
 @click.command(name="infer-tray-interactions",
                help="Infer tray interactions (CARRY FROM SHELF / CARRY TO SHELF / CARRY UNKOWN / etc.) given a model and feature scaler. Output is written to a CSV")
 @add_options(_cli_options_env_start_end)
-@add_options(_cli_options_uwb_motion_data)
 @add_options(_cli_options_uwb_data)
+@add_options(_cli_options_uwb_motion_data)
 @click.option("--tray-carry-model", type=click.Path(exists=True), required=True,
               help="Pickle formatted model object (create with 'train-tray-carry-model')")
 @click.option("--tray-carry-feature-scaler", type=click.Path(exists=True),
@@ -387,7 +400,7 @@ def cli_infer_human_activity(environment, start, end, motion_feature_data, model
               help="output folder, carry events as csv (<<DATE>>_tray_interactions.csv)")
 @click.option("--tray-positions-csv", type=click.Path(exists=True),
               help="CSV formatted tray shelf position data")
-def cli_infer_tray_interactions(environment, start, end, motion_feature_data, cuwb_data, tray_carry_model, tray_carry_feature_scaler,
+def cli_infer_tray_interactions(environment, start, end, cuwb_data, motion_feature_data, tray_carry_model, tray_carry_feature_scaler,
                                 human_activity_model, human_activity_feature_scaler, output, tray_positions_csv):
     Path(output).mkdir(parents=True, exist_ok=True)
 
@@ -401,7 +414,6 @@ def cli_infer_tray_interactions(environment, start, end, motion_feature_data, cu
             environment,
             start,
             end,
-            include_meta_fields=True,
             df_uwb_data=df_uwb_data,
             fillna='interpolate'
         )
@@ -409,8 +421,6 @@ def cli_infer_tray_interactions(environment, start, end, motion_feature_data, cu
         df_uwb_motion_features = read_generic_pkl(motion_feature_data)
         df_uwb_motion_features = df_uwb_motion_features.loc[(
             df_uwb_motion_features.index >= start) & (df_uwb_motion_features.index <= end)]
-
-    # df_uwb_motion_features = df_uwb_motion_features.interpolate().fillna(method='bfill')
 
     df_person_features = df_uwb_motion_features[df_uwb_motion_features['entity_type'] == "Person"]
     # For human activity predictions
@@ -424,12 +434,12 @@ def cli_infer_tray_interactions(environment, start, end, motion_feature_data, cu
         logger.warn("No tray motion events detected")
         return
 
-    human_activity_model_obj, human_activity_feature_scaler_obj = _load_model_and_scaler(
-        human_activity_model, human_activity_feature_scaler)
-    df_person_features_with_har = _infer_human_activity(
-        df_person_features=df_person_features,
-        model=human_activity_model_obj,
-        scaler=human_activity_feature_scaler_obj)
+    # human_activity_model_obj, human_activity_feature_scaler_obj = _load_model_and_scaler(
+    #     human_activity_model, human_activity_feature_scaler)
+    # df_person_features_with_har = _infer_human_activity(
+    #     df_person_features=df_person_features,
+    #     model=human_activity_model_obj,
+    #     scaler=human_activity_feature_scaler_obj)
 
     tray_carry_model_obj, tray_carry_feature_scaler_obj = _load_model_and_scaler(
         tray_carry_model, tray_carry_feature_scaler)
