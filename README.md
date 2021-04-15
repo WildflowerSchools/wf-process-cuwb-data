@@ -29,5 +29,12 @@ Tools for reading, processing, and writing CUWB data
     --model ./output/models/2020-12-14T19:31:32_model.pkl \
     --feature-scaler ./output/models/2020-12-14T19:31:32_scaler.pkl
 
+### Development
 
+#### MacOS (Big Sur)
 
+1) Install **pyenv**: `brew install pyenv`
+2) Create a miniconda venv: `pyenv virtualenv miniconda3-4.7.12 wf-process-cuwb-data`
+3) Downgrade Python: `conda install -c anaconda python=3.7`
+4) Manually install Tensorflow: `conda install tensorflow`
+5) Install add'l packages: `just build`
