@@ -2,6 +2,7 @@ from honeycomb_io import fetch_environment_by_name, fetch_material_tray_devices_
 import multiprocessing
 import numpy as np
 import pandas as pd
+import platform
 
 from .honeycomb_imu_data import fetch_imu_data
 from .utils.io import load_csv
@@ -48,10 +49,16 @@ def fetch_cuwb_data(
     else:
         imu_types_to_fetch = [data_type]
 
-    p = multiprocessing.Pool()
+    # When running with Jupyter, other instances of multiprocessing work w/o issue
+    # But for whatever reason, this is needed or fetching cuwb data hangs
+    if platform.system() == "Darwin":
+        ctx = multiprocessing.get_context("spawn")
+    else:
+        ctx = multiprocessing
+
+    p = ctx.Pool()
 
     results = []
-
     for imu_type in imu_types_to_fetch:
         results.append(
             p.apply_async(
