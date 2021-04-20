@@ -440,7 +440,7 @@ def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centr
         elif row['tray_end_distance_from_source'] < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF:
             interaction_types.append(InteractionType.CARRYING_TO_SHELF.name)
         else:
-            interaction_types.append(InteractionType.CARRYING_FROM_AND_TO_NON_SHELF_LOCATION.name)
+            interaction_types.append(InteractionType.CARRYING_BETWEEN_NON_SHELF_LOCATIONS.name)
 
     df_tray_interactions = df_tray_interactions.assign(interaction_type=interaction_types)
     return df_tray_interactions

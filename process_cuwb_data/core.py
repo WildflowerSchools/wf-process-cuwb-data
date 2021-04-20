@@ -1,4 +1,5 @@
 from honeycomb_io import fetch_environment_by_name, fetch_material_tray_devices_assignments, fetch_raw_cuwb_data
+import multiprocessing
 import numpy as np
 import pandas as pd
 
@@ -47,14 +48,27 @@ def fetch_cuwb_data(
     else:
         imu_types_to_fetch = [data_type]
 
-    df_imu_data = pd.DataFrame()
+    p = multiprocessing.Pool()
+
+    results = []
+
     for imu_type in imu_types_to_fetch:
-        df_imu_data = df_imu_data.append(fetch_imu_data(
-            imu_type=imu_type,
-            environment=environment,
-            start=start,
-            end=end,
-            entity_type=entity_type))
+        results.append(
+            p.apply_async(
+                fetch_imu_data,
+                kwds=dict(
+                    imu_type=imu_type,
+                    environment=environment,
+                    start=start,
+                    end=end,
+                    entity_type=entity_type)))
+
+    list_imu_data = []
+    for res in results:
+        list_imu_data.append(res.get())
+
+    df_imu_data = pd.concat(list_imu_data)
+    p.close()
 
     return extract_by_entity_type(df_imu_data, entity_type)
 
