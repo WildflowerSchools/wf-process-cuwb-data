@@ -404,12 +404,17 @@ def cli_infer_tray_interactions(environment, start, end, cuwb_data, motion_featu
                                 human_activity_model, human_activity_feature_scaler, output, tray_positions_csv):
     Path(output).mkdir(parents=True, exist_ok=True)
 
-    df_uwb_data = None
-    if cuwb_data is not None:
-        df_uwb_data = read_generic_pkl(cuwb_data)
-        df_uwb_data = df_uwb_data.loc[(df_uwb_data.index >= start) & (df_uwb_data.index <= end)]
-
     if motion_feature_data is None:
+        if cuwb_data is not None:
+            df_uwb_data = read_generic_pkl(cuwb_data)
+            df_uwb_data = df_uwb_data.loc[(df_uwb_data.index >= start) & (df_uwb_data.index <= end)]
+        else:
+            df_uwb_data = fetch_cuwb_data(
+                environment,
+                start,
+                end
+            )
+
         df_uwb_motion_features = fetch_motion_features(
             environment,
             start,
