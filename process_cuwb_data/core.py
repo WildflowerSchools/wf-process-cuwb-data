@@ -5,6 +5,7 @@ import pandas as pd
 import platform
 
 from .honeycomb_imu_data import fetch_imu_data
+from .honeycomb_pose_data import pose_data_with_body_centroid as _pose_data_with_body_centroid
 from .utils.io import load_csv
 from .utils.log import logger
 from .utils.util import filter_data_type_and_format
@@ -186,9 +187,9 @@ def fetch_motion_features_from_datapoints(environment,
                                           fillna=None):
     if df_uwb_data is None:
         df_uwb_data = fetch_cuwb_data_from_datapoints(environment,
-                                                           start,
-                                                           end,
-                                                           entity_type=entity_type)
+                                                      start,
+                                                      end,
+                                                      entity_type=entity_type)
 
     return extract_motion_features_from_raw_datapoints(df_uwb_data,
                                                        entity_type=entity_type,
@@ -287,7 +288,7 @@ def generate_groundtruth(groundtruth_csv, groundtruth_type):
         # Check 'data_source' type and fetch accordingly
         from .uwb_motion_enum_groundtruth_data_source import GroundtruthDataSource
         if 'data_source' in group_df.columns and \
-            GroundtruthDataSource(group_df.iloc[0]['data_source']) == GroundtruthDataSource.DATAPOINTS:
+                GroundtruthDataSource(group_df.iloc[0]['data_source']) == GroundtruthDataSource.DATAPOINTS:
 
             # When a groundtruth example is stored in the old datapoints format, add 60 minutes offsets to start and end
             df_environment_features = fetch_motion_features_from_datapoints(environment=environment,
@@ -347,7 +348,8 @@ def infer_human_activity(model, scaler, df_person_features):
 
 def generate_tray_carry_model(df_groundtruth_features, tune=False):
     tc = TrayCarryClassifier()
-    df_groundtruth_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = df_groundtruth_features[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate().fillna(method='bfill')
+    df_groundtruth_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = df_groundtruth_features[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate(
+    ).fillna(method='bfill')
     if tune:
         tc.tune(df_groundtruth=df_groundtruth_features)
         return None
@@ -365,7 +367,8 @@ def estimate_tray_centroids(model, scaler, df_tray_features):
     :return: Dataframe with tray centroid predictions
     """
 
-    df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate().fillna(method='bfill')
+    df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate(
+    ).fillna(method='bfill')
 
     df_tray_features_no_movement = classifier_filter_no_movement_from_tray_features(
         model=model, scaler=scaler, df_tray_features=df_tray_features)
@@ -383,7 +386,8 @@ def infer_tray_carry(model, scaler, df_tray_features):
     :return: Dataframe with uwb data containing a "predicted_tray_carry_label" column
     """
     tc = TrayCarryClassifier(model=model, feature_scaler=scaler)
-    df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate().fillna(method='bfill')
+    df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate(
+    ).fillna(method='bfill')
     return tc.predict(df_tray_features)
 
 
@@ -397,14 +401,63 @@ def extract_tray_carry_events_from_inferred(df_inferred):
     return extract_carry_events_by_device(df_inferred)
 
 
-def extract_tray_interactions(df_motion_features, df_carry_events, df_tray_centroids):
+def extract_tray_interactions(df_motion_features, df_carry_events, df_tray_centroids, df_poses_3d=None):
     """
     Extract carry interactions (person, tray, carry_event - FROM_SHELF/TO_SHELF/etc) from carried events (see extract_tray_carry_events_from_inferred)
 
     :param df_motion_features
     :param df_carry_events: Dataframe with carry events (device_id, start, end)
     :param df_tray_centroids
+    :param df_poses_3d
     :return: Dataframe containing carry interactions (person_id, device_id, start, end, carry_event)
     """
-    df_motion_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = df_motion_features[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate().fillna(method='bfill')
+    df_motion_features = df_motion_features.copy()
+
+    df_motion_features = df_motion_features[[
+        'device_id',
+        'entity_type',
+        'tray_id',
+        'tray_name',
+        'material_assignment_id',
+        'material_id',
+        'material_name',
+        'person_id',
+        'person_name',
+        'quality',
+        'x_position_smoothed',
+        'y_position_smoothed',
+        'z_position_smoothed'
+    ]].rename(columns={'x_position_smoothed': 'x_position',
+                       'y_position_smoothed': 'y_position',
+                       'z_position_smoothed': 'z_position'
+                       })
+
+    df_motion_features['track_id'] = df_motion_features['device_id']
+    df_motion_features['track_type'] = 'uwb_sensor'
+
+    df_poses_3d_standardized = pd.DataFrame(columns=df_motion_features.columns)
+    df_poses_3d_standardized['device_id'] = df_poses_3d['device_id']
+    df_poses_3d_standardized['track_id'] = df_poses_3d['pose_track_3d_id']
+    df_poses_3d_standardized['track_type'] = 'pose_track'
+    df_poses_3d_standardized['entity_type'] = 'Person'
+    df_poses_3d_standardized['person_id'] = df_poses_3d['person_id']
+    df_poses_3d_standardized['person_name'] = df_poses_3d['name']
+    df_poses_3d_standardized['x_position'] = df_poses_3d['x_position']
+    df_poses_3d_standardized['y_position'] = df_poses_3d['y_position']
+    df_poses_3d_standardized['z_position'] = df_poses_3d['y_position']
+
+    df_motion_features = pd.concat([df_motion_features, df_poses_3d_standardized])
+
+    for track_id in pd.unique(df_motion_features['track_id']):
+        track_id_idx = df_motion_features['track_id'] == track_id
+        df_motion_features.loc[track_id_idx, ['x_position', 'y_position', 'z_position']] = df_motion_features.loc[track_id_idx, [
+            'x_position', 'y_position', 'z_position']].interpolate().fillna(method='bfill')
+
     return extract_tray_device_interactions(df_motion_features, df_carry_events, df_tray_centroids)
+
+
+def pose_data_with_body_centroid(environment, start, end, df_3d_pose_data):
+    return _pose_data_with_body_centroid(environment=environment,
+                                         start=start,
+                                         end=end,
+                                         df_3d_pose_data=df_3d_pose_data)

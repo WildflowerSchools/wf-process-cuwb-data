@@ -34,7 +34,6 @@ Tools for reading, processing, and writing CUWB data
 #### MacOS (Big Sur)
 
 1) Install **pyenv**: `brew install pyenv`
-2) Create a miniconda venv: `pyenv virtualenv miniconda3-4.7.12 wf-process-cuwb-data`
-3) Downgrade Python: `conda install -c anaconda python=3.7`
-4) Manually install Tensorflow: `conda install tensorflow`
-5) Install add'l packages: `just build`
+2) Create a 3.8 venv: `pyenv virtualenv 3.8.x wf-process-cuwb-data`
+3) Trick pip to think you're running OS X: `export SYSTEM_VERSION_COMPAT=1`
+4) Install add'l packages: `just build`
