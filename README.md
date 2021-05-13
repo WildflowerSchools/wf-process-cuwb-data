@@ -23,7 +23,7 @@ Tools for reading, processing, and writing CUWB data
         --groundtruth-csv ./ignore/ground_truth_tray_carry.csv
 ```
 
-5. Train and pickled Tray Carry Detection Model
+5. Train and pickle Tray Carry Detection Model using pickled groundtruth features
 
 ```
     process_cuwb_data \
@@ -31,7 +31,7 @@ Tools for reading, processing, and writing CUWB data
         --groundtruth-features ./output/groundtruth/2021-05-13T12:53:26_tray_carry_groundtruth_features.pkl
 ```
 
-6. Infer Tray Interactions
+6. Infer Tray Interactions using pickled Tray Carry Detection Model
 
 ```
     process_cuwb_data \
