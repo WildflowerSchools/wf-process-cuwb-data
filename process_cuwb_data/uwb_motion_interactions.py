@@ -61,7 +61,7 @@ def get_estimated_tray_location_from_carry_events(df_features, df_carry_events):
 
     carry_events_with_positions = []
     position_cols = map_column_name_to_dimension_space(
-        'position_smoothed', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
+        'position', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
     for _, row in df_carry_events_with_track_ids_and_augmented_times.iterrows():
         # TODO: Rather than use the start_augmented time, consider trying to find
         # the moment between 'start_augmented' and actual 'start' when a given
@@ -180,7 +180,7 @@ def people_trays_cdist_iterable(idx, _df_people, _df_trays, v_count, v_start, lo
     df_trays_by_idx = _df_trays.loc[[idx]]
 
     position_cols = map_column_name_to_dimension_space(
-        'position_smoothed', DIMENSIONS_WHEN_COMPUTING_CHILD_TRAY_DISTANCE)
+        'position', DIMENSIONS_WHEN_COMPUTING_CHILD_TRAY_DISTANCE)
 
     df_people_and_trays = df_people_by_idx.join(df_trays_by_idx, how='inner', lsuffix='_person', rsuffix='_tray')
     distances = cdist(df_people_by_idx[position_cols].to_numpy(),
@@ -209,7 +209,7 @@ def generate_person_tray_distances(df_people_features, df_tray_features):
     v_start = m.Value('f', start)  # Share timer object
     time_indexes = df_people_features.index.unique(level=0)
 
-    df_child_tray_distances = pd.concat(
+    df_person_tray_distances = pd.concat(
         p.map(
             partial(
                 people_trays_cdist_iterable,
@@ -226,45 +226,283 @@ def generate_person_tray_distances(df_people_features, df_tray_features):
     p.close()
     p.join()
 
-    return df_child_tray_distances
+    return df_person_tray_distances
+
+
+def aggregate_clean_filter_person_tray_distances(df_person_tray_distances, df_carry_events_with_track_ids):
+    """
+    Determine the aggregated median distance between each person and tray. Note
+    that this function also handles tracks pose data tracks which might have time
+    gaps. To handle this there is logic to clean and filter the data structure
+    before returning the nearest person<->tray candidates.
+
+    :param df_person_tray_distances:
+    :param df_carry_events_with_track_ids:
+    :return: Dataframe (df_carry_events_distances_from_people)
+
+    e.g.
+    tray_track_id,device_id_person,person_name_person,device_id_tray,material_name_tray,person_tray_distance_median,person_track_length_seconds,person_tray_distance_min,person_tray_distance_max
+    0,34da139d-c6bb-493f-b775-f9a568f6d20b,Bert,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,6.58958,4.00000,6.04818,6.92025
+    0,5af061c7-8d6c-4c8d-8f8e-26fc8fe09ae3,Ernie,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,5.20226,4.00000,4.53189,6.20005
+    0,9e2799f6-56a8-4878-8df7-401b2759408c,Grover,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,5.01834,4.00000,4.57632,5.15572
+    0,bbf3f7d4-994a-4418-93fc-ec0c009cc90a,Cookie,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,0.33810,4.00000,0.02427,0.60723
+    0,nan,nan,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,2.30686,4.00000,1.45119,3.68772
+    0,nan,nan,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,5.05548,4.00000,4.56820,5.25454
+    0,d13dad39-cba0-48f0-b3d1-29e9ec92ec56,Elmo,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,2.64016,4.00000,1.72280,4.04284
+    0,bbf3f7d4-994a-4418-93fc-ec0c009cc90a,Cookie,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,0.36287,3.60000,0.09385,0.57656
+    1,...
+    1,...
+    1,...
+    1,...
+    1,...
+    2,...
+    2,...
+    2,...
+    2,...
+    ...
+    """
+
+    # Group and aggregate each person and tray-carry-track combination to get the mean distance during the carry event
+    # FYI: Grouping creates a dataframe with multiple column axis
+    df_person_tray_distances['timestamp'] = df_person_tray_distances.index
+    df_person_tray_distances_aggregated = df_person_tray_distances.groupby(
+        [
+            'tray_track_id',
+            'device_id_person',
+            'person_name_person',
+            'track_id_person',  # Used to differentiate pose_tracks from uwb_tracks
+            'track_type_person',  # Used to differentiate pose_tracks from uwb_tracks
+            'device_id_tray',
+            'material_name_tray']).agg(
+        {
+            'timestamp': [
+                'min',
+                'max'
+            ],
+            'person_tray_distance': [
+                'median',
+                'min',
+                'max']}).reset_index()
+    df_person_tray_distances_aggregated.columns = df_person_tray_distances_aggregated.columns.to_flat_index()
+    dataframe_tuple_columns_to_underscores(df_person_tray_distances_aggregated, inplace=True)
+    df_person_tray_distances_aggregated.rename(
+        columns={
+            'timestamp_min': 'start',
+            'timestamp_max': 'end'},
+        inplace=True)
+    df_person_tray_distances_aggregated['person_track_length_seconds'] = (
+        df_person_tray_distances_aggregated['end'] -
+        df_person_tray_distances_aggregated['start']).dt.total_seconds()
+
+    # Example pre-filtered df_person_tray_distances_aggregated dataframe
+    #
+    # 1) In this example, a tray is carried for 4 seconds
+    # 2) This dataset includes both uwb data as well as pose track data
+    # 3) Notice that Cookie has one uwb track and two pose tracks. Pose tracks can get interruped, so we might see multiple over a given time frame. It's for this reason we capture a start and end time.
+    # 4) Also notice there are two tracks for Elmo, one uwb based and one pose based
+    # 5) Elmo's UWB track appears closest to the given tray/material (0.33810 meters median). It is just a hair closer than what the pose track came up with (0.36287 meters median)
+    #
+    # tray_track_id,device_id_person,person_name_person,track_id_person,track_type_person,device_id_tray,material_name_tray,start,end,person_tray_distance_median,person_tray_distance_min,person_tray_distance_max,person_track_length_seconds
+    # 0,34da139d-c6bb-493f-b775-f9a568f6d20b,Bert,34da139d-c6bb-493f-b775-f9a568f6d20b,uwb_sensor,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,2021-04-20 14:01:26.300000+00:00,2021-04-20 14:01:30.300000+00:00,6.58958,6.04818,6.92025,4.0
+    # 0,5af061c7-8d6c-4c8d-8f8e-26fc8fe09ae3,Ernie,5af061c7-8d6c-4c8d-8f8e-26fc8fe09ae3,uwb_sensor,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,2021-04-20 14:01:26.300000+00:00,2021-04-20 14:01:30.300000+00:00,5.20226,4.53189,6.20005,4.0
+    # 0,9e2799f6-56a8-4878-8df7-401b2759408c,Oscar,9e2799f6-56a8-4878-8df7-401b2759408c,uwb_sensor,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,2021-04-20 14:01:26.300000+00:00,2021-04-20 14:01:30.300000+00:00,5.01834,4.57632,5.15572,4.0
+    # 0,bbf3f7d4-994a-4418-93fc-ec0c009cc90a,Elmo,8d6d4bec000e4168b371bfcbae4116f6,pose_track,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,2021-04-20 14:01:26.700000+00:00,2021-04-20 14:01:30.300000+00:00,0.36287,0.09385,0.57656,3.6
+    # 0,bbf3f7d4-994a-4418-93fc-ec0c009cc90a,Elmo,bbf3f7d4-994a-4418-93fc-ec0c009cc90a,uwb_sensor,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,2021-04-20 14:01:26.300000+00:00,2021-04-20 14:01:30.300000+00:00,0.33810,0.02427,0.60723,4.0
+    # 0,d13dad39-cba0-48f0-b3d1-29e9ec92ec56,Cookie,9a5def9142b244c4870826e311fbbc08,pose_track,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,2021-04-20 14:01:26.300000+00:00,2021-04-20 14:01:30.300000+00:00,2.30686,1.45119,3.68772,4.0
+    # 0,d13dad39-cba0-48f0-b3d1-29e9ec92ec56,Cookie,b3484c808e4c4672a79906140430742f,pose_track,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,2021-04-20 14:01:26.300000+00:00,2021-04-20 14:01:30.300000+00:00,5.05548,4.56820,5.25454,4.0
+    # 0,d13dad39-cba0-48f0-b3d1-29e9ec92ec56,Cookie,d13dad39-cba0-48f0-b3d1-29e9ec92ec56,uwb_sensor,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory
+    # Bin,2021-04-20 14:01:26.300000+00:00,2021-04-20
+    # 14:01:30.300000+00:00,2.64016,1.72280,4.04284,4.0
+
+    df_carry_events_with_track_ids['track_length_seconds'] = (
+        df_carry_events_with_track_ids['end'] -
+        df_carry_events_with_track_ids['start']).dt.total_seconds()
+
+    split_track_row_ids = []
+
+    # Step-1 - cleanup: Find overlapping people across the 'pose track' records (i.e. Cookie) and set person to nan
+    # TODO: This may be overly aggressive, we may want to only delete specific overlapping moments...
+    # TODO: ...rather than deleting whole tracks if there is any moment of overlap
+    for _, carry_event_row in df_carry_events_with_track_ids.iterrows():
+        tray_track_id = carry_event_row['tray_track_id']
+        pose_tracks_filter_idx =\
+            (df_person_tray_distances_aggregated['track_type_person'] == 'pose_track') &\
+            (df_person_tray_distances_aggregated['tray_track_id'] == tray_track_id)
+
+        overlapping_people_ids = []
+
+        df_person_tray_distances_aggregated_pose_tracks_only = df_person_tray_distances_aggregated[
+            pose_tracks_filter_idx]
+        for person_id in pd.unique(df_person_tray_distances_aggregated_pose_tracks_only['device_id_person']):
+            if person_id == float(np.nan):
+                continue
+
+            df_person_tracks_filter_idx = df_person_tray_distances_aggregated_pose_tracks_only[
+                'device_id_person'] == person_id
+            df_person_tracks = df_person_tray_distances_aggregated_pose_tracks_only[df_person_tracks_filter_idx]
+
+            for idx, row in df_person_tracks.iterrows():
+                overlapping_start_idx = (
+                    row['start'] >= df_person_tracks['start']) & (
+                    row['start'] <= df_person_tracks['end'])
+                if len(overlapping_start_idx) > 1:
+                    overlapping_people_ids.extend(df_person_tracks.loc[overlapping_start_idx, 'track_id_person'].values)
+
+                df_overlapping_end_idx = (
+                    row['end'] >= df_person_tracks['start']) & (
+                    row['end'] <= df_person_tracks['end'])
+                if len(df_overlapping_end_idx) > 1:
+                    overlapping_people_ids.extend(
+                        df_person_tracks.loc[df_overlapping_end_idx, 'track_id_person'].values)
+
+        overlapping_idx = df_person_tray_distances_aggregated['track_id_person'].isin(overlapping_people_ids)
+        df_person_tray_distances_aggregated.loc[overlapping_idx, [
+            'device_id_person', 'person_name_person']] = float(np.nan)
+
+    # Filter step-2 (A):
+    # In preparation for handling split pose tracks, begin gathering groups of
+    # associated track_ids. Step A is to group nan device_id_persons
+    # and data that comes from 'uwb_sensors' into their own "groups" or buckets
+    split_track_row_ids.extend(df_person_tray_distances_aggregated[
+                               (df_person_tray_distances_aggregated['device_id_person'].isnull()) |
+                               (df_person_tray_distances_aggregated['track_type_person'] == 'uwb_sensor')
+                               ].index.values)
+
+    # Filter step-2 (B):
+    # Step B is to look for pose tracks that are diconnected but related and try to
+    # group those together
+    for _, carry_event_row in df_carry_events_with_track_ids.iterrows():
+        tray_track_id = carry_event_row['tray_track_id']
+        pose_tracks_filter_idx = \
+            (df_person_tray_distances_aggregated['device_id_person'].notnull()) & \
+            (df_person_tray_distances_aggregated['track_type_person'] == 'pose_track') & \
+            (df_person_tray_distances_aggregated['tray_track_id'] == tray_track_id)
+
+        df_person_tray_distances_aggregated_pose_tracks_only = df_person_tray_distances_aggregated[
+            pose_tracks_filter_idx]
+        for person_id in pd.unique(df_person_tray_distances_aggregated_pose_tracks_only['device_id_person']):
+            if person_id == float(np.nan):
+                continue
+
+            df_person_tracks_filter_idx = df_person_tray_distances_aggregated_pose_tracks_only[
+                'device_id_person'] == person_id
+            split_track_row_ids.append(
+                list(df_person_tray_distances_aggregated_pose_tracks_only[df_person_tracks_filter_idx].index.values))
+
+    # Filter step-2 (C):
+    # Use the split_track_row_ids to build and summarize "complete" tracks
+    # If the previous split track time's total time is > 90% of the event time, retain the tracks
+    filtered_tracks = []
+
+    for row_id_groups in split_track_row_ids:
+        if not isinstance(row_id_groups, list):
+            row_id_groups = [row_id_groups]
+
+        df_person_tracks = df_person_tray_distances_aggregated[
+            df_person_tray_distances_aggregated.index.isin(row_id_groups)].copy()
+        tray_track_length_in_seconds = df_carry_events_with_track_ids[
+            df_carry_events_with_track_ids['tray_track_id'] == df_person_tracks.iloc[0]['tray_track_id']
+        ].iloc[0]['track_length_seconds']
+
+        if tray_track_length_in_seconds > 0 and (
+                df_person_tracks['person_track_length_seconds'].sum() / tray_track_length_in_seconds) >= 0.9:
+            df_person_tracks['track_length_percentage'] = df_person_tracks['person_track_length_seconds'] / \
+                df_person_tracks['person_track_length_seconds'].sum()
+            df_person_tracks['person_tray_distance_median_weighted'] = df_person_tracks['person_tray_distance_median'] * \
+                df_person_tracks['track_length_percentage']
+
+            df_person_flattened = df_person_tracks[['tray_track_id',
+                                                    'device_id_person',
+                                                    'person_name_person',
+                                                    'device_id_tray',
+                                                    'material_name_tray']].iloc[0].to_frame().transpose()
+            df_person_flattened['person_tray_distance_median'] = df_person_tracks['person_tray_distance_median_weighted'].sum()
+            df_person_flattened['person_track_length_seconds'] = df_person_tracks['person_track_length_seconds'].sum()
+
+            df_person_grouped = df_person_tracks.groupby(
+                [
+                    'tray_track_id']).agg(
+                {
+                    'person_tray_distance_min': [
+                        'min'
+                    ],
+                    'person_tray_distance_max': [
+                        'max'
+                    ]
+                })
+
+            df_person_grouped.columns = df_person_grouped.columns.to_flat_index()
+            dataframe_tuple_columns_to_underscores(df_person_grouped, inplace=True)
+
+            df_person_flattened['person_tray_distance_min'] = df_person_grouped['person_tray_distance_min_min'].iloc[0]
+            df_person_flattened['person_tray_distance_max'] = df_person_grouped['person_tray_distance_max_max'].iloc[0]
+
+            filtered_tracks.append(df_person_flattened)
+
+    df_filtered_tracks = pd.concat(filtered_tracks)
+
+    df_carry_events_distances_from_people = df_filtered_tracks \
+        .merge(
+            df_carry_events_with_track_ids[['tray_track_id', 'start', 'end']],
+            how='left',
+            on='tray_track_id')
+    df_carry_events_distances_from_people.index.name = 'person_tray_track_id'
+
+    return df_carry_events_distances_from_people
 
 
 def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centroids):
+    """
+    :param df_features:
+    index,device_id,entity_type,tray_id,tray_name,material_assignment_id,material_id,material_name,person_id,person_name,quality,x_position,y_position,z_position,track_id,track_type
+    2021-04-20 14:00:00.1000000 00:00,57f27842-2dca-4e96-ad06-c43de1ce5b5b,Tray,1ab9153d-a4bf-4b01-ae6f-64b162ebf178,GB Tray 1,91b1f7e7-e52f-4a7d-bace-02d945bf553b,8fd144de-4b64-4e26-a1aa-acdc39e08ca1,Spooning,<NA>,<NA>,8630.651339367998,-0.02254,6.97481,3.00000,57f27842-2dca-4e96-ad06-c43de1ce5b5b,uwb_sensor
+    2021-04-20 14:00:00.2000000 00:00,57f27842-2dca-4e96-ad06-c43de1ce5b5b,Tray,1ab9153d-a4bf-4b01-ae6f-64b162ebf178,GB Tray 1,91b1f7e7-e52f-4a7d-bace-02d945bf553b,8fd144de-4b64-4e26-a1aa-acdc39e08ca1,Spooning,<NA>,<NA>,8726.985720758657,-0.01811,6.96696,3.00000,57f27842-2dca-4e96-ad06-c43de1ce5b5b,uwb_sensor
+    2021-04-20 14:00:00.3000000 00:00,57f27842-2dca-4e96-ad06-c43de1ce5b5b,Tray,1ab9153d-a4bf-4b01-ae6f-64b162ebf178,GB Tray 1,91b1f7e7-e52f-4a7d-bace-02d945bf553b,8fd144de-4b64-4e26-a1aa-acdc39e08ca1,Spooning,<NA>,<NA>,8828.370805845896,-0.01419,6.95955,3.00000,57f27842-2dca-4e96-ad06-c43de1ce5b5b,uwb_sensor
+    2021-04-20 14:00:00.4000000 00:00,57f27842-2dca-4e96-ad06-c43de1ce5b5b,Tray,1ab9153d-a4bf-4b01-ae6f-64b162ebf178,GB Tray 1,91b1f7e7-e52f-4a7d-bace-02d945bf553b,8fd144de-4b64-4e26-a1aa-acdc39e08ca1,Spooning,<NA>,<NA>,8733.670166453265,-0.01128,6.95299,3.00000,57f27842-2dca-4e96-ad06-c43de1ce5b5b,uwb_sensor
+    ...
+    2021-04-20 14:02:05.1000000 00:00,nan,Person,nan,nan,nan,nan,nan,nan,nan,nan,0.49127,1.88444,1.88444,0cfc7ea1ae9a45a1a17f598a5b1109de,pose_track
+    2021-04-20 14:02:05.2000000 00:00,nan,Person,nan,nan,nan,nan,nan,nan,nan,nan,0.51071,1.90689,1.90689,0cfc7ea1ae9a45a1a17f598a5b1109de,pose_track
+    2021-04-20 14:02:05.3000000 00:00,nan,Person,nan,nan,nan,nan,nan,nan,nan,nan,0.45057,1.94556,1.94556,0cfc7ea1ae9a45a1a17f598a5b1109de,pose_track
+    2021-04-20 14:02:05.4000000 00:00,nan,Person,nan,nan,nan,nan,nan,nan,nan,nan,0.39042,1.98423,1.98423,0cfc7ea1ae9a45a1a17f598a5b1109de,pose_track
+    ...
+    2021-04-20 14:03:06.1000000 00:00,bbf3f7d4-994a-4418-93fc-ec0c009cc90a,Person,nan,nan,nan,nan,nan,62a0fd7a-e951-419b-a46a-2dd7b23136c4,Nynzie Noglo,nan,3.99970,5.47494,5.47494,8d6d4bec000e4168b371bfcbae4116f6,pose_track
+    2021-04-20 14:03:06.2000000 00:00,bbf3f7d4-994a-4418-93fc-ec0c009cc90a,Person,nan,nan,nan,nan,nan,62a0fd7a-e951-419b-a46a-2dd7b23136c4,Nynzie Noglo,nan,3.98898,5.47557,5.47557,8d6d4bec000e4168b371bfcbae4116f6,pose_track
+    2021-04-20 14:03:06.3000000 00:00,bbf3f7d4-994a-4418-93fc-ec0c009cc90a,Person,nan,nan,nan,nan,nan,62a0fd7a-e951-419b-a46a-2dd7b23136c4,Nynzie Noglo,nan,3.98487,5.47795,5.47795,8d6d4bec000e4168b371bfcbae4116f6,pose_track
+    2021-04-20 14:03:06.4000000 00:00,bbf3f7d4-994a-4418-93fc-ec0c009cc90a,Person,nan,nan,nan,nan,nan,62a0fd7a-e951-419b-a46a-2dd7b23136c4,Nynzie Noglo,nan,3.98820,5.47480,5.47480,8d6d4bec000e4168b371bfcbae4116f6,pose_track
+
+
+
+    :param df_carry_events:
+    device_id,start,end,quality_median
+    f37dd610-7335-4355-b706-0a1ea3f35519,2021-04-20 14:01:26.300000+00:00,2021-04-20 14:01:30.300000+00:00,8573.84593
+    f37dd610-7335-4355-b706-0a1ea3f35519,2021-04-20 14:11:26.200000+00:00,2021-04-20 14:11:30.300000+00:00,8621.08054
+    ...
+
+    :param df_tray_centroids:
+    x_centroid,y_centroid,device_id,start_datetime,end_datetime
+    4.34030,5.12649,f37dd610-7335-4355-b706-0a1ea3f35519,2021-04-20 14:00:00.100000+00:00,2021-04-20 14:14:59.900000+00:00
+    1.30512,11.29408,7fb13183-8f7b-4236-ad58-ddb37c571967,2021-04-20 14:00:00.100000+00:00,2021-04-20 14:14:59.900000+00:00
+    -0.04017,6.96929,57f27842-2dca-4e96-ad06-c43de1ce5b5b,2021-04-20 14:00:00.100000+00:00,2021-04-20 14:14:59.900000+00:00
+    3.78387,4.74192,5d17b2dc-9190-4495-bac0-dbfc60673b40,2021-04-20 14:00:00.100000+00:00,2021-04-20 14:14:59.900000+00:00
+    3.91644,6.82516,6b643522-3490-4cea-a955-fce29509334c,2021-04-20 14:00:00.100000+00:00,2021-04-20 14:14:59.900000+00:00
+    ...
+
+    :return: Dataframe
+    """
     df_carry_events_with_track_ids = modify_carry_events_with_track_ids(df_carry_events)
     df_filtered_people, df_filtered_trays_with_track_ids = filter_features_by_carry_events_and_split_by_device_type(
         df_features, df_carry_events_with_track_ids)
+    # TODO: Filter 3d->2d tracks by time
 
     ###############
     # Determine nearest tray/person distances
     ###############
 
     # Build a dataframe with distances between all people and trays across all carry events times
+    # TODO: Add 3d to 2d track as some form of people so we can compute distances to each of these tracks as well...
     df_person_tray_distances = generate_person_tray_distances(df_filtered_people, df_filtered_trays_with_track_ids)
-
-    # Group and aggregate each person and tray-carry-track combination to get the mean distance during the carry event
-    # FYI: Grouping creates a dataframe with multiple column axis
-    df_child_tray_distances_aggregated = df_person_tray_distances.groupby(
-        [
-            'tray_track_id',
-            'device_id_person',
-            'person_name_person',
-            'device_id_tray',
-            'material_name_tray']).agg(
-        {
-            'person_tray_distance': [
-                'median',
-                'min',
-                'max']}).reset_index()
-    df_child_tray_distances_aggregated.columns = df_child_tray_distances_aggregated.columns.to_flat_index()
-    dataframe_tuple_columns_to_underscores(df_child_tray_distances_aggregated, inplace=True)
-
-    # TODO: Filter by nearest tray <> person (or not, it could be possible two children carry a tray together)
-    df_carry_events_distances_from_people = df_child_tray_distances_aggregated \
-        .merge(
-            df_carry_events_with_track_ids[['tray_track_id', 'start', 'end']],
-            how='left',
-            on='tray_track_id')
-    df_carry_events_distances_from_people.index.name = 'person_tray_track_id'
+    df_carry_events_distances_from_people = aggregate_clean_filter_person_tray_distances(
+        df_person_tray_distances, df_carry_events_with_track_ids)
 
     #############
     # Determine trays positions at the start/end moments of tray carry
@@ -296,7 +534,7 @@ def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centr
     centroid_to_tray_location_distances_columns = ['timestamp', 'device_id', 'tray_track_id', 'distance']
     centroid_cols = map_column_name_to_dimension_space('centroid', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
     position_cols = map_column_name_to_dimension_space(
-        'position_smoothed', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
+        'position', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
 
     for idx, row in df_carry_event_position_and_centroid.iterrows():
         centroid_to_tray_location_distances.append(pd.DataFrame([[
@@ -399,7 +637,8 @@ def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centr
     # filter_trays_within_min_distance_from_source = (
     #     (df_tray_interactions_pre_filter['tray_start_distance_from_source'] < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF) |
     #     (df_tray_interactions_pre_filter['tray_end_distance_from_source'] < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF))
-    df_tray_interactions = df_tray_interactions_pre_filter.copy() # df_tray_interactions_pre_filter.loc[filter_trays_within_min_distance_from_source]
+    # df_tray_interactions_pre_filter.loc[filter_trays_within_min_distance_from_source]
+    df_tray_interactions = df_tray_interactions_pre_filter.copy()
 
     # Final dataframe contains:
     #   tray_device_id (str)

@@ -7,21 +7,21 @@ VERSION = open(os.path.join(BASEDIR, 'VERSION')).read().strip()
 # Dependencies (format is 'PYPI_PACKAGE_NAME[>=]=VERSION_NUMBER')
 BASE_DEPENDENCIES = [
     'boto3>=1.17',
-    'cachier>=1.5.0',
     'click>=7.1.1',
     'click-log>=0.3.2',
     'keras>=2.4.3',
-    'matplotlib>=3.3.3',
+    'matplotlib>=3.4.1',
     'nocasedict>=1.0.2',
-    'numpy~=1.20.1',
-    'pandas>=1.1.4',
-    'python-dotenv>=0.14.0',
+    'numpy~=1.20.2',
+    'pandas>=1.2.4',
+    'python-dotenv>=0.17.0',
     'python-slugify>=4.0.0',
     'scikit-learn>=0.24',
-    'scipy>=1.5.4',
+    'scipy>=1.6.3',
     #'tensorflow>=2.4.1',
     'wf-honeycomb-io>=1.6.1',
-    'wf-geom-render>=0.3.0'
+    'wf-geom-render>=0.3.0',
+    'wf-process-pose-data>=3.2.1'
 ]
 # TEST_DEPENDENCIES = [
 # ]
@@ -44,6 +44,7 @@ setup(
     url='https://github.com/WildflowerSchools/wf-process-cuwb-data',
     author='Theodore Quinn',
     author_email='ted.quinn@wildflowerschools.org',
+    setup_requires=['numpy'],
     install_requires=BASE_DEPENDENCIES,
     # tests_require=TEST_DEPENDENCIES,
     extras_require={
