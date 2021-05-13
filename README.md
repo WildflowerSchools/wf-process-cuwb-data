@@ -18,28 +18,28 @@ Tools for reading, processing, and writing CUWB data
 3. Generate pickled groundtruth features dataframe from ground_truth_tray_carry.csv
 
 
-    process_cuwb_data \
-      generate-tray-carry-groundtruth \
-      --groundtruth-csv ./ignore/ground_truth_tray_carry.csv
+      process_cuwb_data \
+         generate-tray-carry-groundtruth \
+         --groundtruth-csv ./ignore/ground_truth_tray_carry.csv
 
 
 4) Train and pickled Tray Carry Detection Model
 
 
-    process_cuwb_data \
-      train-tray-carry-model \
-      --groundtruth-features ./output/groundtruth/2021-05-13T12:53:26_tray_carry_groundtruth_features.pkl
+      process_cuwb_data \
+         train-tray-carry-model \
+         --groundtruth-features ./output/groundtruth/2021-05-13T12:53:26_tray_carry_groundtruth_features.pkl
 
 
 5) Infer Tray Interactions
 
 
-    process_cuwb_data \
-      infer-tray-interactions \
-       --environment greenbrier \
-       --start 2021-04-20T9:00:00-0500 \
-       --end 2021-04-20T9:05:00-0500 \
-       --tray-carry-model ./output/models/2021-05-13T14:49:32_tray_carry_model.pkl
+      process_cuwb_data \
+         infer-tray-interactions \
+         --environment greenbrier \
+         --start 2021-04-20T9:00:00-0500 \
+         --end 2021-04-20T9:05:00-0500 \
+         --tray-carry-model ./output/models/2021-05-13T14:49:32_tray_carry_model.pkl
 
 ### Other CLI Commands/Options
 
