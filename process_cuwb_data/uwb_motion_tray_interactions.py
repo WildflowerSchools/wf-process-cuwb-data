@@ -451,7 +451,7 @@ def aggregate_clean_filter_person_tray_distances(df_person_tray_distances, df_ca
     return df_carry_events_distances_from_people
 
 
-def extract_tray_device_interactions(df_features, df_carry_events, df_tray_centroids):
+def infer_tray_device_interactions(df_features, df_carry_events, df_tray_centroids):
     """
     :param df_features:
     index,device_id,entity_type,tray_id,tray_name,material_assignment_id,material_id,material_name,person_id,person_name,quality,x_position,y_position,z_position,track_id,track_type
