@@ -399,12 +399,14 @@ def cli_infer_human_activity(environment, start, end, motion_feature_data, model
               help="Pickle formatted model object (create with 'human-activity-carry-model')")
 @click.option("--human-activity-feature-scaler", type=click.Path(exists=True),
               help="Pickle formatted feature scaling input (create with 'human-activity-carry-model')")
+@click.option("--pose-inference-id", type=str,
+              help="3D Pose Inference ID (requires and searches <<output>>/pose_processing folder)")
 @click.option("--output", type=click.Path(), default="%s/output" % (os.getcwd()),
               help="output folder, tray interactions stored as csv in <<output>>/interactions (e.g. <<output>>/interactions/<<DATE>>_tray_interactions.csv)")
 @click.option("--tray-positions-csv", type=click.Path(exists=True),
               help="CSV formatted tray shelf position data")
 def cli_infer_tray_interactions(environment, start, end, cuwb_data, motion_feature_data, tray_carry_model, tray_carry_feature_scaler,
-                                human_activity_model, human_activity_feature_scaler, output, tray_positions_csv):
+                                human_activity_model, human_activity_feature_scaler, pose_inference_id, output, tray_positions_csv):
     Path("{}/interactions".format(output)).mkdir(parents=True, exist_ok=True)
 
     if motion_feature_data is None:
@@ -475,7 +477,7 @@ def cli_infer_tray_interactions(environment, start, end, cuwb_data, motion_featu
     df_poses_3d = process_pose_data.fetch_3d_poses_with_person_info(
         base_dir=output,
         environment_id=environment_id,
-        pose_track_3d_identification_inference_id='3c2cca86ceac4ab1b13f9f7bfed7834e',
+        pose_track_3d_identification_inference_id=pose_inference_id,
         start=start,
         end=end
     )
