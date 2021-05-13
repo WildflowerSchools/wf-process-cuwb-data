@@ -7,7 +7,7 @@ VERSION = open(os.path.join(BASEDIR, 'VERSION')).read().strip()
 # Dependencies (format is 'PYPI_PACKAGE_NAME[>=]=VERSION_NUMBER')
 BASE_DEPENDENCIES = [
     'boto3>=1.17',
-    'click>=7.1.1',
+    'click>=8.0.0',
     'click-log>=0.3.2',
     'keras>=2.4.3',
     'matplotlib>=3.4.1',

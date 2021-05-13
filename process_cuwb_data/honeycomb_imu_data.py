@@ -30,6 +30,9 @@ def fetch_imu_data(imu_type,
         sort_arguments={"field": "timestamp"},
         chunk_size=20000
     )
+    if len(df) == 0:
+        return None
+
     # Add metadata
     df = add_device_assignment_info(df)
     df = add_device_entity_assignment_info(df)

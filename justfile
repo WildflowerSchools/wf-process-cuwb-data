@@ -2,6 +2,7 @@ build:
     python setup.py install build
 
 install-dev:
+    #!/usr/bin/env bash
     pip install -e .[development]
 
 clean:
