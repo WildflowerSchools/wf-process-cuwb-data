@@ -3,10 +3,61 @@ import cv_utils
 import pandas as pd
 import numpy as np
 import datetime
+import functools
 
 from process_cuwb_data.utils.log import logger
 
-def parse_tray_events(tray_events, time_zone='US/Central'):
+def parse_tray_events(
+    tray_events,
+    default_camera_device_id,
+    environment_id=None,
+    environment_name=None,
+    camera_dict=None,
+    camera_calibrations=None,
+    position_window_seconds=4,
+    imputed_z_position=1.0,
+    time_zone='US/Central',
+    chunk_size=100,
+    client=None,
+    uri=None,
+    token_uri=None,
+    audience=None,
+    client_id=None,
+    client_secret=None
+):
+    if camera_dict is None:
+        if environment_id is None and environment_name is None:
+            raise ValueError('If camera dictionary is not specified, must specify either environment ID or environment name')
+        camera_info = honeycomb_io.fetch_devices(
+            device_types=honeycomb_io.DEFAULT_CAMERA_DEVICE_TYPES,
+            environment_id=environment_id,
+            environment_name=environment_name,
+            start=tray_events['start'].min(),
+            end=tray_events['end'].max(),
+            output_format='dataframe',
+            chunk_size=chunk_size,
+            client=client,
+            uri=uri,
+            token_uri=token_uri,
+            audience=audience,
+            client_id=client_id,
+            client_secret=client_secret
+        )
+        camera_dict = camera_info['device_name'].to_dict()
+    camera_device_ids = list(camera_dict.keys())
+    if camera_calibrations is None:
+        camera_calibrations = honeycomb_io.fetch_camera_calibrations(
+            camera_ids=camera_device_ids,
+            start=tray_events['start'].min(),
+            end=tray_events['end'].max(),
+            chunk_size=chunk_size,
+            client=client,
+            uri=uri,
+            token_uri=token_uri,
+            audience=audience,
+            client_id=client_id,
+            client_secret=client_secret
+        )
     tray_events = tray_events.copy()
     tray_events['date'] = tray_events['start'].dt.tz_convert(time_zone).apply(lambda x: x.date())
     material_events_list = list()
@@ -16,6 +67,43 @@ def parse_tray_events(tray_events, time_zone='US/Central'):
     material_events['timestamp'] = material_events.apply(
         lambda row: row['start'] if pd.notnull(row['start']) else row['end'],
         axis=1
+    )
+    best_camera_partial = functools.partial(
+        best_camera,
+        default_camera_device_id=default_camera_device_id,
+        environment_id=environment_id,
+        environment_name=environment_name,
+        camera_dict=camera_dict,
+        camera_calibrations=camera_calibrations,
+        position_window_seconds=position_window_seconds,
+        imputed_z_position=imputed_z_position,
+        chunk_size=chunk_size,
+        client=client,
+        uri=uri,
+        token_uri=token_uri,
+        audience=audience,
+        client_id=client_id,
+        client_secret=client_secret
+    )
+    material_events['best_camera_device_id_from_shelf'] = material_events.apply(
+        lambda event: best_camera_partial(
+            timestamp=event['start'],
+            tray_device_id=event['tray_device_id'],
+        ) if pd.notnull(event['start']) else None,
+        axis=1
+    )
+    material_events['best_camera_name_from_shelf'] = material_events['best_camera_device_id_from_shelf'].apply(
+        lambda camera_device_id: camera_dict.get(camera_device_id)
+    )
+    material_events['best_camera_device_id_to_shelf'] = material_events.apply(
+        lambda event: best_camera_partial(
+            timestamp=event['end'],
+            tray_device_id=event['tray_device_id'],
+        ) if pd.notnull(event['end']) else None,
+        axis=1
+    )
+    material_events['best_camera_name_to_shelf'] = material_events['best_camera_device_id_to_shelf'].apply(
+        lambda camera_device_id: camera_dict.get(camera_device_id)
     )
     material_events['duration_seconds'] = (material_events['end'] - material_events['start']).dt.total_seconds()
     material_events['person_device_id'] = material_events.apply(
@@ -52,9 +140,13 @@ def parse_tray_events(tray_events, time_zone='US/Central'):
         'start',
         'person_device_id_from_shelf',
         'person_name_from_shelf',
+        'best_camera_device_id_from_shelf',
+        'best_camera_name_from_shelf',
         'end',
         'person_device_id_to_shelf',
         'person_name_to_shelf',
+        'best_camera_device_id_to_shelf',
+        'best_camera_name_to_shelf',
         'description'
     ])
     material_events.sort_values('timestamp', inplace=True)
@@ -287,4 +379,4 @@ def best_camera(
     else:
         best_camera_device_id = view_data.loc[view_data['in_middle']].sort_values('distance_from_camera').index[0]
     best_camera_name = camera_dict.get(best_camera_device_id)
-    return camera_calibrations, position_data, view_data, best_camera_device_id, best_camera_name
+    return best_camera_device_id
