@@ -94,7 +94,7 @@ def parse_tray_events(
         default_camera_device_id=default_camera_device_id,
         environment_id=environment_id,
         environment_name=environment_name,
-        camera_dict=camera_dict,
+        camera_device_ids=camera_device_ids,
         camera_calibrations=camera_calibrations,
         position_window_seconds=position_window_seconds,
         imputed_z_position=imputed_z_position,
@@ -105,6 +105,7 @@ def parse_tray_events(
         audience=audience,
         client_id=client_id,
         client_secret=client_secret
+
     )
     material_events['best_camera_device_id_from_shelf'] = material_events.apply(
         lambda event: best_camera_partial(
@@ -421,7 +422,7 @@ def best_camera(
     default_camera_device_id,
     environment_id=None,
     environment_name=None,
-    camera_dict=None,
+    camera_device_ids=None,
     camera_calibrations=None,
     position_window_seconds=4,
     imputed_z_position = 1.0,
@@ -433,27 +434,26 @@ def best_camera(
     client_id=None,
     client_secret=None
 ):
-    if camera_dict is None:
-        if environment_id is None and environment_name is None:
-            raise ValueError('If camera dictionary is not specified, must specify either environment ID or environment name')
-        camera_info = honeycomb_io.fetch_devices(
-            device_types=honeycomb_io.DEFAULT_CAMERA_DEVICE_TYPES,
-            environment_id=environment_id,
-            environment_name=environment_name,
-            start=timestamp,
-            end=timestamp,
-            output_format='dataframe',
-            chunk_size=chunk_size,
-            client=client,
-            uri=uri,
-            token_uri=token_uri,
-            audience=audience,
-            client_id=client_id,
-            client_secret=client_secret
-        )
-        camera_dict = camera_info['device_name'].to_dict()
-    camera_device_ids = list(camera_dict.keys())
     if camera_calibrations is None:
+        if environment_id is None and environment_name is None and camera_device_ids is None:
+            raise ValueError('If camera calibration info is not specified, must specify either camera device IDs or environment ID or environment name')
+        if camera_device_ids is None:
+            camera_info = honeycomb_io.fetch_devices(
+                device_types=honeycomb_io.DEFAULT_CAMERA_DEVICE_TYPES,
+                environment_id=environment_id,
+                environment_name=environment_name,
+                start=timestamp,
+                end=timestamp,
+                output_format='dataframe',
+                chunk_size=chunk_size,
+                client=client,
+                uri=uri,
+                token_uri=token_uri,
+                audience=audience,
+                client_id=client_id,
+                client_secret=client_secret
+            )
+            camera_device_ids= camera_info.index.unique().tolist()
         camera_calibrations = honeycomb_io.fetch_camera_calibrations(
             camera_ids=camera_device_ids,
             start=timestamp,
@@ -490,7 +490,6 @@ def best_camera(
         position[2] = imputed_z_position
     view_data_list = list()
     for camera_device_id, camera_calibration in camera_calibrations.items():
-        camera_name = camera_dict.get(camera_device_id)
         camera_position = cv_utils.extract_camera_position(
             rotation_vector=camera_calibration['rotation_vector'],
             translation_vector=camera_calibration['translation_vector']
@@ -531,7 +530,6 @@ def best_camera(
             in_middle=False
         view_data_list.append({
             'camera_device_id': camera_device_id,
-            'camera_name': camera_name,
             'position': position,
             'distance_from_camera': distance_from_camera,
             'image_position': image_position,
@@ -546,5 +544,4 @@ def best_camera(
         best_camera_device_id = view_data.sort_values('distance_from_image_center').index[0]
     else:
         best_camera_device_id = view_data.loc[view_data['in_middle']].sort_values('distance_from_camera').index[0]
-    best_camera_name = camera_dict.get(best_camera_device_id)
     return best_camera_device_id
