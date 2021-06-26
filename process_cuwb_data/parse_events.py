@@ -260,7 +260,7 @@ def describe_material_event(
     time_zone
 ):
     time_string = timestamp.tz_convert(time_zone).strftime('%I:%M %p')
-    from_shelf_person_string = person_name_from_shelf if pd.notnull(person_name_from_shelf) else 'an unknown person'
+    from_shelf_person_string = person_name_from_shelf if pd.notnull(person_name_from_shelf) else 'An unknown person'
     to_shelf_person_string = person_name_to_shelf if pd.notnull(person_name_to_shelf) else 'an unknown person'
     if pd.notnull(start) and pd.notnull(end):
         if duration_seconds > 90:
@@ -288,15 +288,14 @@ def describe_material_event(
             material_name
         )
     elif pd.notnull(end):
+        if to_shelf_person_string == 'an unknown person':
+            to_shelf_person_string = to_shelf_person_string.capitalize()
         description_text = '{} put {} back on shelf but it wasn\'t taken out previously'.format(
             to_shelf_person_string,
             material_name
         )
     else:
         raise ValueError('Unexpected state: both start and end of material event are null')
-    description_text_list = list(description_text)
-    description_text_list[0] = description_text_list[0].upper()
-    description_text = ''.join(description_text_list)
     description = '{}: {}'.format(
         time_string,
         description_text
@@ -321,7 +320,7 @@ def describe_material_event_html(
     endpoint='classrooms'
 ):
     time_string = timestamp.tz_convert(time_zone).strftime('%I:%M %p')
-    from_shelf_person_string = person_name_from_shelf if pd.notnull(person_name_from_shelf) else 'an unknown person'
+    from_shelf_person_string = person_name_from_shelf if pd.notnull(person_name_from_shelf) else 'An unknown person'
     to_shelf_person_string = person_name_to_shelf if pd.notnull(person_name_to_shelf) else 'an unknown person'
     url_from_shelf = event_url(
         environment_id=environment_id,
@@ -370,6 +369,8 @@ def describe_material_event_html(
             material_name
         )
     elif pd.notnull(end):
+        if to_shelf_person_string == 'an unknown person':
+            to_shelf_person_string = to_shelf_person_string.capitalize()
         description_text = '<a href=\"{}\">{} put {} back on shelf</a> but it wasn\'t taken out previously'.format(
             url_to_shelf,
             to_shelf_person_string,
@@ -377,9 +378,6 @@ def describe_material_event_html(
         )
     else:
         raise ValueError('Unexpected state: both start and end of material event are null')
-    description_text_list = list(description_text)
-    description_text_list[0] = description_text_list[0].upper()
-    description_text = ''.join(description_text_list)
     description = '{}: {}'.format(
         time_string,
         description_text
