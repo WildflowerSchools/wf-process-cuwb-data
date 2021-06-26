@@ -3,6 +3,7 @@ import cv_utils
 import pandas as pd
 import numpy as np
 import datetime
+import urllib.parse
 import functools
 
 from process_cuwb_data.utils.log import logger
@@ -17,6 +18,10 @@ def parse_tray_events(
     position_window_seconds=4,
     imputed_z_position=1.0,
     time_zone='US/Central',
+    lead_in_seconds=3,
+    scheme='https',
+    netloc='honeycomb-ground-truth.api.wildflower-tech.org',
+    endpoint='classrooms',
     chunk_size=100,
     client=None,
     uri=None,
@@ -123,9 +128,35 @@ def parse_tray_events(
         axis=1
     )
     material_events['description'] = material_events.apply(
-        lambda material_event: describe_material_event(
-            event=material_event,
-            time_zone = time_zone
+        lambda event: describe_material_event(
+            timestamp=event['timestamp'],
+            material_name=event['material_name'],
+            start=event['start'],
+            person_name_from_shelf=event['person_name_from_shelf'],
+            end=event['end'],
+            person_name_to_shelf=event['person_name_to_shelf'],
+            duration_seconds=event['duration_seconds'],
+            time_zone=time_zone
+        ),
+        axis=1
+    )
+    material_events['description_html'] = material_events.apply(
+        lambda event: describe_material_event_html(
+            timestamp=event['timestamp'],
+            material_name=event['material_name'],
+            start=event['start'],
+            person_name_from_shelf=event['person_name_from_shelf'],
+            end=event['end'],
+            best_camera_name_from_shelf=event['best_camera_name_from_shelf'],
+            person_name_to_shelf=event['person_name_to_shelf'],
+            best_camera_name_to_shelf=event['best_camera_name_to_shelf'],
+            duration_seconds=event['duration_seconds'],
+            environment_id=environment_id,
+            time_zone=time_zone,
+            lead_in_seconds=lead_in_seconds,
+            scheme=scheme,
+            netloc=netloc,
+            endpoint=endpoint
         ),
         axis=1
     )
@@ -147,7 +178,8 @@ def parse_tray_events(
         'person_name_to_shelf',
         'best_camera_device_id_to_shelf',
         'best_camera_name_to_shelf',
-        'description'
+        'description',
+        'description_html'
     ])
     material_events.sort_values('timestamp', inplace=True)
     return material_events
@@ -200,20 +232,27 @@ def parse_tray_events_date_tray(tray_events_date_tray):
             ))
     return material_events_list
 
-
-def describe_material_event(event, time_zone):
-    time_string = event['timestamp'].tz_convert(time_zone).strftime('%I:%M %p')
-    material_name = event['material_name']
-    from_shelf_person_string = event['person_name_from_shelf'] if pd.notnull(event['person_name_from_shelf']) else 'an unknown person'
-    to_shelf_person_string = event['person_name_to_shelf'] if pd.notnull(event['person_name_to_shelf']) else 'an unknown person'
-    if pd.notnull(event['start']) and pd.notnull(event['end']):
-        if event['duration_seconds'] > 90:
-            duration_string = '{} minutes'.format(round(event['duration_seconds']/60))
-        elif event['duration_seconds'] > 30:
+def describe_material_event(
+    timestamp,
+    material_name,
+    start,
+    person_name_from_shelf,
+    end,
+    person_name_to_shelf,
+    duration_seconds,
+    time_zone
+):
+    time_string = timestamp.tz_convert(time_zone).strftime('%I:%M %p')
+    from_shelf_person_string = person_name_from_shelf if pd.notnull(person_name_from_shelf) else 'an unknown person'
+    to_shelf_person_string = person_name_to_shelf if pd.notnull(person_name_to_shelf) else 'an unknown person'
+    if pd.notnull(start) and pd.notnull(end):
+        if duration_seconds > 90:
+            duration_string = '{} minutes'.format(round(duration_seconds/60))
+        elif duration_seconds > 30:
             duration_string = '1 minute'
         else:
-            duration_string = '{} seconds'.format(round(event['duration_seconds']))
-        if event['person_name_from_shelf'] == event['person_name_to_shelf']:
+            duration_string = '{} seconds'.format(round(duration_seconds))
+        if person_name_from_shelf == person_name_to_shelf:
             description_text = '{} took {} from shelf and put it back {} later'.format(
                 from_shelf_person_string,
                 material_name,
@@ -226,12 +265,12 @@ def describe_material_event(event, time_zone):
                 to_shelf_person_string,
                 duration_string
             )
-    elif pd.notnull(event['start']):
+    elif pd.notnull(start):
         description_text = '{} took {} from shelf but never put it back'.format(
             from_shelf_person_string,
             material_name
         )
-    elif pd.notnull(event['end']):
+    elif pd.notnull(end):
         description_text = '{} put {} back on shelf but it wasn\'t taken out previously'.format(
             to_shelf_person_string,
             material_name
@@ -246,6 +285,119 @@ def describe_material_event(event, time_zone):
         description_text
     )
     return description
+
+def describe_material_event_html(
+    timestamp,
+    material_name,
+    start,
+    person_name_from_shelf,
+    best_camera_name_from_shelf,
+    end,
+    person_name_to_shelf,
+    best_camera_name_to_shelf,
+    duration_seconds,
+    environment_id,
+    time_zone,
+    lead_in_seconds=3,
+    scheme='https',
+    netloc='honeycomb-ground-truth.api.wildflower-tech.org',
+    endpoint='classrooms'
+):
+    time_string = timestamp.tz_convert(time_zone).strftime('%I:%M %p')
+    from_shelf_person_string = person_name_from_shelf if pd.notnull(person_name_from_shelf) else 'an unknown person'
+    to_shelf_person_string = person_name_to_shelf if pd.notnull(person_name_to_shelf) else 'an unknown person'
+    url_from_shelf = event_url(
+        environment_id=environment_id,
+        timestamp=start - datetime.timedelta(seconds=lead_in_seconds),
+        camera_name=best_camera_name_from_shelf,
+        scheme=scheme,
+        netloc=netloc,
+        endpoint=endpoint
+    )
+    url_to_shelf = event_url(
+        environment_id=environment_id,
+        timestamp=end - datetime.timedelta(seconds=lead_in_seconds),
+        camera_name=best_camera_name_to_shelf,
+        scheme=scheme,
+        netloc=netloc,
+        endpoint=endpoint
+    )
+    if pd.notnull(start) and pd.notnull(end):
+        if duration_seconds > 90:
+            duration_string = '{} minutes'.format(round(duration_seconds/60))
+        elif duration_seconds > 30:
+            duration_string = '1 minute'
+        else:
+            duration_string = '{} seconds'.format(round(duration_seconds))
+        if person_name_from_shelf == person_name_to_shelf:
+            description_text = '<a href=\"{}\">{} took {} from shelf</a> and <a href=\"{}\">put it back {} later</a>'.format(
+                url_from_shelf,
+                from_shelf_person_string,
+                material_name,
+                url_to_shelf,
+                duration_string
+            )
+        else:
+            description_text = '<a href=\"{}\">{} took {} from shelf</a> and <a href=\"{}\">{} put it back {} later</a>'.format(
+                url_from_shelf,
+                from_shelf_person_string,
+                material_name,
+                url_to_shelf,
+                to_shelf_person_string,
+                duration_string
+            )
+    elif pd.notnull(start):
+        description_text = '<a href=\"{}\">{} took {} from shelf</a> but never put it back'.format(
+            url_from_shelf,
+            from_shelf_person_string,
+            material_name
+        )
+    elif pd.notnull(end):
+        description_text = '<a href=\"{}\">{} put {} back on shelf</a> but it wasn\'t taken out previously'.format(
+            url_to_shelf,
+            to_shelf_person_string,
+            material_name
+        )
+    else:
+        raise ValueError('Unexpected state: both start and end of material event are null')
+    description_text_list = list(description_text)
+    description_text_list[0] = description_text_list[0].upper()
+    description_text = ''.join(description_text_list)
+    description = '{}: {}'.format(
+        time_string,
+        description_text
+    )
+    return description
+
+
+def event_url(
+    environment_id,
+    timestamp,
+    camera_name,
+    scheme='https',
+    netloc='honeycomb-ground-truth.api.wildflower-tech.org',
+    endpoint='classrooms'
+):
+    if timestamp is None or camera_name is None:
+        return None
+    date_string = pd.to_datetime(timestamp, utc=True).strftime('%Y-%m-%d')
+    time_string = pd.to_datetime(timestamp, utc=True).strftime('%H:%M:%S')
+    url = urllib.parse.urlunparse((
+        scheme,
+        netloc,
+        '/'.join([
+            endpoint,
+            environment_id,
+            date_string
+        ]),
+        None,
+        urllib.parse.urlencode({
+            'device': camera_name,
+            'time': time_string
+        }),
+        None
+    ))
+    return url
 
 def best_camera(
     timestamp,
