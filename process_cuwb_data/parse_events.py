@@ -346,7 +346,7 @@ def describe_material_event_html(
         else:
             duration_string = '{} seconds'.format(round(duration_seconds))
         if person_name_from_shelf == person_name_to_shelf:
-            description_text = '<a href=\"{}\">{} took {} from shelf</a> and <a href=\"{}\">put it back {} later</a>'.format(
+            description_text = '<a href=\"{}\" target=\"_blank\" rel=\"noreferrer\">{} took {} from shelf</a> and <a href=\"{}\" target=\"_blank\" rel=\"noreferrer\">put it back {} later</a>'.format(
                 url_from_shelf,
                 from_shelf_person_string,
                 material_name,
@@ -354,7 +354,7 @@ def describe_material_event_html(
                 duration_string
             )
         else:
-            description_text = '<a href=\"{}\">{} took {} from shelf</a> and <a href=\"{}\">{} put it back {} later</a>'.format(
+            description_text = '<a href=\"{}\" target=\"_blank\" rel=\"noreferrer\">{} took {} from shelf</a> and <a href=\"{}\" target=\"_blank\" rel=\"noreferrer\">{} put it back {} later</a>'.format(
                 url_from_shelf,
                 from_shelf_person_string,
                 material_name,
@@ -363,7 +363,7 @@ def describe_material_event_html(
                 duration_string
             )
     elif pd.notnull(start):
-        description_text = '<a href=\"{}\">{} took {} from shelf</a> but never put it back'.format(
+        description_text = '<a href=\"{}\" target=\"_blank\" rel=\"noreferrer\">{} took {} from shelf</a> but never put it back'.format(
             url_from_shelf,
             from_shelf_person_string,
             material_name
@@ -371,7 +371,7 @@ def describe_material_event_html(
     elif pd.notnull(end):
         if to_shelf_person_string == 'an unknown person':
             to_shelf_person_string = to_shelf_person_string.capitalize()
-        description_text = '<a href=\"{}\">{} put {} back on shelf</a> but it wasn\'t taken out previously'.format(
+        description_text = '<a href=\"{}\" target=\"_blank\" rel=\"noreferrer\">{} put {} back on shelf</a> but it wasn\'t taken out previously'.format(
             url_to_shelf,
             to_shelf_person_string,
             material_name
