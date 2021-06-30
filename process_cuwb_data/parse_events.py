@@ -8,7 +8,265 @@ import functools
 
 from process_cuwb_data.utils.log import logger
 
-def parse_tray_events(
+def describe_tray_events(
+    tray_events,
+    environment_id=None,
+    environment_name=None,
+    camera_device_ids=None,
+    camera_names=None,
+    default_camera_device_id=None,
+    default_camera_name=None,
+    camera_calibrations=None,
+    position_window_seconds=4,
+    imputed_z_position=1.0,
+    time_zone='US/Central',
+    lead_in_seconds=3,
+    scheme='https',
+    netloc='honeycomb-ground-truth.api.wildflower-tech.org',
+    endpoint='classrooms',
+    chunk_size=100,
+    client=None,
+    uri=None,
+    token_uri=None,
+    audience=None,
+    client_id=None,
+    client_secret=None
+):
+    if environment_id is None and environment_name is None:
+        raise ValueError('Must specify either environment ID or environment name')
+    camera_info = honeycomb_io.fetch_devices(
+        device_types=honeycomb_io.DEFAULT_CAMERA_DEVICE_TYPES,
+        device_ids=camera_device_ids,
+        names=camera_names,
+        environment_id=environment_id,
+        environment_name=environment_name,
+        start=tray_events['start'].min(),
+        end=tray_events['end'].max(),
+        output_format='dataframe',
+        chunk_size=chunk_size,
+        client=client,
+        uri=uri,
+        token_uri=token_uri,
+        audience=audience,
+        client_id=client_id,
+        client_secret=client_secret
+    )
+    camera_dict = camera_info['device_name'].to_dict()
+    camera_device_ids = list(camera_dict.keys())
+    if camera_calibrations is None:
+        camera_calibrations = honeycomb_io.fetch_camera_calibrations(
+            camera_ids=camera_device_ids,
+            start=tray_events['start'].min(),
+            end=tray_events['end'].max(),
+            chunk_size=chunk_size,
+            client=client,
+            uri=uri,
+            token_uri=token_uri,
+            audience=audience,
+            client_id=client_id,
+            client_secret=client_secret
+        )
+    if default_camera_device_id is None:
+        if default_camera_name is None:
+            raise ValueError('Must specify default camera device ID or name')
+        default_cameras = camera_info.loc[camera_info['device_name'] == default_camera_name]
+        if len(default_cameras) == 0:
+            raise ValueError('Default camera name {} not found'.format(
+                default_camera_name
+            ))
+        if len(default_cameras) > 1:
+            raise ValueError('More than one camera with default camera name {} found'.format(
+                default_camera_name
+            ))
+        default_camera_device_id = default_cameras.index[0]
+    tray_events = tray_events.copy()
+    tray_events['date'] = tray_events['start'].dt.tz_convert(time_zone).apply(lambda x: x.date())
+    tray_events['timestamp'] = tray_events['start']
+    best_camera_partial = functools.partial(
+        best_camera,
+        default_camera_device_id=default_camera_device_id,
+        environment_id=environment_id,
+        environment_name=environment_name,
+        camera_device_ids=camera_device_ids,
+        camera_calibrations=camera_calibrations,
+        position_window_seconds=position_window_seconds,
+        imputed_z_position=imputed_z_position,
+        chunk_size=chunk_size,
+        client=client,
+        uri=uri,
+        token_uri=token_uri,
+        audience=audience,
+        client_id=client_id,
+        client_secret=client_secret
+
+    )
+    tray_events['best_camera_device_id'] = tray_events.apply(
+        lambda event: best_camera_partial(
+            timestamp=event['start'],
+            tray_device_id=event['tray_device_id'],
+        ),
+        axis=1
+    )
+    tray_events['best_camera_name'] = tray_events['best_camera_device_id'].apply(
+        lambda camera_device_id: camera_dict.get(camera_device_id)
+    )
+    tray_events['duration_seconds'] = (tray_events['end'] - tray_events['start']).dt.total_seconds()
+    tray_events['description'] = tray_events.apply(
+        lambda event: describe_tray_event(
+            timestamp=event['timestamp'],
+            material_name=event['material_name'],
+            start=event['start'],
+            end=event['end'],
+            person_name=event['person_name'],
+            duration_seconds=event['duration_seconds'],
+            interaction_type=event['interaction_type'],
+            time_zone=time_zone
+        ),
+        axis=1
+    )
+    tray_events['description_html'] = tray_events.apply(
+        lambda event: describe_tray_event_html(
+            timestamp=event['timestamp'],
+            material_name=event['material_name'],
+            start=event['start'],
+            end=event['end'],
+            person_name=event['person_name'],
+            best_camera_name=event['best_camera_name'],
+            duration_seconds=event['duration_seconds'],
+            interaction_type=event['interaction_type'],
+            environment_id=environment_id,
+            time_zone=time_zone,
+            lead_in_seconds=lead_in_seconds,
+            scheme=scheme,
+            netloc=netloc,
+            endpoint=endpoint
+        ),
+        axis=1
+    )
+    tray_events = tray_events.reindex(columns=[
+        'date',
+        'timestamp',
+        'tray_device_id',
+        'material_name',
+        'duration_seconds',
+        'person_device_id',
+        'person_name',
+        'start',
+        'end',
+        'best_camera_device_id',
+        'best_camera_name',
+        'description',
+        'description_html'
+    ])
+    tray_events.sort_values('timestamp', inplace=True)
+    return tray_events
+
+def describe_tray_event(
+    timestamp,
+    material_name,
+    start,
+    end,
+    person_name,
+    duration_seconds,
+    interaction_type,
+    time_zone
+):
+    time_string = timestamp.tz_convert(time_zone).strftime('%I:%M %p')
+    person_string = person_name if pd.notnull(person_name) else 'An unknown person'
+    if interaction_type == 'CARRYING_FROM_SHELF':
+        description_text = '{} took the {} tray from shelf'.format(
+            person_string,
+            material_name
+        )
+    elif interaction_type == 'CARRYING_TO_SHELF':
+        description_text = '{} put the {} tray back on the shelf'.format(
+            person_string,
+            material_name
+        )
+    elif interaction_type == 'CARRYING_BETWEEN_NON_SHELF_LOCATIONS':
+        description_text = '{} moved the {} tray'.format(
+            person_string,
+            material_name
+        )
+    elif interaction_type == 'CARRYING_FROM_AND_TO_SHELF':
+        description_text = '{} took the {} tray from the shelf and immediately put it back'.format(
+            person_string,
+            material_name
+        )
+    else:
+        raise ValueError('Unexpected interaction type: \'{}\''.format(
+            interaction_type
+        ))
+        raise ValueError('Unexpected state: both start and end of material event are null')
+    description = '{}: {}'.format(
+        time_string,
+        description_text
+    )
+    return description
+
+def describe_tray_event_html(
+    timestamp,
+    material_name,
+    start,
+    end,
+    person_name,
+    best_camera_name,
+    duration_seconds,
+    interaction_type,
+    environment_id,
+    time_zone,
+    lead_in_seconds=3,
+    scheme='https',
+    netloc='honeycomb-ground-truth.api.wildflower-tech.org',
+    endpoint='classrooms'
+):
+    time_string = timestamp.tz_convert(time_zone).strftime('%I:%M %p')
+    person_string = person_name if pd.notnull(person_name) else 'An unknown person'
+    url = event_url(
+        environment_id=environment_id,
+        timestamp=start - datetime.timedelta(seconds=lead_in_seconds),
+        camera_name=best_camera_name,
+        scheme=scheme,
+        netloc=netloc,
+        endpoint=endpoint
+    )
+    if interaction_type == 'CARRYING_FROM_SHELF':
+        description_text = '{} took the {} tray from shelf'.format(
+            person_string,
+            material_name
+        )
+    elif interaction_type == 'CARRYING_TO_SHELF':
+        description_text = '{} put the {} tray back on the shelf'.format(
+            person_string,
+            material_name
+        )
+    elif interaction_type == 'CARRYING_BETWEEN_NON_SHELF_LOCATIONS':
+        description_text = '{} moved the {} tray'.format(
+            person_string,
+            material_name
+        )
+    elif interaction_type == 'CARRYING_FROM_AND_TO_SHELF':
+        description_text = '{} took the {} tray from the shelf and immediately put it back'.format(
+            person_string,
+            material_name
+        )
+    else:
+        raise ValueError('Unexpected interaction type: \'{}\''.format(
+            interaction_type
+        ))
+        raise ValueError('Unexpected state: both start and end of material event are null')
+    description_text_html = '<a href=\"{}\" target=\"_blank\" rel=\"noreferrer\">{}</a>'.format(
+        url,
+        description_text
+    )
+    description = '{}: {}'.format(
+        time_string,
+        description_text_html
+    )
+    return description
+
+
+def describe_material_events(
     tray_events,
     environment_id=None,
     environment_name=None,
@@ -383,7 +641,6 @@ def describe_material_event_html(
         description_text
     )
     return description
-
 
 def event_url(
     environment_id,
