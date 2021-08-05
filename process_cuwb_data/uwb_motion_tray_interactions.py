@@ -679,7 +679,12 @@ def infer_tray_device_interactions(df_features, df_carry_events, df_tray_centroi
             columns={
                 'device_id': 'tray_device_id',
                 'device_id_person': 'person_device_id',
-                'person_name_person': 'person_name'})\
+                'person_id_person': 'person_id',
+                'person_name_person': 'person_name',
+                'person_short_name_person': 'person_short_name',
+                'person_anonymized_name_person': 'person_anonymized_name',
+                'person_anonymized_short_name_person': 'person_anonymized_short_name',
+            })\
         .drop(
             labels=['tray_track_id', 'material_name_tray', 'device_id_tray'],
             axis=1)
