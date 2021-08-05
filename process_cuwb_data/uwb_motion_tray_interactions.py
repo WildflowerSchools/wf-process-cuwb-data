@@ -269,7 +269,11 @@ def aggregate_clean_filter_person_tray_distances(df_person_tray_distances, df_ca
         [
             'tray_track_id',
             'device_id_person',
+            'person_id_person',
             'person_name_person',
+            'person_short_name_person',
+            'person_anonymized_name_person',
+            'person_anonymized_short_name_person',
             'track_id_person',  # Used to differentiate pose_tracks from uwb_tracks
             'track_type_person',  # Used to differentiate pose_tracks from uwb_tracks
             'device_id_tray',
@@ -357,7 +361,13 @@ def aggregate_clean_filter_person_tray_distances(df_person_tray_distances, df_ca
 
         overlapping_idx = df_person_tray_distances_aggregated['track_id_person'].isin(overlapping_people_ids)
         df_person_tray_distances_aggregated.loc[overlapping_idx, [
-            'device_id_person', 'person_name_person']] = float(np.nan)
+            'device_id_person',
+            'person_id_person',
+            'person_name_person',
+            'person_short_name_person',
+            'person_anonymized_name_person',
+            'person_anonymized_short_name_person'
+        ]] = float(np.nan)
 
     # Filter step-2 (A):
     # In preparation for handling split pose tracks, begin gathering groups of
@@ -413,7 +423,11 @@ def aggregate_clean_filter_person_tray_distances(df_person_tray_distances, df_ca
 
             df_person_flattened = df_person_tracks[['tray_track_id',
                                                     'device_id_person',
+                                                    'person_id_person',
                                                     'person_name_person',
+                                                    'person_short_name_person',
+                                                    'person_anonymized_name_person',
+                                                    'person_anonymized_short_name_person',
                                                     'device_id_tray',
                                                     'material_name_tray']].iloc[0].to_frame().transpose()
             df_person_flattened['person_tray_distance_median'] = df_person_tracks['person_tray_distance_median_weighted'].sum()
