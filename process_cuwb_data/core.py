@@ -163,6 +163,8 @@ def fetch_motion_features(
                 'person_id',
                 'person_name',
                 'person_short_name',
+                'person_anonymized_name',
+                'person_anonymized_short_name',
                 'tray_id',
                 'tray_name',
                 'material_assignment_id',
