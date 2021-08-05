@@ -428,6 +428,9 @@ def infer_tray_interactions(df_motion_features, df_carry_events, df_tray_centroi
         'material_name',
         'person_id',
         'person_name',
+        'person_short_name',
+        'person_anonymized_name',
+        'person_anonymized_short_name',
         'quality',
         'x_position_smoothed',
         'y_position_smoothed',
@@ -448,6 +451,9 @@ def infer_tray_interactions(df_motion_features, df_carry_events, df_tray_centroi
         df_poses_3d_standardized['entity_type'] = 'Person'
         df_poses_3d_standardized['person_id'] = df_poses_3d['person_id']
         df_poses_3d_standardized['person_name'] = df_poses_3d['name']
+        df_poses_3d_standardized['person_short_name'] = df_poses_3d['short_name']
+        df_poses_3d_standardized['person_anonymized_name'] = df_poses_3d['anonymized_name']
+        df_poses_3d_standardized['person_anonymized_short_name'] = df_poses_3d['anonymized_short_name']
         df_poses_3d_standardized['x_position'] = df_poses_3d['x_position']
         df_poses_3d_standardized['y_position'] = df_poses_3d['y_position']
         df_poses_3d_standardized['z_position'] = df_poses_3d['y_position']
