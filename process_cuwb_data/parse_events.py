@@ -124,6 +124,19 @@ def describe_tray_events(
         ),
         axis=1
     )
+    tray_events['anonymized_description'] = tray_events.apply(
+        lambda event: describe_tray_event(
+            timestamp=event['timestamp'],
+            material_name=event['material_name'],
+            start=event['start'],
+            end=event['end'],
+            person_name=event['person_anonymized_name'],
+            duration_seconds=event['duration_seconds'],
+            interaction_type=event['interaction_type'],
+            time_zone=time_zone
+        ),
+        axis=1
+    )
     tray_events['description_html'] = tray_events.apply(
         lambda event: describe_tray_event_html(
             timestamp=event['timestamp'],
@@ -131,6 +144,25 @@ def describe_tray_events(
             start=event['start'],
             end=event['end'],
             person_name=event['person_name'],
+            best_camera_name=event['best_camera_name'],
+            duration_seconds=event['duration_seconds'],
+            interaction_type=event['interaction_type'],
+            environment_id=environment_id,
+            time_zone=time_zone,
+            lead_in_seconds=lead_in_seconds,
+            scheme=scheme,
+            netloc=netloc,
+            endpoint=endpoint
+        ),
+        axis=1
+    )
+    tray_events['anonymized_description_html'] = tray_events.apply(
+        lambda event: describe_tray_event_html(
+            timestamp=event['timestamp'],
+            material_name=event['material_name'],
+            start=event['start'],
+            end=event['end'],
+            person_name=event['person_anonymized_name'],
             best_camera_name=event['best_camera_name'],
             duration_seconds=event['duration_seconds'],
             interaction_type=event['interaction_type'],
@@ -151,12 +183,15 @@ def describe_tray_events(
         'duration_seconds',
         'person_device_id',
         'person_name',
+        'person_anonymized_name',
         'start',
         'end',
         'best_camera_device_id',
         'best_camera_name',
         'description',
-        'description_html'
+        'anonymized_description',
+        'description_html',
+        'anonymized_description_html'
     ])
     tray_events.sort_values('timestamp', inplace=True)
     return tray_events
@@ -402,6 +437,14 @@ def describe_material_events(
         ),
         axis=1
     )
+    material_events['person_anonymized_name'] = material_events.apply(
+        lambda event: (
+            event['person_anonymized_name_from_shelf']
+            if event['person_anonymized_name_from_shelf'] == event['person_anonymized_name_to_shelf']
+            else None
+        ),
+        axis=1
+    )
     material_events['description'] = material_events.apply(
         lambda event: describe_material_event(
             timestamp=event['timestamp'],
@@ -410,6 +453,19 @@ def describe_material_events(
             person_name_from_shelf=event['person_name_from_shelf'],
             end=event['end'],
             person_name_to_shelf=event['person_name_to_shelf'],
+            duration_seconds=event['duration_seconds'],
+            time_zone=time_zone
+        ),
+        axis=1
+    )
+    material_events['anonymized_description'] = material_events.apply(
+        lambda event: describe_material_event(
+            timestamp=event['timestamp'],
+            material_name=event['material_name'],
+            start=event['start'],
+            person_name_from_shelf=event['person_anonymized_name_from_shelf'],
+            end=event['end'],
+            person_name_to_shelf=event['person_anonymized_name_to_shelf'],
             duration_seconds=event['duration_seconds'],
             time_zone=time_zone
         ),
@@ -435,6 +491,26 @@ def describe_material_events(
         ),
         axis=1
     )
+    material_events['anonymized_description_html'] = material_events.apply(
+        lambda event: describe_material_event_html(
+            timestamp=event['timestamp'],
+            material_name=event['material_name'],
+            start=event['start'],
+            person_name_from_shelf=event['person_anonymized_name_from_shelf'],
+            end=event['end'],
+            best_camera_name_from_shelf=event['best_camera_name_from_shelf'],
+            person_name_to_shelf=event['person_anonymized_name_to_shelf'],
+            best_camera_name_to_shelf=event['best_camera_name_to_shelf'],
+            duration_seconds=event['duration_seconds'],
+            environment_id=environment_id,
+            time_zone=time_zone,
+            lead_in_seconds=lead_in_seconds,
+            scheme=scheme,
+            netloc=netloc,
+            endpoint=endpoint
+        ),
+        axis=1
+    )
     material_events = material_events.reindex(columns=[
         'date',
         'timestamp',
@@ -443,18 +519,23 @@ def describe_material_events(
         'duration_seconds',
         'person_device_id',
         'person_name',
+        'person_anonymized_name',
         'start',
         'person_device_id_from_shelf',
         'person_name_from_shelf',
+        'person_anonymized_name_from_shelf',
         'best_camera_device_id_from_shelf',
         'best_camera_name_from_shelf',
         'end',
         'person_device_id_to_shelf',
         'person_name_to_shelf',
+        'person_anoymized_name_to_shelf',
         'best_camera_device_id_to_shelf',
         'best_camera_name_to_shelf',
         'description',
-        'description_html'
+        'anonymized_description',
+        'description_html',
+        'anonymized_description_html'
     ])
     material_events.sort_values('timestamp', inplace=True)
     return material_events
@@ -477,15 +558,18 @@ def parse_tray_events_date_tray(tray_events_date_tray):
                 'start': event['start'],
                 'person_device_id_from_shelf': event['person_device_id'],
                 'person_name_from_shelf': event['person_name'],
+                'person_anonymized_name_from_shelf': event['person_anonymized_name'],
                 'end': None,
                 'person_device_id_to_shelf': None,
-                'person_name_to_shelf': None
+                'person_name_to_shelf': None,
+                'person_anonymized_name_to_shelf': None
             })
             in_use = True
         elif interaction_type == 'CARRYING_TO_SHELF' and in_use:
             material_events_list[-1]['end'] = event['end']
             material_events_list[-1]['person_device_id_to_shelf'] = event['person_device_id']
             material_events_list[-1]['person_name_to_shelf'] = event['person_name']
+            material_events_list[-1]['person_anonymized_name_to_shelf'] = event['person_anonymized_name']
             in_use = False
         elif interaction_type == 'CARRYING_TO_SHELF' and not in_use:
             material_events_list.append({
@@ -495,9 +579,11 @@ def parse_tray_events_date_tray(tray_events_date_tray):
                 'start': None,
                 'person_device_id_from_shelf': None,
                 'person_name_from_shelf': None,
+                'person_anonymized_name_from_shelf': None,
                 'end': event['end'],
                 'person_device_id_to_shelf': event['person_device_id'],
-                'person_name_to_shelf': event['person_name']
+                'person_name_to_shelf': event['person_name'],
+                'person_anonymized_name_to_shelf': event['person_anonymized_name']
             })
             in_use = False
         else:
