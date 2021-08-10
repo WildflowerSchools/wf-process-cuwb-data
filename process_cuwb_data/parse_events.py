@@ -179,6 +179,7 @@ def describe_tray_events(
         'date',
         'timestamp',
         'tray_device_id',
+        'material_id',
         'material_name',
         'duration_seconds',
         'person_device_id',
@@ -524,6 +525,7 @@ def describe_material_events(
         'date',
         'timestamp',
         'tray_device_id',
+        'material_id',
         'material_name',
         'duration_seconds',
         'person_device_id',
@@ -566,6 +568,7 @@ def parse_tray_events_date_tray(tray_events_date_tray):
             material_events_list.append({
                 'date': event['date'],
                 'tray_device_id': event['tray_device_id'],
+                'material_id': event['material_id'],
                 'material_name': event['material_name'],
                 'start': event['start'],
                 'person_device_id_from_shelf': event['person_device_id'],
@@ -590,6 +593,7 @@ def parse_tray_events_date_tray(tray_events_date_tray):
             material_events_list.append({
                 'date': event['date'],
                 'tray_device_id': event['tray_device_id'],
+                'material_id': event['material_id'],
                 'material_name': event['material_name'],
                 'start': None,
                 'person_device_id_from_shelf': None,
