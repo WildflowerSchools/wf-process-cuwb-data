@@ -543,7 +543,7 @@ def describe_material_events(
         'person_device_id_to_shelf',
         'person_id_to_shelf',
         'person_name_to_shelf',
-        'person_anoymized_name_to_shelf',
+        'person_anonymized_name_to_shelf',
         'best_camera_device_id_to_shelf',
         'best_camera_name_to_shelf',
         'description',
