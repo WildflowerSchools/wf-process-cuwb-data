@@ -8,7 +8,7 @@ import functools
 
 from process_cuwb_data.utils.log import logger
 
-def describe_tray_events(
+def parse_tray_events(
     tray_events,
     environment_id=None,
     environment_name=None,
@@ -178,6 +178,7 @@ def describe_tray_events(
     tray_events = tray_events.reindex(columns=[
         'date',
         'timestamp',
+        'interaction_type',
         'tray_device_id',
         'material_id',
         'material_name',
@@ -302,125 +303,23 @@ def describe_tray_event_html(
     )
     return description
 
-
-def describe_material_events(
-    tray_events,
-    environment_id=None,
-    environment_name=None,
-    camera_device_ids=None,
-    camera_names=None,
-    default_camera_device_id=None,
-    default_camera_name=None,
-    camera_calibrations=None,
-    position_window_seconds=4,
-    imputed_z_position=1.0,
+def generate_material_events(
+    parsed_tray_events,
+    environment_id,
     time_zone='US/Central',
     lead_in_seconds=3,
     scheme='https',
     netloc='honeycomb-ground-truth.api.wildflower-tech.org',
     endpoint='classrooms',
-    chunk_size=100,
-    client=None,
-    uri=None,
-    token_uri=None,
-    audience=None,
-    client_id=None,
-    client_secret=None
 ):
-    if environment_id is None and environment_name is None:
-        raise ValueError('Must specify either environment ID or environment name')
-    camera_info = honeycomb_io.fetch_devices(
-        device_types=honeycomb_io.DEFAULT_CAMERA_DEVICE_TYPES,
-        device_ids=camera_device_ids,
-        names=camera_names,
-        environment_id=environment_id,
-        environment_name=environment_name,
-        start=tray_events['start'].min(),
-        end=tray_events['end'].max(),
-        output_format='dataframe',
-        chunk_size=chunk_size,
-        client=client,
-        uri=uri,
-        token_uri=token_uri,
-        audience=audience,
-        client_id=client_id,
-        client_secret=client_secret
-    )
-    camera_dict = camera_info['device_name'].to_dict()
-    camera_device_ids = list(camera_dict.keys())
-    if camera_calibrations is None:
-        camera_calibrations = honeycomb_io.fetch_camera_calibrations(
-            camera_ids=camera_device_ids,
-            start=tray_events['start'].min(),
-            end=tray_events['end'].max(),
-            chunk_size=chunk_size,
-            client=client,
-            uri=uri,
-            token_uri=token_uri,
-            audience=audience,
-            client_id=client_id,
-            client_secret=client_secret
-        )
-    if default_camera_device_id is None:
-        if default_camera_name is None:
-            raise ValueError('Must specify default camera device ID or name')
-        default_cameras = camera_info.loc[camera_info['device_name'] == default_camera_name]
-        if len(default_cameras) == 0:
-            raise ValueError('Default camera name {} not found'.format(
-                default_camera_name
-            ))
-        if len(default_cameras) > 1:
-            raise ValueError('More than one camera with default camera name {} found'.format(
-                default_camera_name
-            ))
-        default_camera_device_id = default_cameras.index[0]
-    tray_events = tray_events.copy()
-    tray_events['date'] = tray_events['start'].dt.tz_convert(time_zone).apply(lambda x: x.date())
+    parsed_tray_events = parsed_tray_events.copy()
     material_events_list = list()
-    for (date, tray_device_id), tray_events_date_tray in tray_events.groupby(['date', 'tray_device_id']):
-        material_events_list.extend(parse_tray_events_date_tray(tray_events_date_tray))
+    for (date, tray_device_id), parsed_tray_events_date_tray in parsed_tray_events.groupby(['date', 'tray_device_id']):
+        material_events_list.extend(generate_material_events_date_tray(parsed_tray_events_date_tray))
     material_events = pd.DataFrame(material_events_list)
     material_events['timestamp'] = material_events.apply(
         lambda row: row['start'] if pd.notnull(row['start']) else row['end'],
         axis=1
-    )
-    best_camera_partial = functools.partial(
-        best_camera,
-        default_camera_device_id=default_camera_device_id,
-        environment_id=environment_id,
-        environment_name=environment_name,
-        camera_device_ids=camera_device_ids,
-        camera_calibrations=camera_calibrations,
-        position_window_seconds=position_window_seconds,
-        imputed_z_position=imputed_z_position,
-        chunk_size=chunk_size,
-        client=client,
-        uri=uri,
-        token_uri=token_uri,
-        audience=audience,
-        client_id=client_id,
-        client_secret=client_secret
-
-    )
-    material_events['best_camera_device_id_from_shelf'] = material_events.apply(
-        lambda event: best_camera_partial(
-            timestamp=event['start'],
-            tray_device_id=event['tray_device_id'],
-        ) if pd.notnull(event['start']) else None,
-        axis=1
-    )
-    material_events['best_camera_name_from_shelf'] = material_events['best_camera_device_id_from_shelf'].apply(
-        lambda camera_device_id: camera_dict.get(camera_device_id)
-    )
-    material_events['best_camera_device_id_to_shelf'] = material_events.apply(
-        lambda event: best_camera_partial(
-            timestamp=event['end'],
-            tray_device_id=event['tray_device_id'],
-        ) if pd.notnull(event['end']) else None,
-        axis=1
-    )
-    material_events['best_camera_name_to_shelf'] = material_events['best_camera_device_id_to_shelf'].apply(
-        lambda camera_device_id: camera_dict.get(camera_device_id)
     )
     material_events['duration_seconds'] = (material_events['end'] - material_events['start']).dt.total_seconds()
     material_events['person_device_id'] = material_events.apply(
@@ -554,15 +453,15 @@ def describe_material_events(
     material_events.sort_values('timestamp', inplace=True)
     return material_events
 
-def parse_tray_events_date_tray(tray_events_date_tray):
-    tray_events_date_tray_filtered = (
-        tray_events_date_tray
-        .loc[tray_events_date_tray['interaction_type'].isin(['CARRYING_FROM_SHELF', 'CARRYING_TO_SHELF'])]
+def generate_material_events_date_tray(parsed_tray_events_date_tray):
+    parsed_tray_events_date_tray_filtered = (
+        parsed_tray_events_date_tray
+        .loc[parsed_tray_events_date_tray['interaction_type'].isin(['CARRYING_FROM_SHELF', 'CARRYING_TO_SHELF'])]
         .sort_values('start')
     )
     in_use = False
     material_events_list = list()
-    for index, event in tray_events_date_tray_filtered.iterrows():
+    for index, event in parsed_tray_events_date_tray_filtered.iterrows():
         interaction_type = event['interaction_type']
         if interaction_type == 'CARRYING_FROM_SHELF':
             material_events_list.append({
@@ -575,11 +474,15 @@ def parse_tray_events_date_tray(tray_events_date_tray):
                 'person_id_from_shelf': event['person_id'],
                 'person_name_from_shelf': event['person_name'],
                 'person_anonymized_name_from_shelf': event['person_anonymized_name'],
+                'best_camera_device_id_from_shelf': event['best_camera_device_id'],
+                'best_camera_name_from_shelf': event['best_camera_name'],
                 'end': None,
                 'person_device_id_to_shelf': None,
                 'person_id_to_shelf': None,
                 'person_name_to_shelf': None,
-                'person_anonymized_name_to_shelf': None
+                'person_anonymized_name_to_shelf': None,
+                'best_camera_device_id_to_shelf': None,
+                'best_camera_name_to_shelf': None
             })
             in_use = True
         elif interaction_type == 'CARRYING_TO_SHELF' and in_use:
@@ -588,6 +491,8 @@ def parse_tray_events_date_tray(tray_events_date_tray):
             material_events_list[-1]['person_id_to_shelf'] = event['person_id']
             material_events_list[-1]['person_name_to_shelf'] = event['person_name']
             material_events_list[-1]['person_anonymized_name_to_shelf'] = event['person_anonymized_name']
+            material_events_list[-1]['best_camera_device_id_to_shelf'] = event['best_camera_device_id']
+            material_events_list[-1]['best_camera_name_to_shelf'] = event['best_camera_name']
             in_use = False
         elif interaction_type == 'CARRYING_TO_SHELF' and not in_use:
             material_events_list.append({
@@ -600,11 +505,15 @@ def parse_tray_events_date_tray(tray_events_date_tray):
                 'person_id_from_shelf': None,
                 'person_name_from_shelf': None,
                 'person_anonymized_name_from_shelf': None,
+                'best_camera_device_id_from_shelf': None,
+                'best_camera_name_from_shelf': None,
                 'end': event['end'],
                 'person_device_id_to_shelf': event['person_device_id'],
                 'person_id_to_shelf': event['person_id'],
                 'person_name_to_shelf': event['person_name'],
-                'person_anonymized_name_to_shelf': event['person_anonymized_name']
+                'person_anonymized_name_to_shelf': event['person_anonymized_name'],
+                'best_camera_device_id_to_shelf': event['best_camera_device_id'],
+                'best_camera_name_to_shelf': event['best_camera_name']
             })
             in_use = False
         else:
