@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import datetime
 import urllib.parse
+import uuid
 import functools
 
 from process_cuwb_data.utils.log import logger
@@ -80,6 +81,7 @@ def parse_tray_events(
             ))
         default_camera_device_id = default_cameras.index[0]
     tray_events = tray_events.copy()
+    tray_events['id'] = [str(uuid.uuid4()) for _ in range(len(tray_events))]
     tray_events['date'] = tray_events['start'].dt.tz_convert(time_zone).apply(lambda x: x.date())
     tray_events['timestamp'] = tray_events['start']
     best_camera_partial = functools.partial(
@@ -176,6 +178,7 @@ def parse_tray_events(
         axis=1
     )
     tray_events = tray_events.reindex(columns=[
+        'id',
         'date',
         'timestamp',
         'interaction_type',
@@ -317,6 +320,7 @@ def generate_material_events(
     for (date, tray_device_id), parsed_tray_events_date_tray in parsed_tray_events.groupby(['date', 'tray_device_id']):
         material_events_list.extend(generate_material_events_date_tray(parsed_tray_events_date_tray))
     material_events = pd.DataFrame(material_events_list)
+    material_events['id'] = [str(uuid.uuid4()) for _ in range(len(material_events))]
     material_events['timestamp'] = material_events.apply(
         lambda row: row['start'] if pd.notnull(row['start']) else row['end'],
         axis=1
@@ -421,6 +425,7 @@ def generate_material_events(
         axis=1
     )
     material_events = material_events.reindex(columns=[
+        'id',
         'date',
         'timestamp',
         'tray_device_id',
@@ -432,6 +437,7 @@ def generate_material_events(
         'person_name',
         'person_anonymized_name',
         'start',
+        'id_from_shelf',
         'person_device_id_from_shelf',
         'person_id_from_shelf',
         'person_name_from_shelf',
@@ -439,6 +445,7 @@ def generate_material_events(
         'best_camera_device_id_from_shelf',
         'best_camera_name_from_shelf',
         'end',
+        'id_to_shelf',
         'person_device_id_to_shelf',
         'person_id_to_shelf',
         'person_name_to_shelf',
@@ -470,6 +477,7 @@ def generate_material_events_date_tray(parsed_tray_events_date_tray):
                 'material_id': event['material_id'],
                 'material_name': event['material_name'],
                 'start': event['start'],
+                'id_from_shelf': event['id'],
                 'person_device_id_from_shelf': event['person_device_id'],
                 'person_id_from_shelf': event['person_id'],
                 'person_name_from_shelf': event['person_name'],
@@ -487,6 +495,7 @@ def generate_material_events_date_tray(parsed_tray_events_date_tray):
             in_use = True
         elif interaction_type == 'CARRYING_TO_SHELF' and in_use:
             material_events_list[-1]['end'] = event['end']
+            material_events_list[-1]['id_to_shelf'] = event['id']
             material_events_list[-1]['person_device_id_to_shelf'] = event['person_device_id']
             material_events_list[-1]['person_id_to_shelf'] = event['person_id']
             material_events_list[-1]['person_name_to_shelf'] = event['person_name']
@@ -508,6 +517,7 @@ def generate_material_events_date_tray(parsed_tray_events_date_tray):
                 'best_camera_device_id_from_shelf': None,
                 'best_camera_name_from_shelf': None,
                 'end': event['end'],
+                'id_to_shelf': event['id'],
                 'person_device_id_to_shelf': event['person_device_id'],
                 'person_id_to_shelf': event['person_id'],
                 'person_name_to_shelf': event['person_name'],
