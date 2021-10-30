@@ -80,10 +80,38 @@ def parse_tray_events(
                 default_camera_name
             ))
         default_camera_device_id = default_cameras.index[0]
+    person_ids = tray_events['person_id'].dropna().unique().tolist()
+    person_info = honeycomb_io.fetch_persons(
+        person_ids=person_ids,
+        output_format='dataframe',
+        chunk_size=chunk_size,
+        client=client,
+        uri=uri,
+        token_uri=token_uri,
+        audience=audience,
+        client_id=client_id,
+        client_secret=client_secret
+    )
+    person_info = person_info.rename(columns={
+        column_name: (
+            ('person_' + column_name) if not column_name.startswith('person_')
+            else column_name
+        )
+        for column_name in person_info.columns
+    })
     tray_events = tray_events.copy()
     tray_events['id'] = [str(uuid.uuid4()) for _ in range(len(tray_events))]
     tray_events['date'] = tray_events['start'].dt.tz_convert(time_zone).apply(lambda x: x.date())
     tray_events['timestamp'] = tray_events['start']
+    tray_events = (
+        tray_events
+        .drop(columns=person_info.columns, errors='ignore')
+        .join(
+            person_info,
+            how='left',
+            on='person_id'
+        )
+    )
     best_camera_partial = functools.partial(
         best_camera,
         default_camera_device_id=default_camera_device_id,
@@ -188,8 +216,18 @@ def parse_tray_events(
         'duration_seconds',
         'person_device_id',
         'person_id',
+        'person_type',
         'person_name',
+        'person_first_name',
+        'person_last_name',
+        'person_nickname',
+        'person_short_name',
         'person_anonymized_name',
+        'person_anonymized_first_name',
+        'person_anonymized_last_name',
+        'person_anonymized_nickname',
+        'person_anonymized_short_name',
+        'person_transparent_classroom_id',
         'start',
         'end',
         'best_camera_device_id',
