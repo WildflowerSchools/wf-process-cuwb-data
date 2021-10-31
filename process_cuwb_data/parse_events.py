@@ -92,13 +92,18 @@ def parse_tray_events(
         client_id=client_id,
         client_secret=client_secret
     )
-    person_info = person_info.rename(columns={
-        column_name: (
-            ('person_' + column_name) if not column_name.startswith('person_')
-            else column_name
-        )
-        for column_name in person_info.columns
-    })
+    person_info = (
+        person_info
+        .rename(columns={
+            column_name: (
+                ('person_' + column_name) if not column_name.startswith('person_')
+                else column_name
+            )
+            for column_name in person_info.columns
+        })
+        .astype('object')
+    )
+    person_info = person_info.where(pd.notnull(person_info), None)
     tray_events = tray_events.copy()
     tray_events['id'] = [str(uuid.uuid4()) for _ in range(len(tray_events))]
     tray_events['date'] = tray_events['start'].dt.tz_convert(time_zone).apply(lambda x: x.date())
