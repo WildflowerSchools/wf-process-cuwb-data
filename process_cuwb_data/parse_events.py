@@ -3,7 +3,6 @@ import cv_utils
 import pandas as pd
 import numpy as np
 import datetime
-# import urllib.parse
 import uuid
 import functools
 
