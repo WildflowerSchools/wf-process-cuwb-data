@@ -369,38 +369,38 @@ def generate_material_events(
         axis=1
     )
     material_events['duration_seconds'] = (material_events['end'] - material_events['start']).dt.total_seconds()
-    material_events['person_device_id'] = material_events.apply(
-        lambda event: (
-            event['person_device_id_from_shelf']
-            if event['person_device_id_from_shelf'] == event['person_device_id_to_shelf']
-            else None
-        ),
-        axis=1
-    )
-    material_events['person_id'] = material_events.apply(
-        lambda event: (
-            event['person_id_from_shelf']
-            if event['person_id_from_shelf'] == event['person_id_to_shelf']
-            else None
-        ),
-        axis=1
-    )
-    material_events['person_name'] = material_events.apply(
-        lambda event: (
-            event['person_name_from_shelf']
-            if event['person_name_from_shelf'] == event['person_name_to_shelf']
-            else None
-        ),
-        axis=1
-    )
-    material_events['person_anonymized_name'] = material_events.apply(
-        lambda event: (
-            event['person_anonymized_name_from_shelf']
-            if event['person_anonymized_name_from_shelf'] == event['person_anonymized_name_to_shelf']
-            else None
-        ),
-        axis=1
-    )
+    # material_events['person_device_id'] = material_events.apply(
+    #     lambda event: (
+    #         event['person_device_id_from_shelf']
+    #         if event['person_device_id_from_shelf'] == event['person_device_id_to_shelf']
+    #         else None
+    #     ),
+    #     axis=1
+    # )
+    # material_events['person_id'] = material_events.apply(
+    #     lambda event: (
+    #         event['person_id_from_shelf']
+    #         if event['person_id_from_shelf'] == event['person_id_to_shelf']
+    #         else None
+    #     ),
+    #     axis=1
+    # )
+    # material_events['person_name'] = material_events.apply(
+    #     lambda event: (
+    #         event['person_name_from_shelf']
+    #         if event['person_name_from_shelf'] == event['person_name_to_shelf']
+    #         else None
+    #     ),
+    #     axis=1
+    # )
+    # material_events['person_anonymized_name'] = material_events.apply(
+    #     lambda event: (
+    #         event['person_anonymized_name_from_shelf']
+    #         if event['person_anonymized_name_from_shelf'] == event['person_anonymized_name_to_shelf']
+    #         else None
+    #     ),
+    #     axis=1
+    # )
     material_events['description'] = material_events.apply(
         lambda event: describe_material_event(
             timestamp=event['timestamp'],
@@ -475,10 +475,10 @@ def generate_material_events(
         'material_id',
         'material_name',
         'duration_seconds',
-        'person_device_id',
-        'person_id',
-        'person_name',
-        'person_anonymized_name',
+        # 'person_device_id',
+        # 'person_id',
+        # 'person_name',
+        # 'person_anonymized_name',
         'start',
         'id_from_shelf',
         'person_device_id_from_shelf',
