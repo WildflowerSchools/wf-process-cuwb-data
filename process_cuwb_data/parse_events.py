@@ -3,7 +3,6 @@ import cv_utils
 import pandas as pd
 import numpy as np
 import datetime
-import urllib.parse
 import uuid
 import functools
 
@@ -172,44 +171,6 @@ def parse_tray_events(
         ),
         axis=1
     )
-    tray_events['description_html'] = tray_events.apply(
-        lambda event: describe_tray_event_html(
-            timestamp=event['timestamp'],
-            material_name=event['material_name'],
-            start=event['start'],
-            end=event['end'],
-            person_name=event['person_name'],
-            best_camera_name=event['best_camera_name'],
-            duration_seconds=event['duration_seconds'],
-            interaction_type=event['interaction_type'],
-            environment_id=environment_id,
-            time_zone=time_zone,
-            lead_in_seconds=lead_in_seconds,
-            scheme=scheme,
-            netloc=netloc,
-            endpoint=endpoint
-        ),
-        axis=1
-    )
-    tray_events['anonymized_description_html'] = tray_events.apply(
-        lambda event: describe_tray_event_html(
-            timestamp=event['timestamp'],
-            material_name=event['material_name'],
-            start=event['start'],
-            end=event['end'],
-            person_name=event['person_anonymized_name'],
-            best_camera_name=event['best_camera_name'],
-            duration_seconds=event['duration_seconds'],
-            interaction_type=event['interaction_type'],
-            environment_id=environment_id,
-            time_zone=time_zone,
-            lead_in_seconds=lead_in_seconds,
-            scheme=scheme,
-            netloc=netloc,
-            endpoint=endpoint
-        ),
-        axis=1
-    )
     tray_events = tray_events.reindex(columns=[
         'id',
         'date',
@@ -238,9 +199,7 @@ def parse_tray_events(
         'best_camera_device_id',
         'best_camera_name',
         'description',
-        'anonymized_description',
-        'description_html',
-        'anonymized_description_html'
+        'anonymized_description'
     ])
     tray_events.sort_values('timestamp', inplace=True)
     return tray_events
@@ -288,67 +247,6 @@ def describe_tray_event(
     )
     return description
 
-def describe_tray_event_html(
-    timestamp,
-    material_name,
-    start,
-    end,
-    person_name,
-    best_camera_name,
-    duration_seconds,
-    interaction_type,
-    environment_id,
-    time_zone,
-    lead_in_seconds=3,
-    scheme='https',
-    netloc='honeycomb-ground-truth.api.wildflower-tech.org',
-    endpoint='classrooms'
-):
-    time_string = timestamp.tz_convert(time_zone).strftime('%I:%M %p')
-    person_string = person_name if pd.notnull(person_name) else 'An unknown person'
-    url = event_url(
-        environment_id=environment_id,
-        timestamp=start - datetime.timedelta(seconds=lead_in_seconds),
-        camera_name=best_camera_name,
-        scheme=scheme,
-        netloc=netloc,
-        endpoint=endpoint
-    )
-    if interaction_type == 'CARRYING_FROM_SHELF':
-        description_text = '{} took the {} tray from shelf'.format(
-            person_string,
-            material_name
-        )
-    elif interaction_type == 'CARRYING_TO_SHELF':
-        description_text = '{} put the {} tray back on the shelf'.format(
-            person_string,
-            material_name
-        )
-    elif interaction_type == 'CARRYING_BETWEEN_NON_SHELF_LOCATIONS':
-        description_text = '{} moved the {} tray'.format(
-            person_string,
-            material_name
-        )
-    elif interaction_type == 'CARRYING_FROM_AND_TO_SHELF':
-        description_text = '{} took the {} tray from the shelf and immediately put it back'.format(
-            person_string,
-            material_name
-        )
-    else:
-        raise ValueError('Unexpected interaction type: \'{}\''.format(
-            interaction_type
-        ))
-        raise ValueError('Unexpected state: both start and end of material event are null')
-    description_text_html = '<a href=\"{}\" target=\"_blank\" rel=\"noreferrer\">{}</a>'.format(
-        url,
-        description_text
-    )
-    description = '{}: {}'.format(
-        time_string,
-        description_text_html
-    )
-    return description
-
 def generate_material_events(
     parsed_tray_events,
     environment_id,
@@ -369,38 +267,6 @@ def generate_material_events(
         axis=1
     )
     material_events['duration_seconds'] = (material_events['end'] - material_events['start']).dt.total_seconds()
-    material_events['person_device_id'] = material_events.apply(
-        lambda event: (
-            event['person_device_id_from_shelf']
-            if event['person_device_id_from_shelf'] == event['person_device_id_to_shelf']
-            else None
-        ),
-        axis=1
-    )
-    material_events['person_id'] = material_events.apply(
-        lambda event: (
-            event['person_id_from_shelf']
-            if event['person_id_from_shelf'] == event['person_id_to_shelf']
-            else None
-        ),
-        axis=1
-    )
-    material_events['person_name'] = material_events.apply(
-        lambda event: (
-            event['person_name_from_shelf']
-            if event['person_name_from_shelf'] == event['person_name_to_shelf']
-            else None
-        ),
-        axis=1
-    )
-    material_events['person_anonymized_name'] = material_events.apply(
-        lambda event: (
-            event['person_anonymized_name_from_shelf']
-            if event['person_anonymized_name_from_shelf'] == event['person_anonymized_name_to_shelf']
-            else None
-        ),
-        axis=1
-    )
     material_events['description'] = material_events.apply(
         lambda event: describe_material_event(
             timestamp=event['timestamp'],
@@ -427,46 +293,6 @@ def generate_material_events(
         ),
         axis=1
     )
-    material_events['description_html'] = material_events.apply(
-        lambda event: describe_material_event_html(
-            timestamp=event['timestamp'],
-            material_name=event['material_name'],
-            start=event['start'],
-            person_name_from_shelf=event['person_name_from_shelf'],
-            end=event['end'],
-            best_camera_name_from_shelf=event['best_camera_name_from_shelf'],
-            person_name_to_shelf=event['person_name_to_shelf'],
-            best_camera_name_to_shelf=event['best_camera_name_to_shelf'],
-            duration_seconds=event['duration_seconds'],
-            environment_id=environment_id,
-            time_zone=time_zone,
-            lead_in_seconds=lead_in_seconds,
-            scheme=scheme,
-            netloc=netloc,
-            endpoint=endpoint
-        ),
-        axis=1
-    )
-    material_events['anonymized_description_html'] = material_events.apply(
-        lambda event: describe_material_event_html(
-            timestamp=event['timestamp'],
-            material_name=event['material_name'],
-            start=event['start'],
-            person_name_from_shelf=event['person_anonymized_name_from_shelf'],
-            end=event['end'],
-            best_camera_name_from_shelf=event['best_camera_name_from_shelf'],
-            person_name_to_shelf=event['person_anonymized_name_to_shelf'],
-            best_camera_name_to_shelf=event['best_camera_name_to_shelf'],
-            duration_seconds=event['duration_seconds'],
-            environment_id=environment_id,
-            time_zone=time_zone,
-            lead_in_seconds=lead_in_seconds,
-            scheme=scheme,
-            netloc=netloc,
-            endpoint=endpoint
-        ),
-        axis=1
-    )
     material_events = material_events.reindex(columns=[
         'id',
         'date',
@@ -475,10 +301,6 @@ def generate_material_events(
         'material_id',
         'material_name',
         'duration_seconds',
-        'person_device_id',
-        'person_id',
-        'person_name',
-        'person_anonymized_name',
         'start',
         'id_from_shelf',
         'person_device_id_from_shelf',
@@ -498,9 +320,7 @@ def generate_material_events(
         'best_camera_device_id_to_shelf',
         'best_camera_name_to_shelf',
         'description',
-        'anonymized_description',
-        'description_html',
-        'anonymized_description_html'
+        'anonymized_description'
     ])
     material_events.sort_values('timestamp', inplace=True)
     return material_events
@@ -634,117 +454,6 @@ def describe_material_event(
         description_text
     )
     return description
-
-def describe_material_event_html(
-    timestamp,
-    material_name,
-    start,
-    person_name_from_shelf,
-    best_camera_name_from_shelf,
-    end,
-    person_name_to_shelf,
-    best_camera_name_to_shelf,
-    duration_seconds,
-    environment_id,
-    time_zone,
-    lead_in_seconds=3,
-    scheme='https',
-    netloc='honeycomb-ground-truth.api.wildflower-tech.org',
-    endpoint='classrooms'
-):
-    time_string = timestamp.tz_convert(time_zone).strftime('%I:%M %p')
-    from_shelf_person_string = person_name_from_shelf if pd.notnull(person_name_from_shelf) else 'An unknown person'
-    to_shelf_person_string = person_name_to_shelf if pd.notnull(person_name_to_shelf) else 'an unknown person'
-    url_from_shelf = event_url(
-        environment_id=environment_id,
-        timestamp=start - datetime.timedelta(seconds=lead_in_seconds),
-        camera_name=best_camera_name_from_shelf,
-        scheme=scheme,
-        netloc=netloc,
-        endpoint=endpoint
-    )
-    url_to_shelf = event_url(
-        environment_id=environment_id,
-        timestamp=end - datetime.timedelta(seconds=lead_in_seconds),
-        camera_name=best_camera_name_to_shelf,
-        scheme=scheme,
-        netloc=netloc,
-        endpoint=endpoint
-    )
-    if pd.notnull(start) and pd.notnull(end):
-        if duration_seconds > 90:
-            duration_string = '{} minutes'.format(round(duration_seconds/60))
-        elif duration_seconds > 30:
-            duration_string = '1 minute'
-        else:
-            duration_string = '{} seconds'.format(round(duration_seconds))
-        if person_name_from_shelf == person_name_to_shelf:
-            description_text = '<a href=\"{}\" target=\"_blank\" rel=\"noreferrer\">{} took {} from shelf</a> and <a href=\"{}\" target=\"_blank\" rel=\"noreferrer\">put it back {} later</a>'.format(
-                url_from_shelf,
-                from_shelf_person_string,
-                material_name,
-                url_to_shelf,
-                duration_string
-            )
-        else:
-            description_text = '<a href=\"{}\" target=\"_blank\" rel=\"noreferrer\">{} took {} from shelf</a> and <a href=\"{}\" target=\"_blank\" rel=\"noreferrer\">{} put it back {} later</a>'.format(
-                url_from_shelf,
-                from_shelf_person_string,
-                material_name,
-                url_to_shelf,
-                to_shelf_person_string,
-                duration_string
-            )
-    elif pd.notnull(start):
-        description_text = '<a href=\"{}\" target=\"_blank\" rel=\"noreferrer\">{} took {} from shelf</a> but never put it back'.format(
-            url_from_shelf,
-            from_shelf_person_string,
-            material_name
-        )
-    elif pd.notnull(end):
-        if to_shelf_person_string == 'an unknown person':
-            to_shelf_person_string = to_shelf_person_string.capitalize()
-        description_text = '<a href=\"{}\" target=\"_blank\" rel=\"noreferrer\">{} put {} back on shelf</a> but it wasn\'t taken out previously'.format(
-            url_to_shelf,
-            to_shelf_person_string,
-            material_name
-        )
-    else:
-        raise ValueError('Unexpected state: both start and end of material event are null')
-    description = '{}: {}'.format(
-        time_string,
-        description_text
-    )
-    return description
-
-def event_url(
-    environment_id,
-    timestamp,
-    camera_name,
-    scheme='https',
-    netloc='honeycomb-ground-truth.api.wildflower-tech.org',
-    endpoint='classrooms'
-):
-    if timestamp is None or camera_name is None:
-        return None
-    date_string = pd.to_datetime(timestamp, utc=True).strftime('%Y-%m-%d')
-    time_string = pd.to_datetime(timestamp, utc=True).strftime('%H:%M:%S')
-    url = urllib.parse.urlunparse((
-        scheme,
-        netloc,
-        '/'.join([
-            endpoint,
-            environment_id,
-            date_string
-        ]),
-        None,
-        urllib.parse.urlencode({
-            'device': camera_name,
-            'time': time_string
-        }),
-        None
-    ))
-    return url
 
 def best_camera(
     timestamp,
