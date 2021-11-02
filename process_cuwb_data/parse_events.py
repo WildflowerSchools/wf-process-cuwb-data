@@ -485,6 +485,7 @@ def generate_material_events(
         'person_id_from_shelf',
         'person_name_from_shelf',
         'person_anonymized_name_from_shelf',
+        'person_type_from_shelf',
         'best_camera_device_id_from_shelf',
         'best_camera_name_from_shelf',
         'end',
@@ -493,6 +494,7 @@ def generate_material_events(
         'person_id_to_shelf',
         'person_name_to_shelf',
         'person_anonymized_name_to_shelf',
+        'person_type_to_shelf',
         'best_camera_device_id_to_shelf',
         'best_camera_name_to_shelf',
         'description',
@@ -525,6 +527,7 @@ def generate_material_events_date_tray(parsed_tray_events_date_tray):
                 'person_id_from_shelf': event['person_id'],
                 'person_name_from_shelf': event['person_name'],
                 'person_anonymized_name_from_shelf': event['person_anonymized_name'],
+                'person_type_from_shelf': event['person_type'],
                 'best_camera_device_id_from_shelf': event['best_camera_device_id'],
                 'best_camera_name_from_shelf': event['best_camera_name'],
                 'end': None,
@@ -543,6 +546,7 @@ def generate_material_events_date_tray(parsed_tray_events_date_tray):
             material_events_list[-1]['person_id_to_shelf'] = event['person_id']
             material_events_list[-1]['person_name_to_shelf'] = event['person_name']
             material_events_list[-1]['person_anonymized_name_to_shelf'] = event['person_anonymized_name']
+            material_events_list[-1]['person_type_to_shelf'] = event['person_type']
             material_events_list[-1]['best_camera_device_id_to_shelf'] = event['best_camera_device_id']
             material_events_list[-1]['best_camera_name_to_shelf'] = event['best_camera_name']
             in_use = False
@@ -557,6 +561,7 @@ def generate_material_events_date_tray(parsed_tray_events_date_tray):
                 'person_id_from_shelf': None,
                 'person_name_from_shelf': None,
                 'person_anonymized_name_from_shelf': None,
+                'person_type_from_shelf': None,
                 'best_camera_device_id_from_shelf': None,
                 'best_camera_name_from_shelf': None,
                 'end': event['end'],
@@ -565,6 +570,7 @@ def generate_material_events_date_tray(parsed_tray_events_date_tray):
                 'person_id_to_shelf': event['person_id'],
                 'person_name_to_shelf': event['person_name'],
                 'person_anonymized_name_to_shelf': event['person_anonymized_name'],
+                'person_type_to_shelf': event['person_type'],
                 'best_camera_device_id_to_shelf': event['best_camera_device_id'],
                 'best_camera_name_to_shelf': event['best_camera_name']
             })
