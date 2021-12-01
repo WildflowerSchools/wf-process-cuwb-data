@@ -11,8 +11,12 @@ Tools for reading, processing, and writing CUWB data
 
     `just build`
 
+    You may need to install pybind11 `brew install pybind11`
+    And you may need to manually install cython and numpy `pip install numpy cython pythran`
 
-3. [Download/create ground_truth_tray_carry.csv](https://docs.google.com/spreadsheets/d/1dXON0l19uDV4KuDhNY2w-CNSUukn_JGTyOYHJAvHwgE/edit#gid=0)
+
+3. Download/create [ground_truth_tray_carry.csv](https://docs.google.com/spreadsheets/d/1dXON0l19uDV4KuDhNY2w-CNSUukn_JGTyOYHJAvHwgE/edit#gid=0) to `./downloads/ground_truth_tray_carry.csv`
+
 
 4. Generate pickled groundtruth features dataframe from ground_truth_tray_carry.csv
 
@@ -20,7 +24,7 @@ Tools for reading, processing, and writing CUWB data
 ```
     process_cuwb_data \
         generate-tray-carry-groundtruth \
-        --groundtruth-csv ./ignore/ground_truth_tray_carry.csv
+        --groundtruth-csv ./downloads/ground_truth_tray_carry.csv
 ```
 
 5. Train and pickle Tray Carry Detection Model using pickled groundtruth features
@@ -82,9 +86,41 @@ Pose Inferences need to be sourced in a local directory. The pose directory can 
 
 ### Development
 
-#### MacOS (Big Sur)
+#### MacOS (Monterey)
 
-1) Install **pyenv**: `brew install pyenv`
-2) Create a 3.8 venv: `pyenv virtualenv 3.8.x wf-process-cuwb-data`
-3) Trick pip to think you're running OS X: `export SYSTEM_VERSION_COMPAT=1`
-4) Install add'l packages: `just install-dev`
+1) Install **pyenv**:
+
+
+    brew install pyenv
+
+2) Create a 3.x venv:
+
+
+    pyenv virtualenv 3.x.x wf-process-cuwb-data
+
+3) Set ENV
+
+
+This was helpful after the transition from macOS X to macOS 11. As packages evolve, this may not be needed depending on exact Mac version and python version. e.g. macOS 12 with Python 3.10 doesn't require the env var
+
+
+    export SYSTEM_VERSION_COMPAT=1
+
+4) Install scipy dependencies:
+
+    
+    brew install openblas lapack pythran pybind11
+    
+    export OPENBLAS=$(brew --prefix openblas)
+    export CFLAGS="-falign-functions=8 ${CFLAGS}"
+
+5) Install python libraries
+
+
+    pip install numpy cython pythran
+
+6) Install add'l packages:
+
+
+    just install-dev
+
