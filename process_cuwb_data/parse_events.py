@@ -8,6 +8,7 @@ import functools
 
 from process_cuwb_data.utils.log import logger
 
+
 def parse_tray_events(
     tray_events,
     environment_id=None,
@@ -204,6 +205,7 @@ def parse_tray_events(
     tray_events.sort_values('timestamp', inplace=True)
     return tray_events
 
+
 def describe_tray_event(
     timestamp,
     material_name,
@@ -246,6 +248,7 @@ def describe_tray_event(
         description_text
     )
     return description
+
 
 def generate_material_events(
     parsed_tray_events,
@@ -325,6 +328,7 @@ def generate_material_events(
     material_events.sort_values('timestamp', inplace=True)
     return material_events
 
+
 def generate_material_events_date_tray(parsed_tray_events_date_tray):
     parsed_tray_events_date_tray_filtered = (
         parsed_tray_events_date_tray
@@ -402,6 +406,7 @@ def generate_material_events_date_tray(parsed_tray_events_date_tray):
             ))
     return material_events_list
 
+
 def describe_material_event(
     timestamp,
     material_name,
@@ -417,7 +422,7 @@ def describe_material_event(
     to_shelf_person_string = person_name_to_shelf if pd.notnull(person_name_to_shelf) else 'an unknown person'
     if pd.notnull(start) and pd.notnull(end):
         if duration_seconds > 90:
-            duration_string = '{} minutes'.format(round(duration_seconds/60))
+            duration_string = '{} minutes'.format(round(duration_seconds / 60))
         elif duration_seconds > 30:
             duration_string = '1 minute'
         else:
@@ -455,6 +460,7 @@ def describe_material_event(
     )
     return description
 
+
 def best_camera(
     timestamp,
     tray_device_id,
@@ -464,7 +470,7 @@ def best_camera(
     camera_device_ids=None,
     camera_calibrations=None,
     position_window_seconds=4,
-    imputed_z_position = 1.0,
+    imputed_z_position=1.0,
     chunk_size=100,
     client=None,
     uri=None,
@@ -475,7 +481,8 @@ def best_camera(
 ):
     if camera_calibrations is None:
         if environment_id is None and environment_name is None and camera_device_ids is None:
-            raise ValueError('If camera calibration info is not specified, must specify either camera device IDs or environment ID or environment name')
+            raise ValueError(
+                'If camera calibration info is not specified, must specify either camera device IDs or environment ID or environment name')
         if camera_device_ids is None:
             camera_info = honeycomb_io.fetch_devices(
                 device_types=honeycomb_io.DEFAULT_CAMERA_DEVICE_TYPES,
@@ -492,7 +499,7 @@ def best_camera(
                 client_id=client_id,
                 client_secret=client_secret
             )
-            camera_device_ids= camera_info.index.unique().tolist()
+            camera_device_ids = camera_info.index.unique().tolist()
         camera_calibrations = honeycomb_io.fetch_camera_calibrations(
             camera_ids=camera_device_ids,
             start=timestamp,
@@ -505,8 +512,8 @@ def best_camera(
             client_id=client_id,
             client_secret=client_secret
         )
-    position_window_start = timestamp - datetime.timedelta(seconds=position_window_seconds/2)
-    position_window_end = timestamp + datetime.timedelta(seconds=position_window_seconds/2)
+    position_window_start = timestamp - datetime.timedelta(seconds=position_window_seconds / 2)
+    position_window_end = timestamp + datetime.timedelta(seconds=position_window_seconds / 2)
     position_data = honeycomb_io.fetch_cuwb_position_data(
         start=position_window_start,
         end=position_window_end,
@@ -555,18 +562,18 @@ def best_camera(
             in_frame = True
             distance_from_image_center = np.linalg.norm(np.subtract(
                 image_position,
-                [camera_calibration['image_width']/2, camera_calibration['image_height']/2]
+                [camera_calibration['image_width'] / 2, camera_calibration['image_height'] / 2]
             ))
             in_middle = (
-                image_position[0] > camera_calibration['image_width']*(1.0/10.0) and
-                image_position[0] < camera_calibration['image_width']*(9.0/10.0) and
-                image_position[1] > camera_calibration['image_height']*(1.0/10.0) and
-                image_position[1] < camera_calibration['image_height']*(9.0/10.0)
+                image_position[0] > camera_calibration['image_width'] * (1.0 / 10.0) and
+                image_position[0] < camera_calibration['image_width'] * (9.0 / 10.0) and
+                image_position[1] > camera_calibration['image_height'] * (1.0 / 10.0) and
+                image_position[1] < camera_calibration['image_height'] * (9.0 / 10.0)
             )
         else:
-            in_frame=False
-            distance_from_image_center=None
-            in_middle=False
+            in_frame = False
+            distance_from_image_center = None
+            in_middle = False
         view_data_list.append({
             'camera_device_id': camera_device_id,
             'position': position,

@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import os
 import pandas as pd
 from pathlib import Path
+import pytz
 
 from .core import estimate_tray_centroids, extract_tray_carry_events_from_inferred, infer_tray_interactions, fetch_cuwb_data, fetch_cuwb_data_from_datapoints, fetch_motion_features, generate_human_activity_groundtruth, generate_human_activity_model, generate_tray_carry_groundtruth, generate_tray_carry_model, infer_human_activity, infer_tray_carry, pose_data_with_body_centroid
 from .utils.io import load_csv, read_generic_pkl, write_cuwb_data_pkl, write_datafile_to_csv, write_generic_pkl
@@ -16,12 +17,21 @@ now = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 valid_date_formats = list(itertools.chain.from_iterable(
     map(lambda d: ["{}".format(d), "{}%z".format(d), "{} %Z".format(d)], ['%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S'])))
 
+ANNONYMIZE_COLUMNS = ['person_name', 'person_first_name', 'person_last_name', 'person_nickname', 'person_short_name']
+
+
+def timezone_aware(ctx, param, value):
+    if value.tzinfo is None:
+        return value.replace(tzinfo=pytz.UTC)
+
 
 _cli_options_env_start_end = [
     click.option("--environment", type=str, required=True),
     click.option("--start", type=click.DateTime(formats=valid_date_formats), required=True,
+                 callback=timezone_aware,
                  help="Filter is passed to remote query or used to filter --cuwb-data (if --cuwb-data is provided)"),
     click.option("--end", type=click.DateTime(formats=valid_date_formats), required=True,
+                 callback=timezone_aware,
                  help="Filter is passed to remote query or used to filter --cuwb-data (if --cuwb-data is provided)")
 ]
 
@@ -99,9 +109,11 @@ def _infer_human_activity(df_person_features, model, scaler=None):
                                                case_sensitive=False), default='all', help="Data to return")
 @click.option("--data-source", type=click.Choice(['datapoints', 'imu_tables'],
                                                  case_sensitive=False), default='imu_tables', help="Source data resides (datapoints was retired 03/23/2021)")
+@click.option("--annonymize", is_flag=True,
+              default=False, help="Annonymize people names")
 @click.option("--output", type=click.Path(), default="%s/output" % (os.getcwd()),
               help="output folder for CUWB data, data stored in <<output>>/uwb_data/<<file>>.pkl")
-def cli_fetch_cuwb_data(environment, start, end, entity_type, data_type, data_source, output):
+def cli_fetch_cuwb_data(environment, start, end, entity_type, data_type, data_source, annonymize, output):
     uwb_output = "{}/uwb_data".format(output)
     Path(uwb_output).mkdir(parents=True, exist_ok=True)
 
@@ -124,6 +136,10 @@ def cli_fetch_cuwb_data(environment, start, end, entity_type, data_type, data_so
         logger.warning("No CUWB data found")
         return
 
+    if annonymize:
+        scalar_dict = {c: '' for c in ANNONYMIZE_COLUMNS}
+        df = df.assign(**scalar_dict)
+
     write_cuwb_data_pkl(
         df,
         filename_prefix='uwb',
@@ -138,9 +154,11 @@ def cli_fetch_cuwb_data(environment, start, end, entity_type, data_type, data_so
                help="Generate a pickled dataframe of UWB data converted into motion features")
 @add_options(_cli_options_env_start_end)
 @add_options(_cli_options_uwb_data)
+@click.option("--annonymize", is_flag=True,
+              default=False, help="Annonymize people names")
 @click.option("--output", type=click.Path(), default="%s/output" % (os.getcwd()),
               help="output folder for cuwb tray features data, features stored in <<output>>/feature_data/<<file>>.pkl")
-def cli_fetch_motion_features(environment, start, end, cuwb_data, output):
+def cli_fetch_motion_features(environment, start, end, cuwb_data, annonymize, output):
     feature_data_output = "{}/feature_data".format(output)
     Path(feature_data_output).mkdir(parents=True, exist_ok=True)
 
@@ -160,6 +178,10 @@ def cli_fetch_motion_features(environment, start, end, cuwb_data, output):
     if df_features is None or len(df_features) == 0:
         logger.warning("No CUWB data found")
         return
+
+    if annonymize:
+        scalar_dict = {c: '' for c in ANNONYMIZE_COLUMNS}
+        df_features = df_features.assign(**scalar_dict)
 
     write_cuwb_data_pkl(
         df_features,
