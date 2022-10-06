@@ -18,7 +18,6 @@ BASE_DEPENDENCIES = [
     'python-slugify>=4.0.0',
     'scipy>=1.6.3',
     'scikit-learn>=0.24',
-    #'tensorflow>=2.4.1',
     'wf-honeycomb-io>=1.6.1',
     'wf-geom-render>=0.3.0',
     'wf-process-pose-data>=3.2.1'

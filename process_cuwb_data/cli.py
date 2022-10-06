@@ -23,6 +23,8 @@ ANNONYMIZE_COLUMNS = ['person_name', 'person_first_name', 'person_last_name', 'p
 def timezone_aware(ctx, param, value):
     if value.tzinfo is None:
         return value.replace(tzinfo=pytz.UTC)
+    else:
+        return value
 
 
 _cli_options_env_start_end = [
