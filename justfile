@@ -1,12 +1,11 @@
 build:
-    python setup.py install build
+    poetry build
+
+publish: build
+    poetry publish
 
 install-dev:
-    #!/usr/bin/env bash
-    pip install -e .[development]
-
-clean:
-    python setup.py clean --all
+    poetry install
 
 test:
     pytest -s

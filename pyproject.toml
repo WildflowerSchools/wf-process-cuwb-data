@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "wf-process-cuwb-data"
-version = "1.5.2"
+version = "1.5.4"
 description = "Tools for reading, processing, and writing CUWB data"
 authors = ["Theodore Quinn <ted.quinn@wildflowerschools.org>", "Benjamin Jaffe-Talberg <ben.talberg@gmail.com>"]
 readme = "README.md"
@@ -11,6 +11,9 @@ classifiers = [
     'License :: OSI Approved :: MIT License',
     'Operating System :: OS Independent',
     'Programming Language :: Python',
+]
+packages = [
+    { include = "process_cuwb_data" }
 ]
 
 [tool.poetry.dependencies]
