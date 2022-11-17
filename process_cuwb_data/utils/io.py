@@ -55,6 +55,10 @@ def write_cuwb_data_pkl(
         entity_assignment_info,
         directory
     )
+    if df is None:
+        logger.warning('Cannot write CUWB data to pickle, dataframe provided == None: {}'.format(path))
+        return
+
     logger.info('Writing CUWB data to {}'.format(path))
     df.to_pickle(path)
 

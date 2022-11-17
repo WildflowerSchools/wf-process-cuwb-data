@@ -180,7 +180,7 @@ class SmoothLabelsFilter:
                                           rolling_stability_change_window.max())
 
         change_moments = carry_stability_change_moments[carry_stability_change_moments == True]
-        for ii_idx, (time_idx, row) in enumerate(change_moments.iteritems()):
+        for ii_idx, (time_idx, row) in enumerate(change_moments.items()):
             range_mask = (df_predictions.index > time_idx)
 
             if ii_idx < len(change_moments) - 1:

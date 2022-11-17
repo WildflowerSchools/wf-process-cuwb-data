@@ -40,7 +40,7 @@ def validate_tray_centroids_dataframe(df_tray_centroids):
     return True, ""
 
 
-def classifier_filter_no_movement_from_tray_features(model, scaler, df_tray_features):
+def classifier_filter_no_movement_from_tray_features(model, df_tray_features, scaler=None):
     tc = TrayCarryClassifier(model=model, feature_scaler=scaler)
     df_features_with_predictions = tc.predict(df_tray_features)
 

@@ -13,7 +13,7 @@ CUWB_DATA_MAX_INT = {
 
 
 def extract_by_entity_type(df, entity_type='all'):
-    if entity_type == 'all' or entity_type is None or len(df) == 0:
+    if entity_type == 'all' or entity_type is None or df is None or len(df) == 0:
         return df
 
     # Filter by entity type

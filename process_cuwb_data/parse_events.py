@@ -6,8 +6,6 @@ import datetime
 import uuid
 import functools
 
-from process_cuwb_data.utils.log import logger
-
 
 def parse_tray_events(
     tray_events,
@@ -33,6 +31,9 @@ def parse_tray_events(
     client_id=None,
     client_secret=None
 ):
+    if tray_events is None:
+        return None
+
     if environment_id is None and environment_name is None:
         raise ValueError('Must specify either environment ID or environment name')
     camera_info = honeycomb_io.fetch_devices(
@@ -269,7 +270,12 @@ def generate_material_events(
         lambda row: row['start'] if pd.notnull(row['start']) else row['end'],
         axis=1
     )
-    material_events['duration_seconds'] = (material_events['end'] - material_events['start']).dt.total_seconds()
+    material_events['duration_seconds'] = material_events.apply(
+        lambda row: (row['end'] - row['start']).total_seconds() if (pd.notnull(row['start']) and pd.notnull(row['end'])) else 0,
+        axis=1
+    )
+    # if material_events['start']:
+    #     material_events['duration_seconds'] = (material_events['end'] - material_events['start']).dt.total_seconds()
     material_events['description'] = material_events.apply(
         lambda event: describe_material_event(
             timestamp=event['timestamp'],

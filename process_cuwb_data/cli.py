@@ -273,10 +273,10 @@ def cli_train_tray_carry_model(groundtruth_features, tune, output):
     result = generate_tray_carry_model(df_groundtruth_features, tune=tune)
 
     if result is not None:
-        write_generic_pkl(result['model'], "{}_human_activity_model".format(now), models_output)
+        write_generic_pkl(result['model'], "{}_tray_carry_model".format(now), models_output)
 
         if result['scaler'] is not None:
-            write_generic_pkl(result['scaler'], "{}_human_activity_scaler".format(now), models_output)
+            write_generic_pkl(result['scaler'], "{}_tray_carry_scaler".format(now), models_output)
 
 
 @click.command(name="estimate-tray-centroids",
@@ -483,15 +483,15 @@ def cli_infer_tray_interactions(environment,
     Path("{}/{}".format(pose_inference_base, pose_inference_subdirectory)).mkdir(parents=True, exist_ok=True)
 
     if motion_feature_data is None:
-        if cuwb_data is not None:
-            df_uwb_data = read_generic_pkl(cuwb_data)
-            df_uwb_data = df_uwb_data.loc[(df_uwb_data.index >= start) & (df_uwb_data.index <= end)]
-        else:
+        if cuwb_data is None:
             df_uwb_data = fetch_cuwb_data(
                 environment,
                 start,
                 end
             )
+        else:
+            df_uwb_data = read_generic_pkl(cuwb_data)
+            df_uwb_data = df_uwb_data.loc[(df_uwb_data.index >= start) & (df_uwb_data.index <= end)]
 
         df_uwb_motion_features = fetch_motion_features(
             environment,

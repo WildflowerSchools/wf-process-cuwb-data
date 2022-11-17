@@ -30,6 +30,9 @@ def modify_carry_events_with_track_ids(df_carry_events):
     :param df_carry_events:
     :return: A modified df_carry_events dataframe with numeric track_ids
     """
+    if len(df_carry_events) == 0:
+        return None
+
     df_carry_events_modified = df_carry_events.copy()
     df_carry_events_with_track_id = df_carry_events_modified.reset_index(drop=True).sort_values(
         'start').assign(tray_track_id=range(len(df_carry_events_modified.index)))
@@ -484,8 +487,6 @@ def infer_tray_device_interactions(df_features, df_carry_events, df_tray_centroi
     2021-04-20 14:03:06.3000000 00:00,bbf3f7d4-994a-4418-93fc-ec0c009cc90a,Person,nan,nan,nan,nan,nan,62a0fd7a-e951-419b-a46a-2dd7b23136c4,Nynzie Noglo,nan,3.98487,5.47795,5.47795,8d6d4bec000e4168b371bfcbae4116f6,pose_track
     2021-04-20 14:03:06.4000000 00:00,bbf3f7d4-994a-4418-93fc-ec0c009cc90a,Person,nan,nan,nan,nan,nan,62a0fd7a-e951-419b-a46a-2dd7b23136c4,Nynzie Noglo,nan,3.98820,5.47480,5.47480,8d6d4bec000e4168b371bfcbae4116f6,pose_track
 
-
-
     :param df_carry_events:
     device_id,start,end,quality_median
     f37dd610-7335-4355-b706-0a1ea3f35519,2021-04-20 14:01:26.300000+00:00,2021-04-20 14:01:30.300000+00:00,8573.84593
@@ -503,6 +504,9 @@ def infer_tray_device_interactions(df_features, df_carry_events, df_tray_centroi
 
     :return: Dataframe
     """
+    if len(df_carry_events) == 0:
+        return None
+
     df_carry_events_with_track_ids = modify_carry_events_with_track_ids(df_carry_events)
     df_filtered_people, df_filtered_trays_with_track_ids = filter_features_by_carry_events_and_split_by_device_type(
         df_features, df_carry_events_with_track_ids)

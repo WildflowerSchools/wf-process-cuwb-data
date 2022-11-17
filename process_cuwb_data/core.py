@@ -78,7 +78,10 @@ def fetch_cuwb_data(
         if res is not None:
             list_imu_data.append(res.get())
 
-    df_imu_data = pd.concat(list_imu_data)
+    filtered_imu_data = list(filter(lambda x: x is not None, list_imu_data))
+    df_imu_data = None
+    if len(filtered_imu_data) > 0:
+        df_imu_data = pd.concat(filtered_imu_data)
     p.close()
 
     return extract_by_entity_type(df_imu_data, entity_type)
@@ -362,7 +365,7 @@ def generate_tray_carry_model(df_groundtruth_features, tune=False):
         return tc.fit(df_groundtruth=df_groundtruth_features, scale_features=False)
 
 
-def estimate_tray_centroids(model, scaler, df_tray_features):
+def estimate_tray_centroids(model, df_tray_features, scaler=None):
     """
     Estimate the shelf location of each Tray (in x,y,z coords)
 
@@ -381,7 +384,7 @@ def estimate_tray_centroids(model, scaler, df_tray_features):
     return predict_tray_centroids(df_tray_features_no_movement=df_tray_features_no_movement)
 
 
-def infer_tray_carry(model, scaler, df_tray_features):
+def infer_tray_carry(model, df_tray_features, scaler=None):
     """
     Classifies each moment of features dataframe into a carried or not carried state
 
