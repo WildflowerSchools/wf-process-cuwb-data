@@ -11,4 +11,4 @@ test:
     pytest -s
 
 fmt:
-    autopep8 --aggressive --recursive --in-place ./process_cuwb_data/
+    black process_cuwb_data

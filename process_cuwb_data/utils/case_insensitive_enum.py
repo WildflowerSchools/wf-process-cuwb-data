@@ -7,6 +7,7 @@ class CaseInsensitiveEnumMeta(EnumMeta):
     """
     Format lookup value before looking up enum
     """
+
     def __call__(cls, value, *args, **kw):
         # print("CaseInsensitiveEnumMeta:__call__: {} - {}".format(cls, value))
         keys = cls.__members__.keys()
@@ -14,7 +15,7 @@ class CaseInsensitiveEnumMeta(EnumMeta):
             value = cls.as_id_name_dict()[value]
 
         if isinstance(value, str):
-            key = value.replace(' ', '_').upper()
+            key = value.replace(" ", "_").upper()
             if key in keys:
                 value = getattr(cls, key)
 

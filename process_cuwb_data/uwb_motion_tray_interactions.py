@@ -19,7 +19,7 @@ CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF = 0.5
 
 
 def map_column_name_to_dimension_space(column_name, num_dimensions):
-    dims = ['x', 'y', 'z']
+    dims = ["x", "y", "z"]
     return list(map(lambda d: "{}_{}".format(d, column_name), dims[0:num_dimensions]))
 
 
@@ -34,8 +34,11 @@ def modify_carry_events_with_track_ids(df_carry_events):
         return None
 
     df_carry_events_modified = df_carry_events.copy()
-    df_carry_events_with_track_id = df_carry_events_modified.reset_index(drop=True).sort_values(
-        'start').assign(tray_track_id=range(len(df_carry_events_modified.index)))
+    df_carry_events_with_track_id = (
+        df_carry_events_modified.reset_index(drop=True)
+        .sort_values("start")
+        .assign(tray_track_id=range(len(df_carry_events_modified.index)))
+    )
     return df_carry_events_with_track_id
 
 
@@ -50,68 +53,76 @@ def augment_carry_events_start_and_end_times(df_carry_events_with_track_ids, num
     :return: A modified df_carry_events dataframe with shifted start/end times
     """
     df_carry_events_augmented = df_carry_events_with_track_ids.copy()
-    df_carry_events_augmented['start_augmented'] = df_carry_events_augmented['start'] - \
-        pd.Timedelta(seconds=num_seconds)
-    df_carry_events_augmented['end_augmented'] = df_carry_events_augmented['end'] + pd.Timedelta(seconds=num_seconds)
+    df_carry_events_augmented["start_augmented"] = df_carry_events_augmented["start"] - pd.Timedelta(
+        seconds=num_seconds
+    )
+    df_carry_events_augmented["end_augmented"] = df_carry_events_augmented["end"] + pd.Timedelta(seconds=num_seconds)
     return df_carry_events_augmented
 
 
 def get_estimated_tray_location_from_carry_events(df_features, df_carry_events):
-    df_tray_features = df_features[df_features['entity_type'] == 'Tray']
+    df_tray_features = df_features[df_features["entity_type"] == "Tray"]
 
     # Fudge start/stop times to get a better guess at resting tray locations
     df_carry_events_with_track_ids_and_augmented_times = augment_carry_events_start_and_end_times(df_carry_events)
 
     carry_events_with_positions = []
-    position_cols = map_column_name_to_dimension_space(
-        'position', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
+    position_cols = map_column_name_to_dimension_space("position", DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
     for _, row in df_carry_events_with_track_ids_and_augmented_times.iterrows():
         # TODO: Rather than use the start_augmented time, consider trying to find
         # the moment between 'start_augmented' and actual 'start' when a given
         # tray is nearest to a given tray's centroid or shelf location
-        device_id_mask = (df_tray_features['device_id'] == row['device_id'])
-        if row['start_augmented'] in df_tray_features.index:
-            start_mask = (df_tray_features.index == row['start_augmented']) & device_id_mask
-        elif row['start'] in df_tray_features.index:
-            start_mask = (df_tray_features.index == row['start']) & device_id_mask
+        device_id_mask = df_tray_features["device_id"] == row["device_id"]
+        if row["start_augmented"] in df_tray_features.index:
+            start_mask = (df_tray_features.index == row["start_augmented"]) & device_id_mask
+        elif row["start"] in df_tray_features.index:
+            start_mask = (df_tray_features.index == row["start"]) & device_id_mask
         else:
             logger.warning(
                 "Couldn't determine a carry event start time for '{}', skipping carry event".format(
-                    df_tray_features['device_id']))
+                    df_tray_features["device_id"]
+                )
+            )
             continue
 
-        if row['end_augmented'] in df_tray_features.index:
-            end_mask = (df_tray_features.index == row['end_augmented']) & device_id_mask
-        elif row['end'] in df_tray_features.index:
-            end_mask = (df_tray_features.index == row['end']) & device_id_mask
+        if row["end_augmented"] in df_tray_features.index:
+            end_mask = (df_tray_features.index == row["end_augmented"]) & device_id_mask
+        elif row["end"] in df_tray_features.index:
+            end_mask = (df_tray_features.index == row["end"]) & device_id_mask
         else:
             logger.warning(
                 "Couldn't determine a carry event end time for '{}', skipping carry event".format(
-                    df_tray_features['device_id']))
+                    df_tray_features["device_id"]
+                )
+            )
             continue
 
-        cols = [*['device_id'], *position_cols]
+        cols = [*["device_id"], *position_cols]
         df_start_position = df_tray_features.loc[start_mask][cols]
         if len(df_start_position) == 0:
             logger.warning(
                 "Expected a carry event for '{}' at time {} to exist but none found, skipping carry event".format(
-                    df_tray_features['device_id'], row['start']))
+                    df_tray_features["device_id"], row["start"]
+                )
+            )
             continue
 
-        df_start_position = df_start_position.assign(carry_moment='start')
-        df_start_position = df_start_position.assign(tray_track_id=row['tray_track_id'])
-        df_start_position.index = [row['start']]
+        df_start_position = df_start_position.assign(carry_moment="start")
+        df_start_position = df_start_position.assign(tray_track_id=row["tray_track_id"])
+        df_start_position.index = [row["start"]]
 
         df_end_position = df_tray_features.loc[end_mask][cols]
         if len(df_end_position) == 0:
             logger.warning(
                 "Expected a carry event for '{}' at time {} to exist but none found, skipping carry event".format(
-                    df_tray_features['device_id'], row['start']))
+                    df_tray_features["device_id"], row["start"]
+                )
+            )
             continue
 
-        df_end_position = df_end_position.assign(carry_moment='end')
-        df_end_position = df_end_position.assign(tray_track_id=row['tray_track_id'])
-        df_end_position.index = [row['end']]
+        df_end_position = df_end_position.assign(carry_moment="end")
+        df_end_position = df_end_position.assign(tray_track_id=row["tray_track_id"])
+        df_end_position.index = [row["end"]]
 
         carry_events_with_positions.append(df_start_position)
         carry_events_with_positions.append(df_end_position)
@@ -133,26 +144,30 @@ def filter_features_by_carry_events_and_split_by_device_type(df_features, df_car
     """
 
     # First synchronize all devices with the same number of time indices
-    df_unique_indexes = pd.DataFrame(index=pd.MultiIndex.from_product(
-        [df_features.index.unique(), df_features['device_id'].unique()]).set_names(['timestamp', 'device_id'])).sort_index()
-    df_features_with_device_id = df_features.set_index(keys='device_id', append=True)
-    df_features_with_device_id.index = df_features_with_device_id.index.set_names(['timestamp', 'device_id'])
-    _, df_features_with_aligned_indexes = df_unique_indexes.align(df_features_with_device_id, join='left', axis=0)
+    df_unique_indexes = pd.DataFrame(
+        index=pd.MultiIndex.from_product([df_features.index.unique(), df_features["device_id"].unique()]).set_names(
+            ["timestamp", "device_id"]
+        )
+    ).sort_index()
+    df_features_with_device_id = df_features.set_index(keys="device_id", append=True)
+    df_features_with_device_id.index = df_features_with_device_id.index.set_names(["timestamp", "device_id"])
+    _, df_features_with_aligned_indexes = df_unique_indexes.align(df_features_with_device_id, join="left", axis=0)
     df_features_with_aligned_indexes = df_features_with_aligned_indexes.sort_index()
 
     # Next split people and tray features apart
     time_slices = []  # People will be sliced by time only
     time_and_tray_slices = []  # Trays will be sliced by time and device_id. Trays are also assigned a TrackID
     for idx, row in df_carry_events_with_track_ids.iterrows():
-        time_slices.append(slice(row['start'], row['end']))
-        time_and_tray_slices.append([(slice(row['start'], row['end']), row['device_id']), row['tray_track_id']])
+        time_slices.append(slice(row["start"], row["end"]))
+        time_and_tray_slices.append([(slice(row["start"], row["end"]), row["device_id"]), row["tray_track_id"]])
 
-    df_people_features = df_features_with_aligned_indexes[df_features_with_aligned_indexes['entity_type'] == 'Person']
-    df_tray_features = df_features_with_aligned_indexes[df_features_with_aligned_indexes['entity_type'] == 'Tray']
+    df_people_features = df_features_with_aligned_indexes[df_features_with_aligned_indexes["entity_type"] == "Person"]
+    df_tray_features = df_features_with_aligned_indexes[df_features_with_aligned_indexes["entity_type"] == "Tray"]
 
     df_people_features_sliced = pd.concat(list(map(lambda s: df_people_features.loc[s, :], time_slices)))
     df_tray_features_sliced_with_track_id = pd.concat(
-        list(map(lambda s: df_tray_features.loc[s[0], :].assign(tray_track_id=s[1]), time_and_tray_slices)))
+        list(map(lambda s: df_tray_features.loc[s[0], :].assign(tray_track_id=s[1]), time_and_tray_slices))
+    )
 
     return df_people_features_sliced.reset_index(level=1), df_tray_features_sliced_with_track_id.reset_index(level=1)
 
@@ -172,8 +187,11 @@ def people_trays_cdist_iterable(idx, _df_people, _df_trays, v_count, v_start, lo
     """
     with lock:
         if v_count.value % 1000 == 0:
-            logger.info("Computing tray <-> people distances: Processed {}/{} - Time {}s".format(v_count.value,
-                                                                                                 size, time.time() - v_start.value))
+            logger.info(
+                "Computing tray <-> people distances: Processed {}/{} - Time {}s".format(
+                    v_count.value, size, time.time() - v_start.value
+                )
+            )
             sys.stdout.flush()
             v_start.value = time.time()
 
@@ -182,13 +200,12 @@ def people_trays_cdist_iterable(idx, _df_people, _df_trays, v_count, v_start, lo
     df_people_by_idx = _df_people.loc[[idx]]
     df_trays_by_idx = _df_trays.loc[[idx]]
 
-    position_cols = map_column_name_to_dimension_space(
-        'position', DIMENSIONS_WHEN_COMPUTING_CHILD_TRAY_DISTANCE)
+    position_cols = map_column_name_to_dimension_space("position", DIMENSIONS_WHEN_COMPUTING_CHILD_TRAY_DISTANCE)
 
-    df_people_and_trays = df_people_by_idx.join(df_trays_by_idx, how='inner', lsuffix='_person', rsuffix='_tray')
-    distances = cdist(df_people_by_idx[position_cols].to_numpy(),
-                      df_trays_by_idx[position_cols].to_numpy(),
-                      metric='euclidean')
+    df_people_and_trays = df_people_by_idx.join(df_trays_by_idx, how="inner", lsuffix="_person", rsuffix="_tray")
+    distances = cdist(
+        df_people_by_idx[position_cols].to_numpy(), df_trays_by_idx[position_cols].to_numpy(), metric="euclidean"
+    )
 
     return df_people_and_trays.assign(person_tray_distance=distances.flatten())
 
@@ -208,8 +225,8 @@ def generate_person_tray_distances(df_people_features, df_tray_features):
 
     lock = m.Lock()
     start = time.time()
-    v_count = m.Value('i', 0)  # Keep track of iterations
-    v_start = m.Value('f', start)  # Share timer object
+    v_count = m.Value("i", 0)  # Keep track of iterations
+    v_start = m.Value("f", start)  # Share timer object
     time_indexes = df_people_features.index.unique(level=0)
 
     df_person_tray_distances = pd.concat(
@@ -221,10 +238,16 @@ def generate_person_tray_distances(df_people_features, df_tray_features):
                 v_count=v_count,
                 v_start=v_start,
                 lock=lock,
-                size=len(time_indexes)),
-            time_indexes))
-    logger.info("Finished computing tray <-> people distances: {}/{} - Total time: {}s".format(len(time_indexes),
-                                                                                               len(time_indexes), time.time() - start))
+                size=len(time_indexes),
+            ),
+            time_indexes,
+        )
+    )
+    logger.info(
+        "Finished computing tray <-> people distances: {}/{} - Total time: {}s".format(
+            len(time_indexes), len(time_indexes), time.time() - start
+        )
+    )
 
     p.close()
     p.join()
@@ -267,39 +290,32 @@ def aggregate_clean_filter_person_tray_distances(df_person_tray_distances, df_ca
 
     # Group and aggregate each person and tray-carry-track combination to get the mean distance during the carry event
     # FYI: Grouping creates a dataframe with multiple column axis
-    df_person_tray_distances['timestamp'] = df_person_tray_distances.index
-    df_person_tray_distances_aggregated = df_person_tray_distances.groupby(
-        [
-            'tray_track_id',
-            'device_id_person',
-            'person_id_person',
-            'person_name_person',
-            'person_short_name_person',
-            'person_anonymized_name_person',
-            'person_anonymized_short_name_person',
-            'track_id_person',  # Used to differentiate pose_tracks from uwb_tracks
-            'track_type_person',  # Used to differentiate pose_tracks from uwb_tracks
-            'device_id_tray',
-            'material_name_tray']).agg(
-        {
-            'timestamp': [
-                'min',
-                'max'
-            ],
-            'person_tray_distance': [
-                'median',
-                'min',
-                'max']}).reset_index()
+    df_person_tray_distances["timestamp"] = df_person_tray_distances.index
+    df_person_tray_distances_aggregated = (
+        df_person_tray_distances.groupby(
+            [
+                "tray_track_id",
+                "device_id_person",
+                "person_id_person",
+                "person_name_person",
+                "person_short_name_person",
+                "person_anonymized_name_person",
+                "person_anonymized_short_name_person",
+                "track_id_person",  # Used to differentiate pose_tracks from uwb_tracks
+                "track_type_person",  # Used to differentiate pose_tracks from uwb_tracks
+                "device_id_tray",
+                "material_name_tray",
+            ]
+        )
+        .agg({"timestamp": ["min", "max"], "person_tray_distance": ["median", "min", "max"]})
+        .reset_index()
+    )
     df_person_tray_distances_aggregated.columns = df_person_tray_distances_aggregated.columns.to_flat_index()
     dataframe_tuple_columns_to_underscores(df_person_tray_distances_aggregated, inplace=True)
-    df_person_tray_distances_aggregated.rename(
-        columns={
-            'timestamp_min': 'start',
-            'timestamp_max': 'end'},
-        inplace=True)
-    df_person_tray_distances_aggregated['person_track_length_seconds'] = (
-        df_person_tray_distances_aggregated['end'] -
-        df_person_tray_distances_aggregated['start']).dt.total_seconds()
+    df_person_tray_distances_aggregated.rename(columns={"timestamp_min": "start", "timestamp_max": "end"}, inplace=True)
+    df_person_tray_distances_aggregated["person_track_length_seconds"] = (
+        df_person_tray_distances_aggregated["end"] - df_person_tray_distances_aggregated["start"]
+    ).dt.total_seconds()
 
     # Example pre-filtered df_person_tray_distances_aggregated dataframe
     #
@@ -321,9 +337,9 @@ def aggregate_clean_filter_person_tray_distances(df_person_tray_distances, df_ca
     # Bin,2021-04-20 14:01:26.300000+00:00,2021-04-20
     # 14:01:30.300000+00:00,2.64016,1.72280,4.04284,4.0
 
-    df_carry_events_with_track_ids['track_length_seconds'] = (
-        df_carry_events_with_track_ids['end'] -
-        df_carry_events_with_track_ids['start']).dt.total_seconds()
+    df_carry_events_with_track_ids["track_length_seconds"] = (
+        df_carry_events_with_track_ids["end"] - df_carry_events_with_track_ids["start"]
+    ).dt.total_seconds()
 
     split_track_row_ids = []
 
@@ -331,76 +347,88 @@ def aggregate_clean_filter_person_tray_distances(df_person_tray_distances, df_ca
     # TODO: This may be overly aggressive, we may want to only delete specific overlapping moments...
     # TODO: ...rather than deleting whole tracks if there is any moment of overlap
     for _, carry_event_row in df_carry_events_with_track_ids.iterrows():
-        tray_track_id = carry_event_row['tray_track_id']
-        pose_tracks_filter_idx =\
-            (df_person_tray_distances_aggregated['track_type_person'] == 'pose_track') &\
-            (df_person_tray_distances_aggregated['tray_track_id'] == tray_track_id)
+        tray_track_id = carry_event_row["tray_track_id"]
+        pose_tracks_filter_idx = (df_person_tray_distances_aggregated["track_type_person"] == "pose_track") & (
+            df_person_tray_distances_aggregated["tray_track_id"] == tray_track_id
+        )
 
         overlapping_people_ids = []
 
         df_person_tray_distances_aggregated_pose_tracks_only = df_person_tray_distances_aggregated[
-            pose_tracks_filter_idx]
-        for person_id in pd.unique(df_person_tray_distances_aggregated_pose_tracks_only['device_id_person']):
+            pose_tracks_filter_idx
+        ]
+        for person_id in pd.unique(df_person_tray_distances_aggregated_pose_tracks_only["device_id_person"]):
             if person_id == float(np.nan):
                 continue
 
-            df_person_tracks_filter_idx = df_person_tray_distances_aggregated_pose_tracks_only[
-                'device_id_person'] == person_id
+            df_person_tracks_filter_idx = (
+                df_person_tray_distances_aggregated_pose_tracks_only["device_id_person"] == person_id
+            )
             df_person_tracks = df_person_tray_distances_aggregated_pose_tracks_only[df_person_tracks_filter_idx]
 
             for idx, row in df_person_tracks.iterrows():
-                overlapping_start_idx = (
-                    row['start'] >= df_person_tracks['start']) & (
-                    row['start'] <= df_person_tracks['end'])
+                overlapping_start_idx = (row["start"] >= df_person_tracks["start"]) & (
+                    row["start"] <= df_person_tracks["end"]
+                )
                 if len(overlapping_start_idx) > 1:
-                    overlapping_people_ids.extend(df_person_tracks.loc[overlapping_start_idx, 'track_id_person'].values)
+                    overlapping_people_ids.extend(df_person_tracks.loc[overlapping_start_idx, "track_id_person"].values)
 
-                df_overlapping_end_idx = (
-                    row['end'] >= df_person_tracks['start']) & (
-                    row['end'] <= df_person_tracks['end'])
+                df_overlapping_end_idx = (row["end"] >= df_person_tracks["start"]) & (
+                    row["end"] <= df_person_tracks["end"]
+                )
                 if len(df_overlapping_end_idx) > 1:
                     overlapping_people_ids.extend(
-                        df_person_tracks.loc[df_overlapping_end_idx, 'track_id_person'].values)
+                        df_person_tracks.loc[df_overlapping_end_idx, "track_id_person"].values
+                    )
 
-        overlapping_idx = df_person_tray_distances_aggregated['track_id_person'].isin(overlapping_people_ids)
-        df_person_tray_distances_aggregated.loc[overlapping_idx, [
-            'device_id_person',
-            'person_id_person',
-            'person_name_person',
-            'person_short_name_person',
-            'person_anonymized_name_person',
-            'person_anonymized_short_name_person'
-        ]] = float(np.nan)
+        overlapping_idx = df_person_tray_distances_aggregated["track_id_person"].isin(overlapping_people_ids)
+        df_person_tray_distances_aggregated.loc[
+            overlapping_idx,
+            [
+                "device_id_person",
+                "person_id_person",
+                "person_name_person",
+                "person_short_name_person",
+                "person_anonymized_name_person",
+                "person_anonymized_short_name_person",
+            ],
+        ] = float(np.nan)
 
     # Filter step-2 (A):
     # In preparation for handling split pose tracks, begin gathering groups of
     # associated track_ids. Step A is to group nan device_id_persons
     # and data that comes from 'uwb_sensors' into their own "groups" or buckets
-    split_track_row_ids.extend(df_person_tray_distances_aggregated[
-                               (df_person_tray_distances_aggregated['device_id_person'].isnull()) |
-                               (df_person_tray_distances_aggregated['track_type_person'] == 'uwb_sensor')
-                               ].index.values)
+    split_track_row_ids.extend(
+        df_person_tray_distances_aggregated[
+            (df_person_tray_distances_aggregated["device_id_person"].isnull())
+            | (df_person_tray_distances_aggregated["track_type_person"] == "uwb_sensor")
+        ].index.values
+    )
 
     # Filter step-2 (B):
     # Step B is to look for pose tracks that are diconnected but related and try to
     # group those together
     for _, carry_event_row in df_carry_events_with_track_ids.iterrows():
-        tray_track_id = carry_event_row['tray_track_id']
-        pose_tracks_filter_idx = \
-            (df_person_tray_distances_aggregated['device_id_person'].notnull()) & \
-            (df_person_tray_distances_aggregated['track_type_person'] == 'pose_track') & \
-            (df_person_tray_distances_aggregated['tray_track_id'] == tray_track_id)
+        tray_track_id = carry_event_row["tray_track_id"]
+        pose_tracks_filter_idx = (
+            (df_person_tray_distances_aggregated["device_id_person"].notnull())
+            & (df_person_tray_distances_aggregated["track_type_person"] == "pose_track")
+            & (df_person_tray_distances_aggregated["tray_track_id"] == tray_track_id)
+        )
 
         df_person_tray_distances_aggregated_pose_tracks_only = df_person_tray_distances_aggregated[
-            pose_tracks_filter_idx]
-        for person_id in pd.unique(df_person_tray_distances_aggregated_pose_tracks_only['device_id_person']):
+            pose_tracks_filter_idx
+        ]
+        for person_id in pd.unique(df_person_tray_distances_aggregated_pose_tracks_only["device_id_person"]):
             if person_id == float(np.nan):
                 continue
 
-            df_person_tracks_filter_idx = df_person_tray_distances_aggregated_pose_tracks_only[
-                'device_id_person'] == person_id
+            df_person_tracks_filter_idx = (
+                df_person_tray_distances_aggregated_pose_tracks_only["device_id_person"] == person_id
+            )
             split_track_row_ids.append(
-                list(df_person_tray_distances_aggregated_pose_tracks_only[df_person_tracks_filter_idx].index.values))
+                list(df_person_tray_distances_aggregated_pose_tracks_only[df_person_tracks_filter_idx].index.values)
+            )
 
     # Filter step-2 (C):
     # Use the split_track_row_ids to build and summarize "complete" tracks
@@ -412,58 +440,64 @@ def aggregate_clean_filter_person_tray_distances(df_person_tray_distances, df_ca
             row_id_groups = [row_id_groups]
 
         df_person_tracks = df_person_tray_distances_aggregated[
-            df_person_tray_distances_aggregated.index.isin(row_id_groups)].copy()
+            df_person_tray_distances_aggregated.index.isin(row_id_groups)
+        ].copy()
         tray_track_length_in_seconds = df_carry_events_with_track_ids[
-            df_carry_events_with_track_ids['tray_track_id'] == df_person_tracks.iloc[0]['tray_track_id']
-        ].iloc[0]['track_length_seconds']
+            df_carry_events_with_track_ids["tray_track_id"] == df_person_tracks.iloc[0]["tray_track_id"]
+        ].iloc[0]["track_length_seconds"]
 
-        if tray_track_length_in_seconds > 0 and (
-                df_person_tracks['person_track_length_seconds'].sum() / tray_track_length_in_seconds) >= 0.9:
-            df_person_tracks['track_length_percentage'] = df_person_tracks['person_track_length_seconds'] / \
-                df_person_tracks['person_track_length_seconds'].sum()
-            df_person_tracks['person_tray_distance_median_weighted'] = df_person_tracks['person_tray_distance_median'] * \
-                df_person_tracks['track_length_percentage']
+        if (
+            tray_track_length_in_seconds > 0
+            and (df_person_tracks["person_track_length_seconds"].sum() / tray_track_length_in_seconds) >= 0.9
+        ):
+            df_person_tracks["track_length_percentage"] = (
+                df_person_tracks["person_track_length_seconds"] / df_person_tracks["person_track_length_seconds"].sum()
+            )
+            df_person_tracks["person_tray_distance_median_weighted"] = (
+                df_person_tracks["person_tray_distance_median"] * df_person_tracks["track_length_percentage"]
+            )
 
-            df_person_flattened = df_person_tracks[['tray_track_id',
-                                                    'device_id_person',
-                                                    'person_id_person',
-                                                    'person_name_person',
-                                                    'person_short_name_person',
-                                                    'person_anonymized_name_person',
-                                                    'person_anonymized_short_name_person',
-                                                    'device_id_tray',
-                                                    'material_name_tray']].iloc[0].to_frame().transpose()
-            df_person_flattened['person_tray_distance_median'] = df_person_tracks['person_tray_distance_median_weighted'].sum()
-            df_person_flattened['person_track_length_seconds'] = df_person_tracks['person_track_length_seconds'].sum()
-
-            df_person_grouped = df_person_tracks.groupby(
-                [
-                    'tray_track_id']).agg(
-                {
-                    'person_tray_distance_min': [
-                        'min'
-                    ],
-                    'person_tray_distance_max': [
-                        'max'
+            df_person_flattened = (
+                df_person_tracks[
+                    [
+                        "tray_track_id",
+                        "device_id_person",
+                        "person_id_person",
+                        "person_name_person",
+                        "person_short_name_person",
+                        "person_anonymized_name_person",
+                        "person_anonymized_short_name_person",
+                        "device_id_tray",
+                        "material_name_tray",
                     ]
-                })
+                ]
+                .iloc[0]
+                .to_frame()
+                .transpose()
+            )
+            df_person_flattened["person_tray_distance_median"] = df_person_tracks[
+                "person_tray_distance_median_weighted"
+            ].sum()
+            df_person_flattened["person_track_length_seconds"] = df_person_tracks["person_track_length_seconds"].sum()
+
+            df_person_grouped = df_person_tracks.groupby(["tray_track_id"]).agg(
+                {"person_tray_distance_min": ["min"], "person_tray_distance_max": ["max"]}
+            )
 
             df_person_grouped.columns = df_person_grouped.columns.to_flat_index()
             dataframe_tuple_columns_to_underscores(df_person_grouped, inplace=True)
 
-            df_person_flattened['person_tray_distance_min'] = df_person_grouped['person_tray_distance_min_min'].iloc[0]
-            df_person_flattened['person_tray_distance_max'] = df_person_grouped['person_tray_distance_max_max'].iloc[0]
+            df_person_flattened["person_tray_distance_min"] = df_person_grouped["person_tray_distance_min_min"].iloc[0]
+            df_person_flattened["person_tray_distance_max"] = df_person_grouped["person_tray_distance_max_max"].iloc[0]
 
             filtered_tracks.append(df_person_flattened)
 
     df_filtered_tracks = pd.concat(filtered_tracks)
 
-    df_carry_events_distances_from_people = df_filtered_tracks \
-        .merge(
-            df_carry_events_with_track_ids[['tray_track_id', 'start', 'end']],
-            how='left',
-            on='tray_track_id')
-    df_carry_events_distances_from_people.index.name = 'person_tray_track_id'
+    df_carry_events_distances_from_people = df_filtered_tracks.merge(
+        df_carry_events_with_track_ids[["tray_track_id", "start", "end"]], how="left", on="tray_track_id"
+    )
+    df_carry_events_distances_from_people.index.name = "person_tray_track_id"
 
     return df_carry_events_distances_from_people
 
@@ -509,7 +543,8 @@ def infer_tray_device_interactions(df_features, df_carry_events, df_tray_centroi
 
     df_carry_events_with_track_ids = modify_carry_events_with_track_ids(df_carry_events)
     df_filtered_people, df_filtered_trays_with_track_ids = filter_features_by_carry_events_and_split_by_device_type(
-        df_features, df_carry_events_with_track_ids)
+        df_features, df_carry_events_with_track_ids
+    )
     # TODO: Filter 3d->2d tracks by time
 
     ###############
@@ -520,48 +555,56 @@ def infer_tray_device_interactions(df_features, df_carry_events, df_tray_centroi
     # TODO: Add 3d to 2d track as some form of people so we can compute distances to each of these tracks as well...
     df_person_tray_distances = generate_person_tray_distances(df_filtered_people, df_filtered_trays_with_track_ids)
     df_carry_events_distances_from_people = aggregate_clean_filter_person_tray_distances(
-        df_person_tray_distances, df_carry_events_with_track_ids)
+        df_person_tray_distances, df_carry_events_with_track_ids
+    )
 
     #############
     # Determine trays positions at the start/end moments of tray carry
     #############
     df_positions_for_carry_event_moments = get_estimated_tray_location_from_carry_events(
-        df_features, df_carry_events_with_track_ids)
+        df_features, df_carry_events_with_track_ids
+    )
 
     #############
     # Combine carry events w/ tray positions dataframe with the tray centroids dataframe
     #############
-    df_carry_event_position_and_centroid = df_positions_for_carry_event_moments.rename_axis(
-        'timestamp').reset_index().merge(df_tray_centroids, left_on='device_id', right_on='device_id')
+    df_carry_event_position_and_centroid = (
+        df_positions_for_carry_event_moments.rename_axis("timestamp")
+        .reset_index()
+        .merge(df_tray_centroids, left_on="device_id", right_on="device_id")
+    )
 
     filter_centroids_with_start_end_time_match = (
-        (df_carry_event_position_and_centroid['start_datetime'] < df_carry_event_position_and_centroid['timestamp']) &
-        (df_carry_event_position_and_centroid['end_datetime'] > df_carry_event_position_and_centroid['timestamp']))
+        df_carry_event_position_and_centroid["start_datetime"] < df_carry_event_position_and_centroid["timestamp"]
+    ) & (df_carry_event_position_and_centroid["end_datetime"] > df_carry_event_position_and_centroid["timestamp"])
 
     df_carry_event_position_and_centroid = df_carry_event_position_and_centroid.loc[
-        filter_centroids_with_start_end_time_match]
-    df_carry_event_position_and_centroid.drop(
-        labels=['start_datetime', 'end_datetime'],
-        axis=1,
-        inplace=True)
+        filter_centroids_with_start_end_time_match
+    ]
+    df_carry_event_position_and_centroid.drop(labels=["start_datetime", "end_datetime"], axis=1, inplace=True)
 
     #############
     # Calculate distance between tray positions and tray centroids/shelf-positions
     #############
     centroid_to_tray_location_distances = []
-    centroid_to_tray_location_distances_columns = ['timestamp', 'device_id', 'tray_track_id', 'distance']
-    centroid_cols = map_column_name_to_dimension_space('centroid', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
-    position_cols = map_column_name_to_dimension_space(
-        'position', DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
+    centroid_to_tray_location_distances_columns = ["timestamp", "device_id", "tray_track_id", "distance"]
+    centroid_cols = map_column_name_to_dimension_space("centroid", DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
+    position_cols = map_column_name_to_dimension_space("position", DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
 
     for idx, row in df_carry_event_position_and_centroid.iterrows():
-        centroid_to_tray_location_distances.append(pd.DataFrame([[
-            row['timestamp'],
-            row['device_id'],
-            row['tray_track_id'],
-            np.linalg.norm(
-                row[centroid_cols].to_numpy() - row[position_cols].to_numpy())
-        ]], columns=centroid_to_tray_location_distances_columns))
+        centroid_to_tray_location_distances.append(
+            pd.DataFrame(
+                [
+                    [
+                        row["timestamp"],
+                        row["device_id"],
+                        row["tray_track_id"],
+                        np.linalg.norm(row[centroid_cols].to_numpy() - row[position_cols].to_numpy()),
+                    ]
+                ],
+                columns=centroid_to_tray_location_distances_columns,
+            )
+        )
 
     # pd.DataFrame(columns = column_names)
     if len(centroid_to_tray_location_distances) > 0:
@@ -573,57 +616,70 @@ def infer_tray_device_interactions(df_features, df_carry_events, df_tray_centroi
     # Merge tray centroid <-> position distance into a cleaned up carry events dataframe
     # containing tray_start_distance_from_source and tray_end_distance_from_source
     #############
-    df_final_carry_events_with_start_distance_only = df_carry_events_with_track_ids \
-        .merge(
+    df_final_carry_events_with_start_distance_only = (
+        df_carry_events_with_track_ids.merge(
             df_device_distance_from_source,
-            how='left',
-            left_on=['start', 'device_id', 'tray_track_id'],
-            right_on=['timestamp', 'device_id', 'tray_track_id']) \
-        .drop(
-            ['timestamp'],
-            axis=1) \
-        .rename(
-            columns={"distance": "tray_start_distance_from_source"})
-    df_final_carry_events_with_distances = df_final_carry_events_with_start_distance_only \
-        .merge(
+            how="left",
+            left_on=["start", "device_id", "tray_track_id"],
+            right_on=["timestamp", "device_id", "tray_track_id"],
+        )
+        .drop(["timestamp"], axis=1)
+        .rename(columns={"distance": "tray_start_distance_from_source"})
+    )
+    df_final_carry_events_with_distances = (
+        df_final_carry_events_with_start_distance_only.merge(
             df_device_distance_from_source,
-            how='left',
-            left_on=['end', 'device_id', 'tray_track_id'],
-            right_on=['timestamp', 'device_id', 'tray_track_id']) \
-        .drop(
-            ['timestamp'],
-            axis=1) \
-        .rename(
-            columns={"distance": "tray_end_distance_from_source"})
-    df_final_carry_events_with_distances.set_index('tray_track_id')
+            how="left",
+            left_on=["end", "device_id", "tray_track_id"],
+            right_on=["timestamp", "device_id", "tray_track_id"],
+        )
+        .drop(["timestamp"], axis=1)
+        .rename(columns={"distance": "tray_end_distance_from_source"})
+    )
+    df_final_carry_events_with_distances.set_index("tray_track_id")
 
     #############
     # Perform final cleanup and filtering
     #############
 
     # Add detailed tray & material info the dataframe
-    df_tray_features = df_features[df_features['entity_type'] == 'Tray']
-    df_tray_assignments = df_tray_features.groupby(['device_id',
-                                                    'tray_id',
-                                                    'tray_name',
-                                                    'material_assignment_id',
-                                                    'material_id',
-                                                    'material_name']).size().reset_index().drop(0,
-                                                                                                1)
+    df_tray_features = df_features[df_features["entity_type"] == "Tray"]
+    df_tray_assignments = (
+        df_tray_features.groupby(
+            ["device_id", "tray_id", "tray_name", "material_assignment_id", "material_id", "material_name"]
+        )
+        .size()
+        .reset_index()
+        .drop(0, 1)
+    )
     df_final_carry_events_with_distances = df_final_carry_events_with_distances.merge(
-        df_tray_assignments, how='left', left_on='device_id', right_on='device_id')
+        df_tray_assignments, how="left", left_on="device_id", right_on="device_id"
+    )
 
     # Find nearest person and filter out instances where tray and person are too far apart
-    df_min_person_tray_track_ids = df_carry_events_distances_from_people.groupby(
-        ['tray_track_id'])['person_tray_distance_median'].idxmin().rename("person_tray_track_id").to_frame()
-    df_nearest_person_to_each_track = df_carry_events_distances_from_people[(
-        (df_carry_events_distances_from_people.index.isin(df_min_person_tray_track_ids['person_tray_track_id'].tolist())) &
-        (df_carry_events_distances_from_people['person_tray_distance_median']
-         < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_PERSON)
-    )]
+    df_min_person_tray_track_ids = (
+        df_carry_events_distances_from_people.groupby(["tray_track_id"])["person_tray_distance_median"]
+        .idxmin()
+        .rename("person_tray_track_id")
+        .to_frame()
+    )
+    df_nearest_person_to_each_track = df_carry_events_distances_from_people[
+        (
+            (
+                df_carry_events_distances_from_people.index.isin(
+                    df_min_person_tray_track_ids["person_tray_track_id"].tolist()
+                )
+            )
+            & (
+                df_carry_events_distances_from_people["person_tray_distance_median"]
+                < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_PERSON
+            )
+        )
+    ]
 
     df_tray_interactions_pre_filter = df_final_carry_events_with_distances.merge(
-        df_nearest_person_to_each_track, how='left')
+        df_nearest_person_to_each_track, how="left"
+    )
 
     # # Determine each person's activity at the start and end of the carry track
     # # Append that activity to the tray interactions dataframe that is being constructed
@@ -678,28 +734,28 @@ def infer_tray_device_interactions(df_features, df_carry_events, df_tray_centroi
     #   human_activity_category_start (str)
     #   human_activity_category_end (str)
     logger.info("Tray motion interactions\n{}".format(df_tray_interactions))
-    df_tray_interactions = df_tray_interactions\
-        .rename(
-            columns={
-                'device_id': 'tray_device_id',
-                'device_id_person': 'person_device_id',
-                'person_id_person': 'person_id',
-                'person_name_person': 'person_name',
-                'person_short_name_person': 'person_short_name',
-                'person_anonymized_name_person': 'person_anonymized_name',
-                'person_anonymized_short_name_person': 'person_anonymized_short_name',
-            })\
-        .drop(
-            labels=['tray_track_id', 'material_name_tray', 'device_id_tray'],
-            axis=1)
+    df_tray_interactions = df_tray_interactions.rename(
+        columns={
+            "device_id": "tray_device_id",
+            "device_id_person": "person_device_id",
+            "person_id_person": "person_id",
+            "person_name_person": "person_name",
+            "person_short_name_person": "person_short_name",
+            "person_anonymized_name_person": "person_anonymized_name",
+            "person_anonymized_short_name_person": "person_anonymized_short_name",
+        }
+    ).drop(labels=["tray_track_id", "material_name_tray", "device_id_tray"], axis=1)
 
     interaction_types = []
     for _, row in df_tray_interactions.iterrows():
-        if row['tray_start_distance_from_source'] < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF and row['tray_end_distance_from_source'] < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF:
+        if (
+            row["tray_start_distance_from_source"] < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF
+            and row["tray_end_distance_from_source"] < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF
+        ):
             interaction_types.append(InteractionType.CARRYING_FROM_AND_TO_SHELF.name)
-        elif row['tray_start_distance_from_source'] < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF:
+        elif row["tray_start_distance_from_source"] < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF:
             interaction_types.append(InteractionType.CARRYING_FROM_SHELF.name)
-        elif row['tray_end_distance_from_source'] < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF:
+        elif row["tray_end_distance_from_source"] < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF:
             interaction_types.append(InteractionType.CARRYING_TO_SHELF.name)
         else:
             interaction_types.append(InteractionType.CARRYING_BETWEEN_NON_SHELF_LOCATIONS.name)

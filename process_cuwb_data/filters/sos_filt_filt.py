@@ -13,6 +13,6 @@ class SosFiltFiltFilter:
             padlen = 0
 
         args = self.kwargs.copy()
-        args['padlen'] = padlen
+        args["padlen"] = padlen
 
         return sosfiltfilt(sos=self.sos, x=self.x, **args)

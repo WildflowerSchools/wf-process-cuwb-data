@@ -2,8 +2,8 @@ from process_cuwb_data.utils.case_insensitive_enum import CaseInsensitiveEnum
 
 
 class HumanActivity(CaseInsensitiveEnum):
-    NOT_CARRYING = 0, 'Not carrying'
-    CARRYING = 1, 'Carrying'
+    NOT_CARRYING = 0, "Not carrying"
+    CARRYING = 1, "Carrying"
 
     # STANDING = 0, 'Standing'
     # CRAWLING = 1, 'Crawling'
