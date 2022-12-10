@@ -149,16 +149,18 @@ class CameraUWBLineOfSight(object):
     def best_camera_view(self):
         if not self.df_view_data["in_frame"].any():
             best_camera_view = pd.DataFrame(
-                {
-                    "camera_device_id": self.default_camera_device_id,
-                    "position": None,
-                    "distance_from_camera": None,
-                    "image_position": None,
-                    "distance_from_image_center": None,
-                    "in_frame": None,
-                    "in_middle": None,
-                }
-            ).set_index("camera_device_id")
+                [
+                    {
+                        "camera_device_id": self.default_camera_device_id,
+                        "position": None,
+                        "distance_from_camera": None,
+                        "image_position": None,
+                        "distance_from_image_center": None,
+                        "in_frame": None,
+                        "in_middle": None,
+                    }
+                ]
+            ).set_index(["camera_device_id"])
         elif not self.df_view_data["in_middle"].any():
             best_camera_view = self.df_view_data.sort_values("distance_from_image_center")
         else:
