@@ -9,6 +9,7 @@ import numpy as np
 
 from .camera_helper import CameraHelper
 from .camera_uwb_line_of_sight import CameraUWBLineOfSight
+from .honeycomb_service import HoneycombCachingClient
 
 
 def parse_tray_events(
@@ -59,8 +60,9 @@ def parse_tray_events(
         camera_calibrations = camera_helper.get_camera_calibrations(camera_device_ids=camera_device_ids)
 
     if default_camera_device_id is None:
-        if default_camera_name is None:
-            raise ValueError("Must specify default camera device ID or name")
+        if default_camera_name is None or default_camera_name == "":
+            default_camera_name = camera_helper.df_camera_info.iloc[1]["device_name"]
+            # raise ValueError("Must specify default camera device ID or name")
 
         default_camera_device_id = camera_helper.get_camera_id_by_name(default_camera_name)
         if default_camera_device_id is None:
@@ -212,40 +214,46 @@ def determine_best_cameras_for_trays(
     )
 
     def generate_camera_recommendations(event, event_time_field):
+        event[f"best_camera_device_id_{event_time_field}"] = None
+        event[f"best_camera_name_{event_time_field}"] = None
+        event[f"all_in_middle_camera_device_ids_{event_time_field}"] = None
+        event[f"all_in_middle_camera_names_{event_time_field}"] = None
+        event[f"all_in_frame_camera_device_ids_{event_time_field}"] = None
+        event[f"all_in_frame_camera_names_{event_time_field}"] = None
+
         if pd.isnull(event[event_time_field]):
-            event[f"best_camera_device_id_{event_time_field}"] = None
-            event[f"best_camera_name_{event_time_field}"] = None
-            event[f"all_in_middle_camera_device_ids_{event_time_field}"] = None
-            event[f"all_in_middle_camera_names_{event_time_field}"] = None
-            event[f"all_in_frame_camera_device_ids_{event_time_field}"] = None
-            event[f"all_in_frame_camera_names_{event_time_field}"] = None
-        else:
+            return event
+
+        try:
             uwb_line_of_sight = best_camera_partial(
                 timestamp=event[event_time_field],
                 tag_device_id=event["tray_device_id"],
             )
-            event[f"best_camera_device_id_{event_time_field}"] = uwb_line_of_sight.best_camera_view_device_id()
-            event[f"best_camera_name_{event_time_field}"] = camera_device_dict.get(
-                event[f"best_camera_device_id_{event_time_field}"]
-            )["device_name"]
-            event[
-                f"all_in_middle_camera_device_ids_{event_time_field}"
-            ] = uwb_line_of_sight.all_in_middle_camera_views_device_ids()
-            event[f"all_in_middle_camera_names_{event_time_field}"] = list(
-                map(
-                    lambda camera_device_id: camera_device_dict.get(camera_device_id)["device_name"],
-                    event[f"all_in_middle_camera_device_ids_{event_time_field}"],
-                )
+        except ValueError:
+            return event
+
+        event[f"best_camera_device_id_{event_time_field}"] = uwb_line_of_sight.best_camera_view_device_id()
+        event[f"best_camera_name_{event_time_field}"] = camera_device_dict.get(
+            event[f"best_camera_device_id_{event_time_field}"]
+        )["device_name"]
+        event[
+            f"all_in_middle_camera_device_ids_{event_time_field}"
+        ] = uwb_line_of_sight.all_in_middle_camera_views_device_ids()
+        event[f"all_in_middle_camera_names_{event_time_field}"] = list(
+            map(
+                lambda camera_device_id: camera_device_dict.get(camera_device_id)["device_name"],
+                event[f"all_in_middle_camera_device_ids_{event_time_field}"],
             )
-            event[
-                f"all_in_frame_camera_device_ids_{event_time_field}"
-            ] = uwb_line_of_sight.all_in_frame_camera_views_device_ids()
-            event[f"all_in_frame_camera_names_{event_time_field}"] = list(
-                map(
-                    lambda camera_device_id: camera_device_dict.get(camera_device_id)["device_name"],
-                    event[f"all_in_frame_camera_device_ids_{event_time_field}"],
-                )
+        )
+        event[
+            f"all_in_frame_camera_device_ids_{event_time_field}"
+        ] = uwb_line_of_sight.all_in_frame_camera_views_device_ids()
+        event[f"all_in_frame_camera_names_{event_time_field}"] = list(
+            map(
+                lambda camera_device_id: camera_device_dict.get(camera_device_id)["device_name"],
+                event[f"all_in_frame_camera_device_ids_{event_time_field}"],
             )
+        )
 
         return event
 
@@ -609,26 +617,20 @@ def all_cameras_tray_view_data(
     client_id=None,
     client_secret=None,
 ):
+    honeycomb_caching_client = HoneycombCachingClient()
+
     if camera_calibrations is None:
         if environment_id is None and environment_name is None and camera_device_ids is None:
             raise ValueError(
                 "If camera calibration info is not specified, must specify either camera device IDs or environment ID or environment name"
             )
         if camera_device_ids is None:
-            camera_info = honeycomb_io.fetch_devices(
-                device_types=honeycomb_io.DEFAULT_CAMERA_DEVICE_TYPES,
+            camera_info = honeycomb_caching_client.fetch_camera_devices(
                 environment_id=environment_id,
                 environment_name=environment_name,
                 start=timestamp,
                 end=timestamp,
-                output_format="dataframe",
                 chunk_size=chunk_size,
-                client=client,
-                uri=uri,
-                token_uri=token_uri,
-                audience=audience,
-                client_id=client_id,
-                client_secret=client_secret,
             )
             camera_device_ids = camera_info.index.unique().tolist()
         camera_calibrations = honeycomb_io.fetch_camera_calibrations(

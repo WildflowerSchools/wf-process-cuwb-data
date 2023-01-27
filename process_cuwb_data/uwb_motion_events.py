@@ -5,7 +5,10 @@ from process_cuwb_data.utils.log import logger
 
 
 def extract_carry_events_for_device(
-    df_device_carry_predictions, prediction_column_name="predicted_tray_carry_label", device_id_column_name="device_id"
+    df_device_carry_predictions,
+    prediction_column_name="predicted_tray_carry_label",
+    device_id_column_name="device_id",
+    data_frequency=pd.to_timedelta("100ms"),
 ):
     """
     Loop through carry predictions dataframe and build carry tracks. Carry tracks are periods of time when the
@@ -47,14 +50,15 @@ def extract_carry_events_for_device(
     ][["device_id", "predicted_tray_carry_label"]]
 
     carry_event = None
-    inferred_frequency = pd.tseries.frequencies.to_offset(pd.infer_freq(df_device_carry_predictions.index, warn=True))
+    # inferred_frequency = pd.tseries.frequencies.to_offset(pd.infer_freq(df_device_carry_predictions.index, warn=True))
+
     for time, row in df_carry_prediction_change_moments.iterrows():
         current_prediction = CarryCategory(row[prediction_column_name])
 
         if current_prediction == CarryCategory.CARRIED:
             carry_event = CarryEvent(device_id=row[device_id_column_name], start=time)
         elif carry_event is not None:
-            carry_event.end = time - inferred_frequency
+            carry_event.end = time - data_frequency
 
             quality_agg = df_device_carry_predictions.loc[
                 (df_device_carry_predictions["device_id"] == row["device_id"])

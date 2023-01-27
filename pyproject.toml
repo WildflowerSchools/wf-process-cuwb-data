@@ -26,13 +26,13 @@ numpy = "^1.20.2"
 pandas = "^1.2.4"
 python = ">=3.8,<3.12"
 python-dotenv = "^0.21.0"
-python-slugify = "^6.1.2"
+python-slugify = "^7.0.0"
 scipy = "^1.6.3"
 scikit-learn = "^1.1.2"
 wf-honeycomb-io = "^2.0.0"
 wf-process-pose-data = "^6.0.0"
 pyyaml = "^6.0"
-wf-video-io = {path = "../wf-video-io", develop = true}
+wf-geom-render = "^0.3.0"
 
 [tool.poetry.dev-dependencies]
 autopep8 = "^2.0.0"

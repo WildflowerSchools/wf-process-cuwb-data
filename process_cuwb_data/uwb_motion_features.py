@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
+from scipy.signal import find_peaks, peak_prominences, peak_widths
 
-from .utils.util import filter_entity_type
 from .uwb_motion_filters import TrayMotionButterFiltFiltFilter, TrayMotionSavGolFilter
 from process_cuwb_data.utils.log import logger
 
@@ -19,6 +19,7 @@ class FeatureExtraction:
 
     VELOCITY_COLUMNS = [
         "quality",
+        "anchor_count",
         "x_mps",
         "y_mps",
         "z_mps",
@@ -245,9 +246,9 @@ class FeatureExtraction:
             if df_gyroscope is not None:
                 df_gyroscope_for_device = df_gyroscope.loc[df_gyroscope["device_id"] == device_id].copy().sort_index()
 
-            df_magnetomter_for_device = None
+            df_magnetometer_for_device = None
             if df_magnetometer is not None:
-                df_magnetomter_for_device = (
+                df_magnetometer_for_device = (
                     df_magnetometer.loc[df_magnetometer["device_id"] == device_id].copy().sort_index()
                 )
 
@@ -255,7 +256,7 @@ class FeatureExtraction:
                 df_position=df_position_for_device,
                 df_acceleration=df_acceleration_for_device,
                 df_gyroscope=df_gyroscope_for_device,
-                df_magnetomter=df_magnetomter_for_device,
+                df_magnetometer=df_magnetometer_for_device,
                 fillna=fillna,
                 join=join,
             )
@@ -278,15 +279,11 @@ class FeatureExtraction:
         )
 
     def extract_motion_features(
-        self, df_position, df_acceleration, df_gyroscope=None, df_magnetomter=None, fillna=None, join="outer"
+        self, df_position, df_acceleration, df_gyroscope=None, df_magnetometer=None, fillna=None, join="outer"
     ):
         df_velocity_features = pd.DataFrame(columns=FeatureExtraction.VELOCITY_COLUMNS)
         if df_position is not None:
             df_velocity_features = self.extract_velocity_features(df=df_position)
-
-            df_quality = self.regularize_index(df_position[["quality"]])
-
-            df_velocity_features = df_velocity_features.join(df_quality, how="inner")
 
         df_acceleration_features = pd.DataFrame(columns=FeatureExtraction.ACCELERATION_COLUMNS)
         if df_acceleration is not None:
@@ -297,8 +294,8 @@ class FeatureExtraction:
             df_gyroscope_features = self.extract_gyroscope_features(df=df_gyroscope)
 
         df_magnetometer_features = pd.DataFrame(columns=FeatureExtraction.MAGNETOMETER_COLUMNS)
-        if df_magnetomter is not None:
-            df_magnetometer_features = self.extract_magnetometer_features(df=df_magnetomter)
+        if df_magnetometer is not None:
+            df_magnetometer_features = self.extract_magnetometer_features(df=df_magnetometer)
 
         df_features = (
             df_velocity_features.join(df_acceleration_features, how=join)
@@ -340,8 +337,10 @@ class FeatureExtraction:
         if "x_meters" in df.columns:
             df.rename(columns={"x_meters": "x_mps", "y_meters": "y_mps", "z_meters": "z_mps"}, inplace=True)
 
-        df = df.reindex(columns=["x_mps", "y_mps", "z_mps"])
-        df = self.regularize_index(df)
+        df = self.average_xyz_duplicates(df, x_col="x_mps", y_col="y_mps", z_col="z_mps")
+
+        df = df.reindex(columns=["x_mps", "y_mps", "z_mps", "quality", "anchor_count"])
+        df = self.regularize_index_and_smooth(df)
         df = self.calculate_velocity_features(df=df)
         df = df.sort_index()
         return df
@@ -351,8 +350,20 @@ class FeatureExtraction:
         if "x" in df.columns:
             df.rename(columns={"x": "x_gs", "y": "y_gs", "z": "z_gs"}, inplace=True)
 
+        df = self.average_xyz_duplicates(df, x_col="x_gs", y_col="y_gs", z_col="z_gs")
+        df = self.normalize_acceleration(df, x_col="x_gs", y_col="y_gs", z_col="z_gs")
+
+        # df_acceleration_for_device_by_peaks = self.remove_wos_acceleration_peaks(
+        #     df=df,
+        #     x_col="x_acceleration_normalized",
+        #     y_col="y_acceleration_normalized",
+        #     z_col="z_acceleration_normalized",
+        #     require_peak_across_all_axes=False)
+
+        df = self.remove_initial_acceleration_reading_by_time_gaps(df)
+
         df = df.reindex(columns=["x_gs", "y_gs", "z_gs"])
-        df = self.regularize_index(df)
+        df = self.regularize_index_and_smooth(df)
         df = self.calculate_acceleration_features(
             df=df,
         )
@@ -365,8 +376,10 @@ class FeatureExtraction:
         if "x" in df.columns:
             df.rename(columns={"x": "x_dps", "y": "y_dps", "z": "z_dps"}, inplace=True)
 
+        df = self.average_xyz_duplicates(df, x_col="x_dps", y_col="y_dps", z_col="z_dps")
+
         df = df.reindex(columns=["x_dps", "y_dps", "z_dps"])
-        df = self.regularize_index(df)
+        df = self.regularize_index_and_smooth(df)
         return df
 
     def extract_magnetometer_features(self, df):
@@ -375,23 +388,91 @@ class FeatureExtraction:
         if "x" in df.columns:
             df.rename(columns={"x": "x_μT", "y": "y_μT", "z": "z_μT"}, inplace=True)
 
+        df = self.average_xyz_duplicates(df, x_col="x_μT", y_col="y_μT", z_col="z_μT")
+
         df = df.reindex(columns=["x_μT", "y_μT", "z_μT"])
-        df = self.regularize_index(df)
+        df = self.regularize_index_and_smooth(df)
         return df
 
-    def regularize_index(self, df):
+    def regularize_index_and_smooth(self, df):
         df = df.copy()
 
         if len(df) == 0:
             return df
 
+        df = df.astype(float)
         df = df.loc[~df.index.duplicated()].copy()
+
         start = df.index.min().floor(self.frequency)
         end = df.index.max().ceil(self.frequency)
+
         regular_index = pd.date_range(start=start, end=end, freq=self.frequency)
         df = df.reindex(df.index.union(regular_index))
-        df = df.interpolate(method="time", limit_area="inside")
+        df = df.interpolate(method="time", limit=5, limit_area="inside")
         df = df.reindex(regular_index).dropna()
+        return df
+
+    def detect_peaks(self, np_array, width=None, min_height_as_percentage_of_max=0.8):
+        """
+        This method using Scipy find_peaks to extract peaks, peak 'widths', and peak 'prominences'.
+
+        Note, data should be normalized before using this method.
+
+        :param np_array: Expects a numpy array of values. This method works on a single axis of data at a time.
+        :param width: See the Scipy find_peaks::width attribute. In short, this method defines the min/max width of a peak
+        :param min_height_as_percentage_of_max:  See the Scipy find_peaks::height attribute. This method sets the minimum height based on a percentage of the max value in the provided numpy array.
+        :return: (peaks, widths, prominences)
+        """
+        np_array = np_array.copy()
+        np_array.reset_index(drop=True, inplace=True)
+
+        # find_peaks will miss peaks at the front and back of an array unless we prepend and append min values to the array being analyzed
+        augmented_np_array = np.concatenate(([min(np_array)], np_array, [min(np_array)]))
+
+        peaks, _ = find_peaks(
+            augmented_np_array, width=width, height=(max(augmented_np_array) * min_height_as_percentage_of_max, None)
+        )
+        widths = peak_widths(augmented_np_array, peaks)[0]
+        prominences = peak_prominences(augmented_np_array, peaks)[0]
+
+        # compensate for the prepended value in the augmented_x array that was analyzed
+        peaks -= 1
+
+        return peaks, widths, prominences
+
+    def average_xyz_duplicates(self, df, x_col="x", y_col="y", z_col="z", group_by_cols=None, inplace=False):
+        """
+        Ciholas' IMU system will sometimes output multiple readings at the sametime ("sametime" after we lost access to the Ciholas network_time attribute")
+
+        This method will average the x/y/z values for any of those duplicates and the duplicates will be removed.
+
+        :param df: DF with time index
+        :param x_col:
+        :param y_col:
+        :param z_col:
+        :params group_by_cols: By default, the dataframe will be deduped by the index. Alternatively, an array of columns can be provided to group by.
+        :param inplace:
+        :return: Dataframe
+        """
+        if not inplace:
+            df = df.copy()
+
+        # ['socket_read_time', 'device_id']
+        if group_by_cols is None:
+            df["tmp_group_by_index"] = df.index
+            group_by_cols = ["tmp_group_by_index"]
+
+        df_averaged = df.groupby(group_by_cols).agg({x_col: np.mean, y_col: np.mean, z_col: np.mean})
+
+        df = (
+            df.drop_duplicates(group_by_cols)
+            .drop(columns=[x_col, y_col, z_col])
+            .merge(df_averaged, left_on=group_by_cols, right_index=True, how="left", suffixes=("_x", None))
+        )
+
+        if "tmp_group_by_index" in group_by_cols:
+            df = df.drop(columns=["tmp_group_by_index"])
+
         return df
 
     def calculate_velocity_features(self, df, inplace=False):
@@ -509,6 +590,86 @@ class FeatureExtraction:
         if not inplace:
             return df
 
+    def remove_wos_acceleration_peaks(
+        self, df, x_col="x", y_col="y", z_col="z", require_peak_across_all_axes=False, inplace=False
+    ):
+        """
+        Method was created to correct for erroneous acceleration values introduced by WoS. Wake on Shake (WoS) has the tendency to spike when awaking. When analyzing the data, it appeared this data spike is usually contained to a single reading before the readings report sensible data.
+
+        This method will remove all spikes from a provided Dataframe. Use the cols attributes to specify the x/y/z columns.
+
+        Note, data should be normalized before using this method.
+
+        :param df:
+        :param x_col:
+        :param y_col:
+        :param z_col:
+        :param require_peak_across_all_axes: When set to True the method will only remove a "peak candidate" if the peak occurred across all dimensions (x, y, and z)
+        :param inplace:
+        :return: Dataframe
+        """
+        if not inplace:
+            df = df.copy()
+
+        x_peaks, x_widths, _ = self.detect_peaks(df[x_col], width=1, min_height_as_percentage_of_max=0.6)
+        y_peaks, y_widths, _ = self.detect_peaks(df[y_col], width=1, min_height_as_percentage_of_max=0.6)
+        z_peaks, z_widths, _ = self.detect_peaks(df[z_col], width=1, min_height_as_percentage_of_max=0.6)
+
+        all_peaks = np.concatenate((x_peaks, y_peaks, z_peaks))
+        unique_peaks, peak_counts = np.unique(all_peaks, return_counts=True)
+
+        peaks_idxs = unique_peaks
+        if require_peak_across_all_axes:
+            peaks_idxs = []
+            for idx, count in enumerate(peak_counts):
+                if count >= 3:
+                    peaks_idxs.append(unique_peaks[idx])
+
+        logger.info(f"Correcting for WoS, dropping {len(peaks_idxs)} indices by identifying acceleration peaks")
+
+        df = df.drop(df.iloc[peaks_idxs].index)
+
+        if not inplace:
+            return df
+
+    def remove_initial_acceleration_reading_by_time_gaps(self, df, inplace=False):
+        """
+        Method was created to correct for erroneous acceleration values introduced by WoS.
+
+        Scans the provided dataframe for any time gaps (as defined by 0.5 seconds). Removes the first value following a time gap.
+        :param inplace:
+        :return:
+        """
+        if not inplace:
+            df = df.copy()
+
+        df["gap"] = df.sort_index().index.to_series().diff() > pd.to_timedelta("0.5 seconds")
+        drop_index = df.loc[df["gap"] == True].index
+
+        logger.info(
+            f"Correcting for WoS, dropping {len(drop_index) + 1} indices by searching for time gaps and removing first data instance"
+        )
+
+        # Drop the first item that follows each "gap" in time, also drop the very first row which won't be identified with the diff() method
+        df = df.drop(drop_index)
+
+        if len(df) > 0:
+            df = df.drop(df.index[0])
+
+        if not inplace:
+            return df
+
+    def normalize_acceleration(self, df, x_col="x", y_col="y", z_col="z", inplace=False):
+        if not inplace:
+            df = df.copy()
+
+        df["x_acceleration_normalized"] = np.absolute(np.subtract(df[x_col], df[x_col].mean()))
+        df["y_acceleration_normalized"] = np.absolute(np.subtract(df[y_col], df[y_col].mean()))
+        df["z_acceleration_normalized"] = np.absolute(np.subtract(df[z_col], df[z_col].mean()))
+
+        if not inplace:
+            return df
+
     def calculate_acceleration_features(self, df, inplace=False):
         if not inplace:
             df = df.copy()
@@ -516,9 +677,7 @@ class FeatureExtraction:
         if "x" in df.columns:
             df.rename(columns={"x": "x_gs", "y": "y_gs", "z": "z_gs"}, inplace=True)
 
-        df["x_acceleration_normalized"] = np.absolute(np.subtract(df["x_gs"], df["x_gs"].mean()))
-        df["y_acceleration_normalized"] = np.absolute(np.subtract(df["y_gs"], df["y_gs"].mean()))
-        df["z_acceleration_normalized"] = np.absolute(np.subtract(df["z_gs"], df["z_gs"].mean()))
+        df = self.normalize_acceleration(df, x_col="x_gs", y_col="y_gs", z_col="z_gs")
 
         df["acceleration_vector_magnitude"] = (
             df[["x_acceleration_normalized", "y_acceleration_normalized", "z_acceleration_normalized"]]

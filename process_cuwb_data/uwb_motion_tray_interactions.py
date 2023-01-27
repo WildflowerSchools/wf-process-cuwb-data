@@ -197,7 +197,18 @@ def people_trays_cdist_iterable(idx, _df_people, _df_trays, v_count, v_start, lo
 
         v_count.value += 1
 
+    if idx not in _df_people.index:
+        logger.warning(
+            f"No people tags at {idx}, cannot/will not try to compute distance coefficients between people and trays for this time instance"
+        )
+        return None
     df_people_by_idx = _df_people.loc[[idx]]
+
+    if idx not in _df_trays.index:
+        logger.warning(
+            f"No tray tags at {idx}, cannot/will not try to compute distance coefficients between people and trays for this time instance"
+        )
+        return None
     df_trays_by_idx = _df_trays.loc[[idx]]
 
     position_cols = map_column_name_to_dimension_space("position", DIMENSIONS_WHEN_COMPUTING_CHILD_TRAY_DISTANCE)

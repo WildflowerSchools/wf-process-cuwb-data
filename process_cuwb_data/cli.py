@@ -11,6 +11,7 @@ import pytz
 from .core import (
     estimate_tray_centroids,
     extract_tray_carry_events_from_inferred,
+    infer_tray_events,
     infer_tray_interactions,
     fetch_cuwb_data,
     fetch_cuwb_data_from_datapoints,
@@ -339,13 +340,13 @@ def cli_train_tray_carry_model(groundtruth_features, tune, output):
 @add_options(_cli_options_uwb_data)
 @add_options(_cli_options_uwb_motion_data)
 @click.option(
-    "--model",
+    "--tray-carry-model",
     type=click.Path(exists=True),
     required=True,
     help="Pickle formatted model object (create with 'train-tray-carry-model')",
 )
 @click.option(
-    "--feature-scaler",
+    "--tray-carry-feature-scaler",
     type=click.Path(exists=True),
     help="Pickle formatted feature scaling input (create with 'train-tray-carry-model')",
 )
@@ -355,7 +356,9 @@ def cli_train_tray_carry_model(groundtruth_features, tune, output):
     default="%s/output" % (os.getcwd()),
     help="output folder, tray centroids stored as csv in <<output>>/locations (e.g. <<output/locations/<<DATE>>_tray_centroids.csv)",
 )
-def cli_estimate_tray_centroids(environment, start, end, cuwb_data, motion_feature_data, model, feature_scaler, output):
+def cli_estimate_tray_centroids(
+    environment, start, end, cuwb_data, motion_feature_data, tray_carry_model, tray_carry_feature_scaler, output
+):
     locations_output = "{}/locations".format(output)
     Path(locations_output).mkdir(parents=True, exist_ok=True)
 
@@ -375,7 +378,9 @@ def cli_estimate_tray_centroids(environment, start, end, cuwb_data, motion_featu
         ]
 
     df_tray_features = df_uwb_motion_features[df_uwb_motion_features["entity_type"] == "Tray"]
-    model_obj, feature_scaler_obj = _load_model_and_scaler(model_path=model, feature_scaler_path=feature_scaler)
+    model_obj, feature_scaler_obj = _load_model_and_scaler(
+        model_path=tray_carry_model, feature_scaler_path=tray_carry_feature_scaler
+    )
 
     df_tray_centroids = estimate_tray_centroids(
         model=model_obj, scaler=feature_scaler_obj, df_tray_features=df_tray_features
@@ -397,13 +402,13 @@ def cli_estimate_tray_centroids(environment, start, end, cuwb_data, motion_featu
 @add_options(_cli_options_uwb_data)
 @add_options(_cli_options_uwb_motion_data)
 @click.option(
-    "--model",
+    "--tray-carry-model",
     type=click.Path(exists=True),
     required=True,
     help="Pickle formatted model object (create with 'train-tray-carry-model')",
 )
 @click.option(
-    "--feature-scaler",
+    "--tray-carry-feature-scaler",
     type=click.Path(exists=True),
     help="Pickle formatted feature scaling input (create with 'train-tray-carry-model')",
 )
@@ -413,7 +418,9 @@ def cli_estimate_tray_centroids(environment, start, end, cuwb_data, motion_featu
     default="%s/output" % (os.getcwd()),
     help="output folder, carry events stored as csv in <<output>>/inference/tray_carry (e.g. <<output>>/inference/tray_carry/<<DATE>>_carry_events.csv)",
 )
-def cli_infer_tray_carry(environment, start, end, cuwb_data, motion_feature_data, model, feature_scaler, output):
+def cli_infer_tray_carry(
+    environment, start, end, cuwb_data, motion_feature_data, tray_carry_model, tray_carry_feature_scaler, output
+):
     inference_output = "{}/inference/tray_carry".format(output)
     Path(inference_output).mkdir(parents=True, exist_ok=True)
 
@@ -438,7 +445,7 @@ def cli_infer_tray_carry(environment, start, end, cuwb_data, motion_feature_data
         logger.warn("No tray motion events detected")
         return None
 
-    model_obj, feature_scaler_obj = _load_model_and_scaler(model, feature_scaler)
+    model_obj, feature_scaler_obj = _load_model_and_scaler(tray_carry_model, tray_carry_feature_scaler)
     df_carry_events = _infer_tray_carry(df_tray_features=df_tray_features, model=model_obj, scaler=feature_scaler_obj)
     if df_carry_events is None or len(df_carry_events) == 0:
         logger.warn("No tray carry events detected")
@@ -663,6 +670,35 @@ def cli_infer_tray_interactions(
         )
 
 
+@click.command(name="infer-tray-events")
+@click.option("--environment", type=str, required=True)
+@click.option("--tray-interactions", type=click.Path(exists=True), help="CSV formatted tray interactions CSV data")
+@click.option(
+    "--output",
+    type=click.Path(),
+    default="%s/output" % (os.getcwd()),
+    help="output folder, tray events stored as csv in <<output>>/inference/tray_events (e.g. <<output>>/inference/tray_events/<<DATE>>_tray_events.csv)",
+)
+def cli_infer_tray_events(environment, tray_interactions, output):
+    tray_events_output = "{}/inference/tray_events".format(output)
+    Path(tray_events_output).mkdir(parents=True, exist_ok=True)
+
+    # df_tray_interactions = pd.DataFrame(read_generic_pkl(tray_interactions))
+    df_tray_interactions = pd.read_csv(tray_interactions)
+    df_tray_interactions["start"] = pd.to_datetime(df_tray_interactions["start"])
+    df_tray_interactions["end"] = pd.to_datetime(df_tray_interactions["end"])
+
+    df_tray_events = infer_tray_events(
+        environment=environment, df_tray_interactions=df_tray_interactions, default_camera_name=""
+    )
+
+    if df_tray_events is None or len(df_tray_events) == 0:
+        logger.warn("No tray events inferred")
+        return
+    else:
+        write_datafile_to_csv(df_tray_events, "{}_tray_events".format(now), directory=tray_events_output, index=False)
+
+
 @click_log.simple_verbosity_option(logger)
 @click.group()
 @click.option("--env-file", type=click.Path(exists=True), help="env file to load environment variables from")
@@ -684,3 +720,4 @@ cli.add_command(cli_estimate_tray_centroids)
 cli.add_command(cli_infer_tray_carry)
 cli.add_command(cli_infer_human_activity)
 cli.add_command(cli_infer_tray_interactions)
+cli.add_command(cli_infer_tray_events)

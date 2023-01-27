@@ -4,7 +4,7 @@ build:
 publish: build
     poetry publish
 
-install-dev:
+install:
     poetry install
 
 test:

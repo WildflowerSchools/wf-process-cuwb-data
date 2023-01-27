@@ -4,15 +4,16 @@ import pandas as pd
 import platform
 
 from honeycomb_io import (
-    fetch_environment_by_name,
-    fetch_environment_id,
     fetch_material_tray_devices_assignments,
     fetch_raw_cuwb_data,
 )
+
 import process_pose_data
 
 from .honeycomb_imu_data import fetch_imu_data
 from .honeycomb_pose_data import pose_data_with_body_centroid as _pose_data_with_body_centroid
+from .honeycomb_service import HoneycombCachingClient
+import process_cuwb_data.parse_events as parse_events
 from .utils.io import load_csv
 from .utils.log import logger
 from .utils.util import filter_data_type_and_format
@@ -27,7 +28,8 @@ from .uwb_predict_tray_centroids import classifier_filter_no_movement_from_tray_
 
 
 def fetch_tray_device_assignments(environment, start, end):
-    environment = fetch_environment_by_name(environment_name=environment)
+    honeycomb_caching_client = HoneycombCachingClient()
+    environment = honeycomb_caching_client.fetch_environment_by_name(environment_name=environment)
     if environment is None:
         return None
 
@@ -109,6 +111,17 @@ def fetch_cuwb_data_from_datapoints(
     return extract_by_data_type_and_format(df, data_type)
 
 
+def fetch_motion_features_from_datapoints(
+    environment, start, end, df_uwb_data=None, entity_type="all", include_meta_fields=False, fillna=None
+):
+    if df_uwb_data is None:
+        df_uwb_data = fetch_cuwb_data_from_datapoints(environment, start, end, entity_type=entity_type)
+
+    return extract_motion_features_from_raw_datapoints(
+        df_uwb_data, entity_type=entity_type, include_meta_fields=include_meta_fields, fillna=fillna
+    )
+
+
 def fetch_motion_features(
     environment, start, end, df_uwb_data=None, entity_type="all", include_meta_fields=True, fillna=None
 ):
@@ -117,13 +130,15 @@ def fetch_motion_features(
 
     df_position = filter_data_type_and_format(df_uwb_data, "position")
     df_accelerometer = filter_data_type_and_format(df_uwb_data, "accelerometer")
-    df_gyroscope = filter_data_type_and_format(df_uwb_data, "gyroscope")
-    df_magnetometer = filter_data_type_and_format(df_uwb_data, "magnetometer")
+    # df_gyroscope = filter_data_type_and_format(df_uwb_data, "gyroscope")
+    df_gyroscope = pd.DataFrame()
+    # df_magnetometer = filter_data_type_and_format(df_uwb_data, "magnetometer")
+    df_magnetometer = pd.DataFrame()
     df_motion_features = extract_motion_features(
         df_position=df_position,
         df_acceleration=df_accelerometer,
-        df_gyroscope=df_gyroscope,
-        df_magnetometer=df_magnetometer,
+        df_gyroscope=None,
+        df_magnetometer=None,
         entity_type=entity_type,
         fillna=fillna,
     )
@@ -166,17 +181,6 @@ def fetch_motion_features(
         return df_motion_features.join(df_meta_fields, on="device_id", how="left")
     else:
         return df_motion_features
-
-
-def fetch_motion_features_from_datapoints(
-    environment, start, end, df_uwb_data=None, entity_type="all", include_meta_fields=False, fillna=None
-):
-    if df_uwb_data is None:
-        df_uwb_data = fetch_cuwb_data_from_datapoints(environment, start, end, entity_type=entity_type)
-
-    return extract_motion_features_from_raw_datapoints(
-        df_uwb_data, entity_type=entity_type, include_meta_fields=include_meta_fields, fillna=fillna
-    )
 
 
 def extract_motion_features_from_raw_datapoints(
@@ -376,6 +380,7 @@ def estimate_tray_centroids(model, df_tray_features, scaler=None):
     :param df_tray_features: Dataframe with uwb data containing uwb_motion_classifiers.DEFAULT_FEATURE_FIELD_NAMES
     :return: Dataframe with tray centroid predictions
     """
+    df_tray_features = df_tray_features.copy()
 
     df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = (
         df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate().fillna(method="bfill")
@@ -397,6 +402,8 @@ def infer_tray_carry(model, df_tray_features, scaler=None):
     :param df_tray_features: Dataframe with uwb data containing uwb_motion_classifiers.DEFAULT_FEATURE_FIELD_NAMES
     :return: Dataframe with uwb data containing a "predicted_tray_carry_label" column
     """
+    df_tray_features = df_tray_features.copy()
+
     tc = TrayCarryClassifier(model=model, feature_scaler=scaler)
     df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = (
         df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate().fillna(method="bfill")
@@ -487,7 +494,8 @@ def infer_tray_interactions(df_motion_features, df_carry_events, df_tray_centroi
 def pose_data_with_body_centroid(
     environment, start, end, pose_inference_id, pose_inference_base, pose_inference_subdirectory
 ):
-    environment_id = fetch_environment_id(environment_name=environment)
+    honeycomb_caching_client = HoneycombCachingClient()
+    environment_id = honeycomb_caching_client.fetch_environment_id(environment_name=environment)
 
     df_poses_3d = process_pose_data.fetch_3d_poses_with_person_info(
         base_dir=pose_inference_base,
@@ -499,3 +507,9 @@ def pose_data_with_body_centroid(
     )
 
     return _pose_data_with_body_centroid(environment=environment, start=start, end=end, df_3d_pose_data=df_poses_3d)
+
+
+def infer_tray_events(environment, df_tray_interactions, default_camera_name=None):
+    return parse_events.parse_tray_events(
+        tray_events=df_tray_interactions, environment_name=environment, default_camera_name=default_camera_name
+    )

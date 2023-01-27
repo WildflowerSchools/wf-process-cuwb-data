@@ -5,6 +5,9 @@ import honeycomb_io
 import numpy as np
 import pandas as pd
 
+from .honeycomb_service import HoneycombCachingClient
+from .utils.log import logger
+
 
 class CameraUWBLineOfSight(object):
     def __init__(
@@ -26,6 +29,8 @@ class CameraUWBLineOfSight(object):
         client_id=None,
         client_secret=None,
     ):
+        honeycomb_caching_client = HoneycombCachingClient()
+
         self.timestamp = timestamp
         self.tag_device_id = tag_device_id
         self.default_camera_device_id = default_camera_device_id
@@ -47,19 +52,13 @@ class CameraUWBLineOfSight(object):
         }
 
         if camera_device_ids is None:
-            camera_info = honeycomb_io.fetch_devices(
-                device_types=honeycomb_io.DEFAULT_CAMERA_DEVICE_TYPES,
-                environment_id=environment_id,
-                environment_name=environment_name,
-                start=timestamp,
-                end=timestamp,
-                output_format="dataframe",
-                **client_params,
+            camera_info = honeycomb_caching_client.fetch_camera_devices(
+                environment_id=environment_id, environment_name=environment_name, start=timestamp, end=timestamp
             )
             camera_device_ids = camera_info.index.unique().tolist()
         if camera_calibrations is None:
-            camera_calibrations = honeycomb_io.fetch_camera_calibrations(
-                camera_ids=camera_device_ids, start=timestamp, end=timestamp, **client_params
+            camera_calibrations = honeycomb_caching_client.fetch_camera_calibrations(
+                camera_ids=camera_device_ids, start=timestamp, end=timestamp
             )
         position_window_start = timestamp - datetime.timedelta(seconds=position_window_seconds / 2)
         position_window_end = timestamp + datetime.timedelta(seconds=position_window_seconds / 2)
@@ -74,6 +73,11 @@ class CameraUWBLineOfSight(object):
             sort_arguments=None,
             **client_params,
         )
+        if len(position_data) == 0:
+            err = f"Unable to find position data between {position_window_start} and {position_window_end}, cannot determine best camera views"
+            logger.warning(err)
+            raise ValueError(err)
+
         position = np.nanmedian(position_data.loc[:, ["x", "y", "z"]].values, axis=0)
         if imputed_z_position is not None:
             position[2] = imputed_z_position

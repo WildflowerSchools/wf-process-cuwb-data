@@ -3,6 +3,8 @@ from typing import List, Optional
 
 import honeycomb_io
 
+from .honeycomb_service import HoneycombCachingClient
+
 
 class CameraHelper(object):
     def __init__(
@@ -25,6 +27,8 @@ class CameraHelper(object):
         if start is None or end is None:
             raise ValueError("Must specify both start and end timestamps")
 
+        honeycomb_caching_client = HoneycombCachingClient()
+
         self.environment_id = environment_id
         self.environment_name = environment_name
 
@@ -39,31 +43,33 @@ class CameraHelper(object):
         }
 
         if self.environment_id is None:
-            e = honeycomb_io.fetch_environment_by_name(environment_name=environment_name)
+            e = honeycomb_caching_client.fetch_environment_by_name(environment_name=environment_name)
             if e is None:
                 raise ValueError(f"Couldn't find environment: {environment_name}")
             self.environment_id = e["environment_id"]
 
         if self.environment_name is None:
-            df_e = honeycomb_io.fetch_all_environments(output_format="dataframe", **self.client_params)
+            df_e = honeycomb_caching_client.fetch_all_environments()
             if df_e is None:
                 raise ValueError(f"Couldn't find environment by id: {self.environment_id}")
             self.environment_name = df_e.loc[e["environment_id"] == self.environment_id][0]
 
         self.start = start
         self.end = end
-        self.df_camera_info = honeycomb_io.fetch_camera_info(
-            environment_name=self.environment_name, start=start, end=end, **self.client_params
+        self.df_camera_info = honeycomb_caching_client.fetch_camera_info(
+            environment_name=self.environment_name, start=start, end=end
         )
         self.camera_calibrations = None
 
     def get_camera_calibrations(self, camera_device_ids: Optional[List[str]] = None):
+        honeycomb_caching_client = HoneycombCachingClient()
+
         _camera_device_ids = camera_device_ids
         if camera_device_ids is None:
             _camera_device_ids = self.get_camera_ids()
 
-        self.camera_calibrations = honeycomb_io.fetch_camera_calibrations(
-            camera_ids=_camera_device_ids, start=self.start, end=self.end, **self.client_params
+        self.camera_calibrations = honeycomb_caching_client.fetch_camera_calibrations(
+            camera_ids=tuple(_camera_device_ids), start=self.start, end=self.end
         )
 
         return self.camera_calibrations
