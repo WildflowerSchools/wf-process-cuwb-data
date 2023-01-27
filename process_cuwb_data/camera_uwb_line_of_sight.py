@@ -38,7 +38,7 @@ class CameraUWBLineOfSight(object):
         if camera_calibrations is None:
             if environment_id is None and environment_name is None and camera_device_ids is None:
                 raise ValueError(
-                    "If camera calibration info is not specified, must specify either camera device IDs or environment ID or environment name"
+                    "If camera calibration info is not specified, must specify either camera device IDs or environment_name ID or environment_name name"
                 )
 
         client_params = {

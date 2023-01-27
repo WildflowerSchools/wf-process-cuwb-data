@@ -22,7 +22,7 @@ def fetch_geoms_2d(
     notebook=False,
 ):
     # Fetch CUWB position data
-    df_position = fetch_imu_data(imu_type="position", environment=environment_name, start=start_time, end=end_time)
+    df_position = fetch_imu_data(imu_type="position", environment_name=environment_name, start=start_time, end=end_time)
     if z_axis_override:
         df_position["z"] = z_axis_override
 

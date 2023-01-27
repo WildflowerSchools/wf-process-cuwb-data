@@ -22,7 +22,7 @@ class CameraHelper(object):
         client_secret=None,
     ):
         if environment_id is None and environment_name is None:
-            raise ValueError("Must specify either environment ID or environment name")
+            raise ValueError("Must specify either environment_name ID or environment_name name")
 
         if start is None or end is None:
             raise ValueError("Must specify both start and end timestamps")
@@ -45,13 +45,13 @@ class CameraHelper(object):
         if self.environment_id is None:
             e = honeycomb_caching_client.fetch_environment_by_name(environment_name=environment_name)
             if e is None:
-                raise ValueError(f"Couldn't find environment: {environment_name}")
+                raise ValueError(f"Couldn't find environment_name: {environment_name}")
             self.environment_id = e["environment_id"]
 
         if self.environment_name is None:
             df_e = honeycomb_caching_client.fetch_all_environments()
             if df_e is None:
-                raise ValueError(f"Couldn't find environment by id: {self.environment_id}")
+                raise ValueError(f"Couldn't find environment_name by id: {self.environment_id}")
             self.environment_name = df_e.loc[e["environment_id"] == self.environment_id][0]
 
         self.start = start

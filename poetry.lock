@@ -113,18 +113,18 @@ uvloop = ["uvloop (>=0.15.2)"]
 
 [[package]]
 name = "boto3"
-version = "1.26.58"
+version = "1.26.59"
 description = "The AWS SDK for Python"
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "boto3-1.26.58-py3-none-any.whl", hash = "sha256:d130281211014510b2cf33412a177909d8d18286e1ef67362850dea07067b7df"},
-    {file = "boto3-1.26.58.tar.gz", hash = "sha256:89811efea5ac4eeba0a816a41e651fa06110926a7fdb7f20e5eb84e519902ee2"},
+    {file = "boto3-1.26.59-py3-none-any.whl", hash = "sha256:34ee771a5cc84c16e75d4b9ef4672f51c2bafdce66ec457bbaac630b37d9cd5e"},
+    {file = "boto3-1.26.59.tar.gz", hash = "sha256:7d9cebb507fc96e6eb429621ccb2e731b75e7bbb8d6d9f0cf0c08089ee3c1ab7"},
 ]
 
 [package.dependencies]
-botocore = ">=1.29.58,<1.30.0"
+botocore = ">=1.29.59,<1.30.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.6.0,<0.7.0"
 
@@ -133,14 +133,14 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.29.58"
+version = "1.29.59"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "botocore-1.29.58-py3-none-any.whl", hash = "sha256:413ea124f2486f142dd59ed7fb68ec86f53bc7c932db9613cadd510d76c6b245"},
-    {file = "botocore-1.29.58.tar.gz", hash = "sha256:e4e0d05c1493bedc88bb78b24a08d79a60f3b9cea21a64edea3e8411823ecf82"},
+    {file = "botocore-1.29.59-py3-none-any.whl", hash = "sha256:5533644ddefaccfaa98460a63eb73e61a46aad019771226d103b1054b0df6103"},
+    {file = "botocore-1.29.59.tar.gz", hash = "sha256:bc75d41c5eecf624a2f9875483135aa78088a50c8d29847793f92756697cfed5"},
 ]
 
 [package.dependencies]
@@ -1019,11 +1019,11 @@ files = [
 [package.dependencies]
 numpy = [
     {version = ">=1.21.0", markers = "python_version <= \"3.9\" and platform_system == \"Darwin\" and platform_machine == \"arm64\""},
+    {version = ">=1.21.2", markers = "python_version >= \"3.10\""},
+    {version = ">=1.21.4", markers = "python_version >= \"3.10\" and platform_system == \"Darwin\""},
     {version = ">=1.19.3", markers = "python_version >= \"3.6\" and platform_system == \"Linux\" and platform_machine == \"aarch64\" or python_version >= \"3.9\""},
     {version = ">=1.17.0", markers = "python_version >= \"3.7\""},
     {version = ">=1.17.3", markers = "python_version >= \"3.8\""},
-    {version = ">=1.21.2", markers = "python_version >= \"3.10\""},
-    {version = ">=1.21.4", markers = "python_version >= \"3.10\" and platform_system == \"Darwin\""},
 ]
 
 [[package]]
@@ -1224,14 +1224,14 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "poseconnect"
-version = "0.13.0"
+version = "0.11.0"
 description = "Tools for constructing 3D pose tracks from multi-camera 2D poses"
 category = "main"
 optional = false
 python-versions = "*"
 files = [
-    {file = "poseconnect-0.13.0-py3-none-any.whl", hash = "sha256:85b64345c100d64fb73298bb2e678b43d6e99d7ffd0ff7cc8211b1094fd5b672"},
-    {file = "poseconnect-0.13.0.tar.gz", hash = "sha256:808a3ca894be93629a499a840b996eff171d85e1ffc1d3d4321be92a8f022368"},
+    {file = "poseconnect-0.11.0-py3-none-any.whl", hash = "sha256:d0b7e3ea184031b6c5c8e7925be6109ec6cd70bcd2c1ce15669b9043f6f81c33"},
+    {file = "poseconnect-0.11.0.tar.gz", hash = "sha256:38d22521f0883bcbf18f73a47ed6ec75bdc076e6bf393e70df9e9f71c7bac7d8"},
 ]
 
 [package.dependencies]
@@ -2026,4 +2026,4 @@ wf-honeycomb-io = ">=2.0.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.12"
-content-hash = "ecf67fd57f1eb3bcd3063a523e2f7cda9ddb3e7a247186d2aed99e9e630130ed"
+content-hash = "868bfbe392d99e6cd6c4bc9a6109ee7f20e03683cd8c6cb73d248d03ca8ca1f2"

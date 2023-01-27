@@ -2,28 +2,29 @@ import datetime
 import uuid
 import functools
 
-import honeycomb_io
 import cv_utils
-import pandas as pd
+import honeycomb_io
 import numpy as np
+import pandas as pd
+import pytz
 
 from .camera_helper import CameraHelper
 from .camera_uwb_line_of_sight import CameraUWBLineOfSight
 from .honeycomb_service import HoneycombCachingClient
+from .utils.log import logger
 
 
 def parse_tray_events(
-    tray_events,
+    df_tray_events,
     environment_id=None,
     environment_name=None,
+    time_zone=None,
     camera_device_ids=None,
-    camera_names=None,
     default_camera_device_id=None,
     default_camera_name=None,
     camera_calibrations=None,
     position_window_seconds=4,
     imputed_z_position=1.0,
-    time_zone="US/Central",
     chunk_size=100,
     client=None,
     uri=None,
@@ -32,11 +33,17 @@ def parse_tray_events(
     client_id=None,
     client_secret=None,
 ):
-    if tray_events is None:
+    if df_tray_events is None:
         return None
 
     if environment_id is None and environment_name is None:
-        raise ValueError("Must specify either environment ID or environment name")
+        raise ValueError("Environment info must be provided to parse tray events")
+
+    if time_zone is None:
+        raise ValueError("Timezone is required")
+
+    if time_zone not in pytz.all_timezones_set:
+        raise ValueError(f"Timezone '{time_zone}' is invalid")
 
     client_params = {
         "chunk_size": chunk_size,
@@ -51,8 +58,8 @@ def parse_tray_events(
     camera_helper = CameraHelper(
         environment_id=environment_id,
         environment_name=environment_name,
-        start=tray_events["start"].min(),
-        end=tray_events["end"].max(),
+        start=df_tray_events["start"].min(),
+        end=df_tray_events["end"].max(),
         **client_params,
     )
 
@@ -68,7 +75,7 @@ def parse_tray_events(
         if default_camera_device_id is None:
             raise ValueError(f"Default camera name {default_camera_name} not found")
 
-    person_ids = tray_events["person_id"].dropna().unique().tolist()
+    person_ids = df_tray_events["person_id"].dropna().unique().tolist()
     person_info = honeycomb_io.fetch_persons(person_ids=person_ids, output_format="dataframe", **client_params)
     person_info = person_info.rename(
         columns={
@@ -77,15 +84,16 @@ def parse_tray_events(
         }
     ).astype("object")
     person_info = person_info.where(pd.notnull(person_info), None)
-    tray_events = tray_events.copy()
-    tray_events["id"] = [str(uuid.uuid4()) for _ in range(len(tray_events))]
-    tray_events["date"] = tray_events["start"].dt.tz_convert(time_zone).apply(lambda x: x.date())
-    tray_events["timestamp"] = tray_events["start"]
-    tray_events = tray_events.drop(columns=person_info.columns, errors="ignore").join(
+
+    df_tray_events = df_tray_events.copy()
+    df_tray_events["id"] = [str(uuid.uuid4()) for _ in range(len(df_tray_events))]
+    df_tray_events["date"] = df_tray_events["start"].dt.tz_convert(time_zone).apply(lambda x: x.date())
+    df_tray_events["timestamp"] = df_tray_events["start"]
+    df_tray_events = df_tray_events.drop(columns=person_info.columns, errors="ignore").join(
         person_info, how="left", on="person_id"
     )
-    tray_events = determine_best_cameras_for_trays(
-        df=tray_events,
+    df_tray_events = determine_best_cameras_for_trays(
+        df=df_tray_events,
         time_fields=["start", "end"],
         camera_device_dict=camera_helper.get_camera_info_dict(),
         environment_id=environment_id,
@@ -98,8 +106,8 @@ def parse_tray_events(
         **client_params,
     )
 
-    tray_events["duration_seconds"] = (tray_events["end"] - tray_events["start"]).dt.total_seconds()
-    tray_events["description"] = tray_events.apply(
+    df_tray_events["duration_seconds"] = (df_tray_events["end"] - df_tray_events["start"]).dt.total_seconds()
+    df_tray_events["description"] = df_tray_events.apply(
         lambda event: describe_tray_event(
             timestamp=event["timestamp"],
             material_name=event["material_name"],
@@ -109,7 +117,7 @@ def parse_tray_events(
         ),
         axis=1,
     )
-    tray_events["anonymized_description"] = tray_events.apply(
+    df_tray_events["anonymized_description"] = df_tray_events.apply(
         lambda event: describe_tray_event(
             timestamp=event["timestamp"],
             material_name=event["material_name"],
@@ -119,7 +127,7 @@ def parse_tray_events(
         ),
         axis=1,
     )
-    tray_events = tray_events.reindex(
+    df_tray_events = df_tray_events.reindex(
         columns=[
             "id",
             "date",
@@ -161,8 +169,8 @@ def parse_tray_events(
             "all_in_frame_camera_names_end",
         ]
     )
-    tray_events.sort_values("timestamp", inplace=True)
-    return tray_events
+    df_tray_events.sort_values("timestamp", inplace=True)
+    return df_tray_events
 
 
 def determine_best_cameras_for_trays(
@@ -193,7 +201,7 @@ def determine_best_cameras_for_trays(
         )
 
     if environment_id is None and environment_name is None:
-        raise ValueError("Must specify either environment ID or environment name")
+        raise ValueError("Must specify either environment_name ID or environment_name name")
 
     best_camera_partial = functools.partial(
         CameraUWBLineOfSight,
@@ -283,17 +291,16 @@ def describe_tray_event(timestamp, material_name, person_name, interaction_type,
 
 
 def generate_material_events(
-    parsed_tray_events,
+    df_parsed_tray_events,
     environment_id=None,
     environment_name=None,
+    time_zone=None,
     camera_device_ids=None,
-    camera_names=None,
     default_camera_device_id=None,
     default_camera_name=None,
     camera_calibrations=None,
     position_window_seconds=4,
     imputed_z_position=1.0,
-    time_zone="US/Central",
     chunk_size=100,
     client=None,
     uri=None,
@@ -302,9 +309,21 @@ def generate_material_events(
     client_id=None,
     client_secret=None,
 ):
-    parsed_tray_events = parsed_tray_events.copy()
+    if df_parsed_tray_events is None:
+        return None
+
+    if environment_id is None and environment_name is None:
+        raise ValueError("Environment info must be provided to generate material events")
+
+    if time_zone is None:
+        raise ValueError("Timezone is required")
+
+    if time_zone not in pytz.all_timezones_set:
+        raise ValueError(f"Timezone '{time_zone}' is invalid")
+
+    df_parsed_tray_events = df_parsed_tray_events.copy()
     material_events_list = list()
-    for _, parsed_tray_events_date_tray in parsed_tray_events.groupby(["date", "tray_device_id"]):
+    for _, parsed_tray_events_date_tray in df_parsed_tray_events.groupby(["date", "tray_device_id"]):
         material_events_list.extend(generate_material_events_date_tray(parsed_tray_events_date_tray))
 
     if len(material_events_list) == 0:
@@ -335,11 +354,11 @@ def generate_material_events(
 
     if default_camera_device_id is None:
         if default_camera_name is None:
-            raise ValueError("Must specify default camera device ID or name")
+            logger.warning("Default camera device ID or name not provided")
 
         default_camera_device_id = camera_helper.get_camera_id_by_name(default_camera_name)
         if default_camera_device_id is None:
-            raise ValueError(f"Default camera name {default_camera_name} not found")
+            logger.warning(f"Default camera name {default_camera_name} not found")
 
     material_events["id"] = [str(uuid.uuid4()) for _ in range(len(material_events))]
     material_events["timestamp"] = material_events.apply(
@@ -496,13 +515,6 @@ def generate_material_events_date_tray(parsed_tray_events_date_tray):
             )
             in_use = True
         elif interaction_type == "CARRYING_TO_SHELF" and in_use:
-            # material_events_list[-1]['best_camera_device_id_middle_of_event'] = event['best_camera_device_id_middle']
-            # material_events_list[-1]['best_camera_name_middle_of_event'] = event['best_camera_name_middle']
-            # material_events_list[-1]['all_in_middle_camera_device_ids_middle_of_event'] = event['all_in_middle_camera_device_ids_middle']
-            # material_events_list[-1]['all_in_middle_camera_names_middle_of_event'] = event['all_in_middle_camera_names_middle']
-            # material_events_list[-1]['all_in_frame_camera_device_ids_middle_of_event'] = event['all_in_frame_camera_device_ids_middle']
-            # material_events_list[-1]['all_in_frame_camera_names_middle_of_event'] = event['all_in_frame_camera_names_middle']
-
             material_events_list[-1]["id_to_shelf"] = event["id"]
             material_events_list[-1]["person_device_id_to_shelf"] = event["person_device_id"]
             material_events_list[-1]["person_id_to_shelf"] = event["person_id"]
@@ -622,7 +634,7 @@ def all_cameras_tray_view_data(
     if camera_calibrations is None:
         if environment_id is None and environment_name is None and camera_device_ids is None:
             raise ValueError(
-                "If camera calibration info is not specified, must specify either camera device IDs or environment ID or environment name"
+                "If camera calibration info is not specified, must specify either camera device IDs or environment_name ID or environment_name name"
             )
         if camera_device_ids is None:
             camera_info = honeycomb_caching_client.fetch_camera_devices(

@@ -27,9 +27,9 @@ from .uwb_motion_tray_interactions import infer_tray_device_interactions
 from .uwb_predict_tray_centroids import classifier_filter_no_movement_from_tray_features, predict_tray_centroids
 
 
-def fetch_tray_device_assignments(environment, start, end):
+def fetch_tray_device_assignments(environment_name, start, end):
     honeycomb_caching_client = HoneycombCachingClient()
-    environment = honeycomb_caching_client.fetch_environment_by_name(environment_name=environment)
+    environment = honeycomb_caching_client.fetch_environment_by_name(environment_name=environment_name)
     if environment is None:
         return None
 
@@ -38,12 +38,12 @@ def fetch_tray_device_assignments(environment, start, end):
     return df_tray_device_assignments
 
 
-def fetch_cuwb_data(environment, start, end, entity_type="all", data_type="all"):
+def fetch_cuwb_data(environment_name, start, end, entity_type="all", data_type="all"):
     if entity_type not in ["tray", "person", "all"]:
-        raise Exception("Invalid 'entity_type' value: {}".format(entity_type))
+        raise ValueError("Invalid 'entity_type' value: {}".format(entity_type))
 
     if data_type not in ["position", "accelerometer", "gyroscope", "magnetometer", "all"]:
-        raise Exception("Invalid 'data_type' value: {}".format(data_type))
+        raise ValueError("Invalid 'data_type' value: {}".format(data_type))
 
     if data_type == "all":
         imu_types_to_fetch = ["position", "accelerometer", "gyroscope", "magnetometer"]
@@ -64,7 +64,9 @@ def fetch_cuwb_data(environment, start, end, entity_type="all", data_type="all")
         results.append(
             p.apply_async(
                 fetch_imu_data,
-                kwds=dict(imu_type=imu_type, environment=environment, start=start, end=end, entity_type=entity_type),
+                kwds=dict(
+                    imu_type=imu_type, environment_name=environment_name, start=start, end=end, entity_type=entity_type
+                ),
             )
         )
 
@@ -93,10 +95,10 @@ def fetch_cuwb_data_from_datapoints(
     entity_assignment_info=True,
 ):
     if entity_type not in ["tray", "person", "all"]:
-        raise Exception("Invalid 'entity_type' value: {}".format(type))
+        raise ValueError("Invalid 'entity_type' value: {}".format(type))
 
     if data_type not in ["position", "accelerometer", "status", "raw"]:
-        raise Exception("Invalid 'data_type' value: {}".format(type))
+        raise ValueError("Invalid 'data_type' value: {}".format(type))
 
     df = fetch_raw_cuwb_data(
         environment_name=environment_name,
@@ -112,10 +114,10 @@ def fetch_cuwb_data_from_datapoints(
 
 
 def fetch_motion_features_from_datapoints(
-    environment, start, end, df_uwb_data=None, entity_type="all", include_meta_fields=False, fillna=None
+    environment_name, start, end, df_uwb_data=None, entity_type="all", include_meta_fields=False, fillna=None
 ):
     if df_uwb_data is None:
-        df_uwb_data = fetch_cuwb_data_from_datapoints(environment, start, end, entity_type=entity_type)
+        df_uwb_data = fetch_cuwb_data_from_datapoints(environment_name, start, end, entity_type=entity_type)
 
     return extract_motion_features_from_raw_datapoints(
         df_uwb_data, entity_type=entity_type, include_meta_fields=include_meta_fields, fillna=fillna
@@ -123,10 +125,10 @@ def fetch_motion_features_from_datapoints(
 
 
 def fetch_motion_features(
-    environment, start, end, df_uwb_data=None, entity_type="all", include_meta_fields=True, fillna=None
+    environment_name, start, end, df_uwb_data=None, entity_type="all", include_meta_fields=True, fillna=None
 ):
     if df_uwb_data is None:
-        df_uwb_data = fetch_cuwb_data(environment, start, end, data_type="all", entity_type="all")
+        df_uwb_data = fetch_cuwb_data(environment_name, start, end, data_type="all", entity_type="all")
 
     df_position = filter_data_type_and_format(df_uwb_data, "position")
     df_accelerometer = filter_data_type_and_format(df_uwb_data, "accelerometer")
@@ -283,7 +285,7 @@ def generate_groundtruth(groundtruth_csv, groundtruth_type):
 
     df_features = None
     for (environment, start_datetime), group_df in df_groundtruth.groupby(
-        by=["environment", pd.Grouper(key="start_datetime", freq="D")]
+        by=["environment_name", pd.Grouper(key="start_datetime", freq="D")]
     ):
         start = group_df.agg({"start_datetime": [np.min]}).iloc[0]["start_datetime"]
         end = group_df.agg({"end_datetime": [np.max]}).iloc[0]["end_datetime"]
@@ -299,14 +301,14 @@ def generate_groundtruth(groundtruth_csv, groundtruth_type):
 
             # When a groundtruth example is stored in the old datapoints format, add 60 minutes offsets to start and end
             df_environment_features = fetch_motion_features_from_datapoints(
-                environment=environment,
+                environment_name=environment,
                 start=(start - pd.DateOffset(minutes=60)),
                 end=(end + pd.DateOffset(minutes=60)),
                 entity_type=entity_type,
             )
         else:
             df_environment_features = fetch_motion_features(
-                environment=environment, start=start, end=end, entity_type=entity_type
+                environment_name=environment, start=start, end=end, entity_type=entity_type
             )
 
         if df_features is None:
@@ -492,10 +494,10 @@ def infer_tray_interactions(df_motion_features, df_carry_events, df_tray_centroi
 
 
 def pose_data_with_body_centroid(
-    environment, start, end, pose_inference_id, pose_inference_base, pose_inference_subdirectory
+    environment_name, start, end, pose_inference_id, pose_inference_base, pose_inference_subdirectory
 ):
     honeycomb_caching_client = HoneycombCachingClient()
-    environment_id = honeycomb_caching_client.fetch_environment_id(environment_name=environment)
+    environment_id = honeycomb_caching_client.fetch_environment_id(environment_name=environment_name)
 
     df_poses_3d = process_pose_data.fetch_3d_poses_with_person_info(
         base_dir=pose_inference_base,
@@ -506,10 +508,21 @@ def pose_data_with_body_centroid(
         pose_processing_subdirectory=pose_inference_subdirectory,
     )
 
-    return _pose_data_with_body_centroid(environment=environment, start=start, end=end, df_3d_pose_data=df_poses_3d)
+    return _pose_data_with_body_centroid(
+        environment=environment_name, start=start, end=end, df_3d_pose_data=df_poses_3d
+    )
 
 
-def infer_tray_events(environment, df_tray_interactions, default_camera_name=None):
+def infer_tray_events(environment_name, time_zone, df_tray_interactions, default_camera_name=None):
     return parse_events.parse_tray_events(
-        tray_events=df_tray_interactions, environment_name=environment, default_camera_name=default_camera_name
+        df_tray_events=df_tray_interactions,
+        environment_name=environment_name,
+        time_zone=time_zone,
+        default_camera_name=default_camera_name,
+    )
+
+
+def generate_material_events(environment_name, time_zone, df_parsed_tray_events):
+    return parse_events.generate_material_events(
+        df_parsed_tray_events=df_parsed_tray_events, environment_name=environment_name, time_zone=time_zone
     )

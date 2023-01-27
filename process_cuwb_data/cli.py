@@ -18,6 +18,7 @@ from .core import (
     fetch_motion_features,
     generate_human_activity_groundtruth,
     generate_human_activity_model,
+    generate_material_events,
     generate_tray_carry_groundtruth,
     generate_tray_carry_model,
     infer_human_activity,
@@ -46,7 +47,7 @@ def timezone_aware(ctx, param, value):
 
 
 _cli_options_env_start_end = [
-    click.option("--environment", type=str, required=True),
+    click.option("--environment_name", type=str, required=True),
     click.option(
         "--start",
         type=click.DateTime(formats=valid_date_formats),
@@ -636,7 +637,7 @@ def cli_infer_tray_interactions(
     df_poses_3d = None
     if pose_inference_id is not None:
         df_poses_3d = pose_data_with_body_centroid(
-            environment=environment,
+            environment_name=environment,
             start=start,
             end=end,
             pose_inference_id=pose_inference_id,
@@ -673,14 +674,15 @@ def cli_infer_tray_interactions(
 @click.command(name="infer-tray-events")
 @click.option("--environment", type=str, required=True)
 @click.option("--tray-interactions", type=click.Path(exists=True), help="CSV formatted tray interactions CSV data")
+@click.option("--timezone", "time_zone", type=str, required=True)
 @click.option(
     "--output",
     type=click.Path(),
     default="%s/output" % (os.getcwd()),
-    help="output folder, tray events stored as csv in <<output>>/inference/tray_events (e.g. <<output>>/inference/tray_events/<<DATE>>_tray_events.csv)",
+    help="output folder, tray events stored as csv in <<output>>/inference/df_tray_events (e.g. <<output>>/inference/df_tray_events/<<DATE>>_tray_events.csv)",
 )
-def cli_infer_tray_events(environment, tray_interactions, output):
-    tray_events_output = "{}/inference/tray_events".format(output)
+def cli_infer_tray_events(environment, tray_interactions, time_zone, output):
+    tray_events_output = "{}/inference/df_tray_events".format(output)
     Path(tray_events_output).mkdir(parents=True, exist_ok=True)
 
     # df_tray_interactions = pd.DataFrame(read_generic_pkl(tray_interactions))
@@ -689,7 +691,10 @@ def cli_infer_tray_events(environment, tray_interactions, output):
     df_tray_interactions["end"] = pd.to_datetime(df_tray_interactions["end"])
 
     df_tray_events = infer_tray_events(
-        environment=environment, df_tray_interactions=df_tray_interactions, default_camera_name=""
+        environment_name=environment,
+        df_tray_interactions=df_tray_interactions,
+        time_zone=time_zone,
+        default_camera_name="",
     )
 
     if df_tray_events is None or len(df_tray_events) == 0:
@@ -699,9 +704,41 @@ def cli_infer_tray_events(environment, tray_interactions, output):
         write_datafile_to_csv(df_tray_events, "{}_tray_events".format(now), directory=tray_events_output, index=False)
 
 
+@click.command(name="infer-material-events")
+@click.option("--environment", type=str, required=True)
+@click.option("--tray-events", type=click.Path(exists=True), help="CSV formatted tray events CSV data", required=True)
+@click.option("--timezone", "time_zone", type=str, required=True)
+@click.option(
+    "--output",
+    type=click.Path(),
+    default="%s/output" % (os.getcwd()),
+    help="output folder, tray events stored as csv in <<output>>/inference/material_events (e.g. <<output>>/inference/material_events/<<DATE>>_material_events.csv)",
+)
+def cli_infer_material_events(environment, tray_events, time_zone, output):
+    material_events_output = "{}/inference/material_events".format(output)
+    Path(material_events_output).mkdir(parents=True, exist_ok=True)
+
+    df_tray_events = pd.read_csv(tray_events)
+    df_tray_events["timestamp"] = pd.to_datetime(df_tray_events["timestamp"])
+    df_tray_events["start"] = pd.to_datetime(df_tray_events["start"])
+    df_tray_events["end"] = pd.to_datetime(df_tray_events["end"])
+
+    df_material_events = generate_material_events(
+        environment_name=environment, time_zone=time_zone, df_parsed_tray_events=df_tray_events
+    )
+
+    if df_material_events is None or len(df_material_events) == 0:
+        logger.warn("No tray events inferred")
+        return
+    else:
+        write_datafile_to_csv(
+            df_material_events, "{}_material_events".format(now), directory=material_events_output, index=False
+        )
+
+
 @click_log.simple_verbosity_option(logger)
 @click.group()
-@click.option("--env-file", type=click.Path(exists=True), help="env file to load environment variables from")
+@click.option("--env-file", type=click.Path(exists=True), help="env file to load environment_name variables from")
 def cli(env_file):
     if env_file is None:
         env_file = os.path.join(os.getcwd(), ".env")
@@ -721,3 +758,4 @@ cli.add_command(cli_infer_tray_carry)
 cli.add_command(cli_infer_human_activity)
 cli.add_command(cli_infer_tray_interactions)
 cli.add_command(cli_infer_tray_events)
+cli.add_command(cli_infer_material_events)
