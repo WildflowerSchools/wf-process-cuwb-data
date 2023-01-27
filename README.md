@@ -15,19 +15,21 @@ Tools for reading, processing, and writing CUWB data
     And you may need to manually install cython and numpy `pip install numpy cython pythran`
 
 
-3. Download/create [ground_truth_tray_carry.csv](https://docs.google.com/spreadsheets/d/1dXON0l19uDV4KuDhNY2w-CNSUukn_JGTyOYHJAvHwgE/edit#gid=0) to `./downloads/ground_truth_tray_carry.csv`
-
-
-4. Generate pickled groundtruth features dataframe from ground_truth_tray_carry.csv
-
-
+3. (Optional) Train Tray Detection Model
+    1. Download/create [ground_truth_tray_carry.csv](https://docs.google.com/spreadsheets/d/1NLQ_7Cj432T1AXFcbKLX3P6LGGGRAklxMTjtBYS_xhA/edit?usp=sharing) to `./downloads/ground_truth_tray_carry.csv`
+```
+    curl -L 'https://docs.google.com/spreadsheets/d/1NLQ_7Cj432T1AXFcbKLX3P6LGGGRAklxMTjtBYS_xhA/export?exportFormat=csv' --output ./downloads/ground_truth_tray_carry.csv
+```
+3.
+   2. Generate pickled groundtruth features dataframe from ground_truth_tray_carry.csv
 ```
     process_cuwb_data \
         generate-tray-carry-groundtruth \
         --groundtruth-csv ./downloads/ground_truth_tray_carry.csv
 ```
 
-5. Train and pickle Tray Carry Detection Model using pickled groundtruth features
+3.
+    3. Train and pickle Tray Carry Detection Model using pickled groundtruth features
 
 ```
     process_cuwb_data \
@@ -35,15 +37,21 @@ Tools for reading, processing, and writing CUWB data
         --groundtruth-features ./output/groundtruth/2021-05-13T12:53:26_tray_carry_groundtruth_features.pkl
 ```
 
-6. Infer Tray Interactions using pickled Tray Carry Detection Model
+4. Infer Tray Interactions using pickled Tray Carry Detection Model
+    1. Use the model you've trained by following step 3
+    2. Or, download the latest model:
+```
+    curl -L 'https://drive.google.com/uc?export=download&id=1_veyjLdAa8Fq7eYeT9GLdkcS6_VY0FLX' --output ./output/models/tray_carry_model_v1.pkl
+```   
 
+Then use the model to infer tray interactions:
 ```
     process_cuwb_data \
       infer-tray-interactions \
       --environment greenbrier \
       --start 2021-04-20T9:00:00-0500 \
       --end 2021-04-20T9:05:00-0500 \
-      --tray-carry-model ./output/models/2021-05-13T14:49:32_tray_carry_model.pkl
+      --tray-carry-model ./output/models/tray_carry_model_v1.pkl
 ```
 
 ### Other CLI Commands/Options

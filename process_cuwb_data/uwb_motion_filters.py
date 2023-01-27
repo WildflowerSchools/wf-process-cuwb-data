@@ -28,9 +28,9 @@ class TrayMotionButterFiltFiltFilter:
         self.fs = fs
         self.useSosFiltFilt = useSosFiltFilt
 
-    def filter(self, series, btype='lowpass'):
+    def filter(self, series, btype="lowpass"):
         if self.useSosFiltFilt:
-            sos = ButterFilter(N=self.N, Wn=self.Wn, fs=self.fs, btype=btype, output='sos').filter()
+            sos = ButterFilter(N=self.N, Wn=self.Wn, fs=self.fs, btype=btype, output="sos").filter()
             series_filtered = SosFiltFiltFilter(sos=sos, x=series).filter()
         else:
             butter_b, butter_a = ButterFilter(N=self.N, Wn=self.Wn, fs=self.fs, btype=btype).filter()
@@ -76,7 +76,8 @@ class TrayMotionSavGolFilter:
             polyorder = window_length - 1
 
         return SavGolFilter(
-            series, deriv=deriv, window_length=window_length, polyorder=polyorder, delta=self.delta).filter()
+            series, deriv=deriv, window_length=window_length, polyorder=polyorder, delta=self.delta
+        ).filter()
 
 
 class TrayCarryHeuristicFilter:
@@ -90,7 +91,7 @@ class TrayCarryHeuristicFilter:
 
         rolling_average = df_predictions[prediction_column_name].rolling(window=self.window, center=True).mean()
         rolling_stdev = df_predictions[prediction_column_name].rolling(window=self.window, center=True).std()
-        anomalies = (abs(df_predictions[prediction_column_name] - rolling_average) > (self.stdevs * rolling_stdev))
+        anomalies = abs(df_predictions[prediction_column_name] - rolling_average) > (self.stdevs * rolling_stdev)
 
         for idx, (time, row) in enumerate(df_predictions.iterrows()):
             if anomalies.loc(idx) == True:
@@ -101,11 +102,12 @@ class TrayCarryHeuristicFilter:
 
 
 class TrayCarryHmmFilter:
-    def __init__(self,
-                 initial_probability_vector=np.array([0.999, 0.001]),
-                 transition_matrix=np.array([[.9999, 0.0001], [0.03, 0.97]]),
-                 observation_matrix=np.array([[0.95, 0.05], [0.15, 0.85]])
-                 ):
+    def __init__(
+        self,
+        initial_probability_vector=np.array([0.999, 0.001]),
+        transition_matrix=np.array([[0.9999, 0.0001], [0.03, 0.97]]),
+        observation_matrix=np.array([[0.95, 0.05], [0.15, 0.85]]),
+    ):
         self.initial_probability = initial_probability_vector
 
         # Transition Matrix
@@ -131,8 +133,9 @@ class TrayCarryHmmFilter:
                 unnormalized_probabilities = self.initial_probability * self.observation_matrix[:, observed_state]
             else:
                 previous_probability = hmm_probability[idx - 1]
-                unnormalized_probabilities = previous_probability.dot(
-                    self.transition_matrix) * self.observation_matrix[:, observed_state]
+                unnormalized_probabilities = (
+                    previous_probability.dot(self.transition_matrix) * self.observation_matrix[:, observed_state]
+                )
 
             hmm_probability[idx] = unnormalized_probabilities / np.linalg.norm(unnormalized_probabilities)
 
@@ -147,8 +150,7 @@ class TrayCarryHmmFilter:
 
 
 class SmoothLabelsFilter:
-    def __init__(self,
-                 window=10):
+    def __init__(self, window=10):
         self.window = window
 
     def filter(self, df_predictions, prediction_column_name, inplace=False):
@@ -173,23 +175,23 @@ class SmoothLabelsFilter:
         # 4) Update all moments between these stability changes with the most recent stable carry state value
 
         rolling_window = df_predictions[prediction_column_name].rolling(window=self.window, center=True)
-        carry_stability = (rolling_window.min() == rolling_window.max())
+        carry_stability = rolling_window.min() == rolling_window.max()
 
         rolling_stability_change_window = carry_stability.rolling(window=2)
-        carry_stability_change_moments = (rolling_stability_change_window.min() !=
-                                          rolling_stability_change_window.max())
+        carry_stability_change_moments = rolling_stability_change_window.min() != rolling_stability_change_window.max()
 
         change_moments = carry_stability_change_moments[carry_stability_change_moments == True]
-        for ii_idx, (time_idx, row) in enumerate(change_moments.iteritems()):
-            range_mask = (df_predictions.index > time_idx)
+        for ii_idx, (time_idx, row) in enumerate(change_moments.items()):
+            range_mask = df_predictions.index > time_idx
 
             if ii_idx < len(change_moments) - 1:
                 range_mask = range_mask & (df_predictions.index <= change_moments.index[ii_idx + 1])
 
             prediction_change_idx = df_predictions.index.get_loc(time_idx) + 1
             if prediction_change_idx < len(df_predictions):
-                df_predictions.loc[range_mask,
-                                   prediction_column_name] = df_predictions.iloc[prediction_change_idx][prediction_column_name]
+                df_predictions.loc[range_mask, prediction_column_name] = df_predictions.iloc[prediction_change_idx][
+                    prediction_column_name
+                ]
 
         if not inplace:
             return df_predictions

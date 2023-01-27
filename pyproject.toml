@@ -20,27 +20,29 @@ packages = [
 boto3 = "^1.17"
 click = "^8.0.0"
 click-log = "^0.4.0"
-keras = "^2.4.3"
 matplotlib = "^3.4.1"
 nocasedict = "^1.0.2"
 numpy = "^1.20.2"
 pandas = "^1.2.4"
 python = ">=3.8,<3.12"
 python-dotenv = "^0.21.0"
-python-slugify = "^6.1.2"
+python-slugify = "^7.0.0"
 scipy = "^1.6.3"
 scikit-learn = "^1.1.2"
 wf-honeycomb-io = "^2.0.0"
-wf-geom-render = "^0.3.0"
 wf-process-pose-data = "^6.0.0"
-wf-video-io = "^3.1.0"
+pyyaml = "^6.0"
+wf-geom-render = "^0.3.0"
 
 [tool.poetry.dev-dependencies]
-autopep8 = "^1.5.2"
+autopep8 = "^2.0.0"
 pytest = "^7.1.0"
 
 [tool.poetry.scripts]
 process_cuwb_data = "process_cuwb_data.cli:cli"
+
+[tool.poetry.group.dev.dependencies]
+black = "^22.10.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -48,5 +50,5 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.black]
 line-length = 120
-target-version = ['py39']
+target-version = ['py38']
 include = '\.pyi?$'
