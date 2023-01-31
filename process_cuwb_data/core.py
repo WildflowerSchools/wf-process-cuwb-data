@@ -13,7 +13,7 @@ import process_pose_data
 from .honeycomb_imu_data import fetch_imu_data
 from .honeycomb_pose_data import pose_data_with_body_centroid as _pose_data_with_body_centroid
 from .honeycomb_service import HoneycombCachingClient
-import process_cuwb_data.parse_events as parse_events
+from . import parse_events
 from .utils.io import load_csv
 from .utils.log import logger
 from .utils.util import filter_data_type_and_format

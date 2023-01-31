@@ -80,12 +80,15 @@ def plot_tray_motion_features_multiple_devices(
     room_corners=None,
     velocity_limits=None,
     acceleration_limits=None,
-    figure_size_inches=[8, 10.5],
+    figure_size_inches=None,
     plot_show=True,
     plot_save=False,
     output_directory=".",
     filename_extension="png",
 ):
+    if figure_size_inches is None:
+        figure_size_inches = [8, 10.5]
+
     if velocity_limits is None:
         velocity_min = np.min([df_features["x_velocity_smoothed"].min(), df_features["y_velocity_smoothed"].min()])
         velocity_max = np.max([df_features["x_velocity_smoothed"].max(), df_features["y_velocity_smoothed"].max()])
@@ -277,17 +280,26 @@ def plot_positions(
     marker=".",
     alpha=1.0,
     colormap_name="hot_r",
-    quality_lims=[0, 10000],
-    figure_size_inches=[10.5, 8],
+    quality_lims=None,
+    figure_size_inches=None,
     plot_show=True,
     plot_save=False,
     output_directory=".",
     filename_extension="png",
-    y_axis_labels=["$x$ position (meters)", "$y$ position (meters)"],
+    y_axis_labels=None,
     color_axis_label="Quality",
-    position_column_names=["x_meters", "y_meters"],
+    position_column_names=None,
     quality_column_name="quality",
 ):
+    if position_column_names is None:
+        position_column_names = ["x_meters", "y_meters"]
+    if y_axis_labels is None:
+        y_axis_labels = ["$x$ position (meters)", "$y$ position (meters)"]
+    if figure_size_inches is None:
+        figure_size_inches = [10.5, 8]
+    if quality_lims is None:
+        quality_lims = [0, 10000]
+
     time_min = df.index.min()
     time_max = df.index.max()
     fig, axes = plt.subplots(2, 1, sharex=True)

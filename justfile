@@ -7,8 +7,14 @@ publish: build
 install:
     poetry install
 
+lint:
+    pylint process_cuwb_data
+
 test:
     pytest -s
 
-fmt:
+format:
     black process_cuwb_data
+
+version:
+    poetry version

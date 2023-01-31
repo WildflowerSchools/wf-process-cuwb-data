@@ -47,7 +47,7 @@ def timezone_aware(ctx, param, value):
 
 
 _cli_options_env_start_end = [
-    click.option("--environment_name", type=str, required=True),
+    click.option("--environment", type=str, required=True),
     click.option(
         "--start",
         type=click.DateTime(formats=valid_date_formats),

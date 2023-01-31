@@ -6,7 +6,7 @@ import honeycomb_io
 from .honeycomb_service import HoneycombCachingClient
 
 
-class CameraHelper(object):
+class CameraHelper:
     def __init__(
         self,
         environment_id: str,

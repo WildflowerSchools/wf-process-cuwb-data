@@ -1,6 +1,10 @@
+[project]
+name = "PROJECT_NAME"
+dynamic = ["version"]
+
 [tool.poetry]
 name = "wf-process-cuwb-data"
-version = "1.6.0"
+version = "1.7.0"
 description = "Tools for reading, processing, and writing CUWB data"
 authors = ["Theodore Quinn <ted.quinn@wildflowerschools.org>", "Benjamin Jaffe-Talberg <ben.talberg@gmail.com>"]
 readme = "README.md"
@@ -24,29 +28,30 @@ matplotlib = "^3.4.1"
 nocasedict = "^1.0.2"
 numpy = "^1.20.2"
 pandas = "^1.2.4"
-poseconnect = "0.11.0"
 python = ">=3.8,<3.12"
 python-dotenv = "^0.21.0"
-python-slugify = "^7.0.0"
+python-slugify = "^8.0.0"
 scipy = "^1.6.3"
 scikit-learn = "^1.1.2"
+toml = "^0.10.2"
 wf-honeycomb-io = "^2.0.0"
-wf-process-pose-data = "^6.0.0"
+wf-process-pose-data = "^6.2.0"
 pyyaml = "^6.0"
 wf-geom-render = "^0.3.0"
-
-[tool.poetry.dev-dependencies]
-autopep8 = "^2.0.0"
-pytest = "^7.1.0"
 
 [tool.poetry.scripts]
 process_cuwb_data = "process_cuwb_data.cli:cli"
 
 [tool.poetry.group.dev.dependencies]
 black = "^22.10.0"
+pylint = "^2.15.0"
+pytest = "^7.1.0"
+
+[tool.setuptools]
+py-modules = []
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core>=1.0.0", "setuptools"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.black]

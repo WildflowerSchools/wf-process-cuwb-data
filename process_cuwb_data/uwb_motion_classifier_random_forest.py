@@ -56,8 +56,15 @@ class UWBRandomForestClassifier:
         self.__classifier = classifier
 
     def train_test_split(
-        self, df_groundtruth, test_size=0.3, feature_field_names=[], ground_truth_label_field_name="ground_truth_state"
+        self,
+        df_groundtruth,
+        test_size=0.3,
+        feature_field_names=None,
+        ground_truth_label_field_name="ground_truth_state",
     ):
+        if feature_field_names is None:
+            feature_field_names = []
+
         X_all = df_groundtruth[feature_field_names].values
         y_all = df_groundtruth[ground_truth_label_field_name].values
 
@@ -74,8 +81,6 @@ class UWBRandomForestClassifier:
         test_size=0.3,
         scale_features=False,
         param_grid=None,
-        *args,
-        **kwargs,
     ):
         if param_grid is None:
             param_grid = {
@@ -102,13 +107,14 @@ class UWBRandomForestClassifier:
     def fit(
         self,
         df_groundtruth,
-        feature_field_names=[],
+        feature_field_names=None,
         ground_truth_label_field_name="ground_truth_state",
         test_size=0.3,
         scale_features=False,
-        *args,
-        **kwargs,
     ):
+        if feature_field_names is None:
+            feature_field_names = []
+
         if not isinstance(self.classifier, skRandomForestClassifier):
             raise Exception("Classifier model type is {}, must be RandomForestClassifier".format(type(self.classifier)))
 
@@ -158,7 +164,10 @@ class UWBRandomForestClassifier:
 
         return dict(model=self.classifier, scaler=sc, confusion_matrix_plot=disp)
 
-    def predict(self, df_features, model, scaler=None, feature_field_names=[], *args, **kwargs):
+    def predict(self, df_features, model, scaler=None, feature_field_names=None):
+        if feature_field_names is None:
+            feature_field_names = []
+
         if df_features is None or len(df_features) == 0:
             logger.warn("RandomForestClassifier passed an empty feature set")
             return None

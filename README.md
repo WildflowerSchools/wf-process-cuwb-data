@@ -18,8 +18,46 @@ This project uses Poetry. Please make sure Poetry is installed before continuing
 
 ## Tasks
 
+### Export pickled UWB data
+
+Working with Honeycomb's UWB endpoint can be painfully slow. For that reason there is an option to export pickled UWB data and provide that to subsequent inference commands.
+
+     process_cuwb_data \
+        fetch-cuwb-data \
+        --environment greenbrier \
+        --start 2021-04-20T9:00:00-0500 \
+        --end 2021-04-20T9:05:00-0500 \
+        --annonymize
+
+
+### Export pickled Motion Feature data
+
+The tray carry model doesn't read raw UWB data. It reads a version of UWB data that has been prepared for inference. This feature data can be generated and fed into subsequent commands.
+
+     process_cuwb_data \
+        fetch-motion-features \
+        --environment greenbrier \
+        --start 2021-05-27T14:13:00 \
+        --end 2021-05-27T14:15:00 \
+        --cuwb-data ./output/uwb_data/uwb-greenbrier-20210527-141300-20210527-141500.pkl \
+        --annonymize
+
+
+### Generate Tray Centroids
+
+Tray centroids, or tray positions, are the most likely locations of a tray's shelf or at-rest position. Tray locations are used, for example, to determine when someone is picking a tray up off the shelf as opposed to picking up a tray from a workstation. Note that tray locations are computed based on the window of time provided to the function. If the function ran on 10 minutes of classroom data, it'd likely produce a different idea of tray's shelf locations than if the function was run on 9 hours of classroom activity.  
+
+    process_cuwb_data \
+        estimate-tray-centroids \
+        --environment dahlia \
+        --start 2023-01-06T07:30:00-0800 \
+        --end 2023-01-06T17:00:00-0800 \
+        --cuwb-data ./output/uwb_data/uwb-dahlia-20230106-153000-20230107-010000.pkl \
+        --tray-carry-model ./output/models/tray_carry_model_v1.pkl
+
+
 ### Train Tray Detection Model
-   The tray detection model is a simple RandomForest model. It's used by many of the available methods in the library.
+The tray detection model is a simple RandomForest model. It's used by many of the available methods in the library.
 
 1. Download/create [ground_truth_tray_carry.csv](https://docs.google.com/spreadsheets/d/1NLQ_7Cj432T1AXFcbKLX3P6LGGGRAklxMTjtBYS_xhA/edit?usp=sharing) to `./downloads/ground_truth_tray_carry.csv`
 ```
@@ -47,58 +85,11 @@ This will download data from Honeycomb and prepare it for the next step of feedi
 ### Infer Tray Carries
 
 1. Infer Tray Interactions using a pickled Tray Carry Detection Model
-   1. Use the model you've trained by following the steps to **Train Tray Detection Model**
-   2. Or, download the latest model:
+    1. Use the model you've trained by following the steps to **Train Tray Detection Model**
+    2. Or, download the latest model:
 ```
     curl -L 'https://drive.google.com/uc?export=download&id=1_veyjLdAa8Fq7eYeT9GLdkcS6_VY0FLX' --output ./output/models/tray_carry_model_v1.pkl
 ```   
-
-Then use the model to infer tray interactions:
-```
-    process_cuwb_data \
-      infer-tray-interactions \
-      --environment greenbrier \
-      --start 2021-04-20T9:00:00-0500 \
-      --end 2021-04-20T9:05:00-0500 \
-      --tray-carry-model ./output/models/tray_carry_model_v1.pkl
-```
-
-### Export pickled UWB data
-
-Working with Honeycomb's UWB endpoint can be painfully slow. For that reason there is an option to export pickled UWB data and provide that to subsequent inference commands.
-
-     process_cuwb_data \
-         fetch-cuwb-data \
-         --environment greenbrier \
-         --start 2021-04-20T9:00:00-0500 \
-         --end 2021-04-20T9:05:00-0500
-
-
-### Export pickled Motion Feature data
-
-The tray carry model doesn't read raw UWB data. It reads a version of UWB data that has been prepared for inference. This feature data can be generated and fed into subsequent commands.
-
-     process_cuwb_data \
-        fetch-motion-features
-        --environment greenbrier
-        --start 2021-05-27T14:13:00
-        --end 2021-05-27T14:15:00
-        --cuwb-data ./output/uwb_data/uwb-greenbrier-20210527-141300-20210527-141500.pkl
-        --annonymize
-
-
-### Generate Tray Centroids
-
-Tray centroids, or tray positions, are the most likely locations of a tray's shelf or at-rest position. Tray locations are used, for example, to determine when someone is picking a tray up off the shelf as opposed to picking up a tray from a workstation. Note that tray locations are computed based on the window of time provided to the function. If the function ran on 10 minutes of classroom data, it'd likely produce a different idea of tray's shelf locations than if the function was run on 9 hours of classroom activity.  
-
-    process_cuwb_data \
-        estimate-tray-centroids
-        --environment dahlia
-        --start 2023-01-06T07:30:00-0800
-        --end 2023-01-06T17:00:00-0800
-        --cuwb-data ./output/uwb_data/uwb-dahlia-20230106-153000-20230107-010000.pkl
-        --tray-carry-model ./output/models/tray_carry_model_v1.pkl
-
 
 ### Infer Tray Interaction 
 
@@ -110,7 +101,7 @@ This outputs a list of tray carries (CARRY FROM SHELF / CARRY TO SHELF / CARRY U
          --start 2021-04-20T9:00:00-0500 \
          --end 2021-04-20T9:05:00-0500 \
          --tray-carry-model ./output/models/2021-05-13T14:49:32_tray_carry_model.pkl \
-         --cuwb-data ./output/uwb_data/uwb-greenbrier-20210420-140000-20210420-140500.pkl \
+         --cuwb-data ./output/uwb_data/uwb-greenbrier-20210420-140000-20210420-140500.pkl
         
     (or, instead of --cuwb-datam, use) --motion-feature-data ./output/feature_data/motion-features-greenbrier-20210527-141300-20210527-141500.pkl
     (optionally, supply tray positions/centroids. Note, these locations should ALWAYS be provided if attempting to infer tray interactions on a partial window of classroom time.) --tray-positions-csv ./output/locations/2023-01-19T15:57:12_tray_centroids.csv

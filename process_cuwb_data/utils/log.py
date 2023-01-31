@@ -1,9 +1,10 @@
 import logging
-import pandas as pd
 import sys
 
+import pandas as pd
 
-class Logger(object):
+
+class Logger:
     def __init__(self):
         self.set_pandas_output()
 

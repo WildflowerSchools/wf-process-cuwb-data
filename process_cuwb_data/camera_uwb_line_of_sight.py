@@ -9,7 +9,7 @@ from .honeycomb_service import HoneycombCachingClient
 from .utils.log import logger
 
 
-class CameraUWBLineOfSight(object):
+class CameraUWBLineOfSight:
     def __init__(
         self,
         timestamp,
