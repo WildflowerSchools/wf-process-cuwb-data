@@ -17,13 +17,13 @@ def write_datafile_to_csv(df, filename, directory=".", index=True):
 def write_generic_pkl(record, filename, directory="."):
     filename = filename + ".pkl"
     path = os.path.join(directory, filename)
-    with open(path, "wb") as fp:
+    with open(path, "wb", encoding="UTF-8") as fp:
         logger.info(f"Writing pickle '{filename}' record to {path}")
         pickle.dump(record, fp)
 
 
 def read_generic_pkl(path):
-    with open(path, "rb") as fp:
+    with open(path, "rb", encoding="UTF-8") as fp:
         record = pickle.load(fp)
         logger.info(f"Loaded pickle record '{path}', type '{type(record).__name__}'")
 

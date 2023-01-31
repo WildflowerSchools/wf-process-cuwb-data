@@ -1,7 +1,8 @@
 import multiprocessing
+import platform
+
 import numpy as np
 import pandas as pd
-import platform
 
 from honeycomb_io import (
     fetch_material_tray_devices_assignments,
@@ -22,7 +23,7 @@ from .uwb_motion_classifier_human_activity import HumanActivityClassifier
 from .uwb_motion_classifier_tray_carry import TrayCarryClassifier
 from .uwb_motion_events import extract_carry_events_by_device
 from .uwb_motion_features import FeatureExtraction
-import process_cuwb_data.uwb_motion_ground_truth as ground_truth
+from . import uwb_motion_ground_truth as ground_truth
 from .uwb_motion_tray_interactions import infer_tray_device_interactions
 from .uwb_predict_tray_centroids import classifier_filter_no_movement_from_tray_features, predict_tray_centroids
 

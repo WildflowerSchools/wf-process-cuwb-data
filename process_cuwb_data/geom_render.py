@@ -1,9 +1,11 @@
-import geom_render
-from honeycomb_io import fetch_raw_cuwb_data, fetch_camera_info, fetch_camera_calibrations
-import pandas as pd
-import numpy as np
 import datetime
 import os
+
+import pandas as pd
+import numpy as np
+
+import geom_render
+from honeycomb_io import fetch_camera_info, fetch_camera_calibrations
 
 from process_cuwb_data.honeycomb_imu_data import fetch_imu_data
 from process_cuwb_data.utils.log import logger
@@ -120,7 +122,7 @@ def create_geom_collection_3d(
             "material_name",
         ]
     ]
-    geom_collection_3d_dict = dict()
+    geom_collection_3d_dict = {}
     for (
         device_id,
         device_serial_number,
@@ -214,10 +216,10 @@ def resample_geom(geom, start_time, end_time, frames_per_second=10.0, progress_b
 
 def project_onto_camera_views(geom_3d, camera_info_df):
     logger.info(f"Creating 2D geoms from 3D geom, one for each camera: {camera_info_df['device_name'].to_dict()}")
-    geom_2d_dict = dict()
+    geom_2d_dict = {}
     for device_id, camera_info in camera_info_df.iterrows():
         logger.info(f"Creating 2D geom for camera {camera_info['device_name']}")
-        geom_2d_dict[device_id] = dict()
+        geom_2d_dict[device_id] = {}
         geom_2d_dict[device_id]["device_name"] = camera_info["device_name"]
         geom_2d_dict[device_id]["geom"] = geom_3d.project(
             rotation_vector=camera_info["rotation_vector"],
@@ -232,12 +234,10 @@ def project_onto_camera_views(geom_3d, camera_info_df):
 
 def write_json(geom_dict, output_directory=".", prefix="geom_2d", indent=None):
     logger.info(
-        "Writing geom data to local JSON file for: {}".format(
-            [geom_info["device_name"] for geom_info in geom_dict.values()]
-        )
+        f"Writing geom data to local JSON file for: {[geom_info['device_name'] for geom_info in geom_dict.values()]}"
     )
     for device_id, geom_info in geom_dict.items():
         logger.info(f"Writing geom data to local JSON file for {geom_info['device_name']}")
         path = os.path.join(output_directory, "_".join([prefix, geom_info["device_name"]]) + ".json")
-        with open(path, "w") as fp:
+        with open(path, "w", encoding="UTF-8") as fp:
             fp.write(geom_info["geom"].to_json(indent=indent))

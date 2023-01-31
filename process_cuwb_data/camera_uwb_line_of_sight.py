@@ -81,7 +81,8 @@ class CameraUWBLineOfSight:
         position = np.nanmedian(position_data.loc[:, ["x", "y", "z"]].values, axis=0)
         if imputed_z_position is not None:
             position[2] = imputed_z_position
-        view_data_list = list()
+
+        view_data_list = []
         for camera_device_id, camera_calibration in camera_calibrations.items():
             camera_position = cv_utils.extract_camera_position(
                 rotation_vector=camera_calibration["rotation_vector"],

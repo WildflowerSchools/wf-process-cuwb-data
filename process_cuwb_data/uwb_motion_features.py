@@ -3,7 +3,7 @@ import numpy as np
 from scipy.signal import find_peaks, peak_prominences, peak_widths
 
 from .uwb_motion_filters import TrayMotionButterFiltFiltFilter, TrayMotionSavGolFilter
-from process_cuwb_data.utils.log import logger
+from .utils.log import logger
 
 
 class FeatureExtraction:
@@ -181,11 +181,7 @@ class FeatureExtraction:
         if df_position is not None:
             position_device_ids = df_position.loc[pos_indx, "device_id"].unique().tolist()
             logger.info(
-                'Position data contains {} "{}" device IDs: {}'.format(
-                    len(position_device_ids),
-                    entity_type,
-                    position_device_ids,
-                )
+                f'Position data contains {len(position_device_ids)} "{entity_type}" device IDs: {position_device_ids}'
             )
 
         acceleration_device_ids = []
@@ -228,7 +224,7 @@ class FeatureExtraction:
             | set(magnetometer_device_ids)
         )
 
-        df_dict = dict()
+        df_dict = {}
         for device_id in all_device_ids:
             logger.info(f"Calculating motion features for device ID {device_id}")
 

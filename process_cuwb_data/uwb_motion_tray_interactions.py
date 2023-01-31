@@ -92,9 +92,7 @@ def get_estimated_tray_location_from_carry_events(df_features, df_carry_events):
             end_mask = (df_tray_features.index == row["end"]) & device_id_mask
         else:
             logger.warning(
-                "Couldn't determine a carry event end time for '{}', skipping carry event".format(
-                    df_tray_features["device_id"]
-                )
+                f"Couldn't determine a carry event end time for '{df_tray_features['device_id']}', skipping carry event"
             )
             continue
 

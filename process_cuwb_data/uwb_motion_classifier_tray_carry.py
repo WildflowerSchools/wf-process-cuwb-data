@@ -142,7 +142,7 @@ class TrayCarryClassifier(UWBRandomForestClassifier):
         rfc = UWBRandomForestClassifier(verbose=1)
         cv_rfc = rfc.tune(
             df_groundtruth,
-            prediction_field_name=self.prediction_field_name,
+            ground_truth_label_field_name=self.prediction_field_name,
             test_size=test_size,
             scale_features=scale_features,
             param_grid=param_grid,
@@ -197,9 +197,7 @@ class TrayCarryClassifier(UWBRandomForestClassifier):
         df_features[self.prediction_field_name] = predictions
 
         logger.info(
-            "Carry Prediction (pre filter and smoothing):\n{}".format(
-                df_features.groupby(self.prediction_field_name).size()
-            )
+            f"Carry Prediction (pre filter and smoothing):\n{df_features.groupby(self.prediction_field_name).size()}"
         )
 
         # Convert carry state from string to int
@@ -211,7 +209,7 @@ class TrayCarryClassifier(UWBRandomForestClassifier):
         # HMM Model and smoothing can take awhile, use multiprocessing to help speed things up
         p = multiprocessing.Pool()
 
-        # df_dict = dict()
+        # df_dict = {}
         results = []
         for device_id in pd.unique(df_features["device_id"]):
             df_device_features = df_features.loc[df_features["device_id"] == device_id].copy().sort_index()
@@ -233,9 +231,7 @@ class TrayCarryClassifier(UWBRandomForestClassifier):
         )
 
         logger.info(
-            "Carry Prediction (post filter and smoothing):\n{}".format(
-                df_features.groupby(self.prediction_field_name).size()
-            )
+            f"Carry Prediction (post filter and smoothing):\n{df_features.groupby(self.prediction_field_name).size()}"
         )
 
         return df_features

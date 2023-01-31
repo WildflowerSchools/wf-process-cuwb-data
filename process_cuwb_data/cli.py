@@ -1,11 +1,13 @@
 import itertools
+from datetime import datetime
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
 import click
 import click_log
-from datetime import datetime
-from dotenv import load_dotenv
-import os
 import pandas as pd
-from pathlib import Path
 import pytz
 
 from .core import (
@@ -42,8 +44,8 @@ ANNONYMIZE_COLUMNS = ["person_name", "person_first_name", "person_last_name", "p
 def timezone_aware(ctx, param, value):
     if value.tzinfo is None:
         return value.replace(tzinfo=pytz.UTC)
-    else:
-        return value
+
+    return value
 
 
 _cli_options_env_start_end = [
@@ -123,7 +125,7 @@ def _infer_tray_carry(df_tray_features, model, scaler=None):
 
     df_carry_events = extract_tray_carry_events_from_inferred(inferred)
     if df_carry_events is None or len(df_carry_events) == 0:
-        logger.warn("No carry events inferred")
+        logger.warning("No carry events inferred")
         return None
 
     return df_carry_events
@@ -246,7 +248,7 @@ def cli_generate_tray_carry_groundtruth(groundtruth_csv, output):
     df_groundtruth_features = generate_tray_carry_groundtruth(groundtruth_csv)
 
     if df_groundtruth_features is None:
-        logger.warn("Unexpected result, unable to store groundtruth features")
+        logger.warning("Unexpected result, unable to store groundtruth features")
     else:
         write_generic_pkl(
             df_groundtruth_features, f"{now}_tray_carry_groundtruth_features", groundtruth_features_output
@@ -270,7 +272,7 @@ def cli_generate_human_activity_groundtruth(groundtruth_csv, output):
     df_groundtruth_features = generate_human_activity_groundtruth(groundtruth_csv)
 
     if df_groundtruth_features is None:
-        logger.warn("Unexpected result, unable to store groundtruth features")
+        logger.warning("Unexpected result, unable to store groundtruth features")
     else:
         write_generic_pkl(
             df_groundtruth_features, f"{now}_human_activity_groundtruth_features", groundtruth_features_output
@@ -387,7 +389,7 @@ def cli_estimate_tray_centroids(
         model=model_obj, scaler=feature_scaler_obj, df_tray_features=df_tray_features
     )
     if df_tray_centroids is None or len(df_tray_centroids) == 0:
-        logger.warn("No tray centroids inferred")
+        logger.warning("No tray centroids inferred")
         return
     else:
         write_datafile_to_csv(df_tray_centroids, f"{now}_tray_centroids", directory=locations_output, index=False)
@@ -441,13 +443,13 @@ def cli_infer_tray_carry(
     df_tray_features = df_uwb_motion_features[df_uwb_motion_features["entity_type"] == "Tray"]
 
     if df_tray_features is None or len(df_tray_features) == 0:
-        logger.warn("No tray motion events detected")
+        logger.warning("No tray motion events detected")
         return None
 
     model_obj, feature_scaler_obj = _load_model_and_scaler(tray_carry_model, tray_carry_feature_scaler)
     df_carry_events = _infer_tray_carry(df_tray_features=df_tray_features, model=model_obj, scaler=feature_scaler_obj)
     if df_carry_events is None or len(df_carry_events) == 0:
-        logger.warn("No tray carry events detected")
+        logger.warning("No tray carry events detected")
         return
 
     write_datafile_to_csv(df_carry_events, f"{now}_carry_events", directory=inference_output, index=False)
@@ -492,7 +494,7 @@ def cli_infer_human_activity(environment, start, end, motion_feature_data, model
 
     df_person_features = df_uwb_motion_features[df_uwb_motion_features["entity_type"] == "Person"]
     if df_person_features is None or len(df_person_features) == 0:
-        logger.warn("No person motion events detected")
+        logger.warning("No person motion events detected")
         return
 
     model_obj, feature_scaler_obj = _load_model_and_scaler(model, feature_scaler)
@@ -500,7 +502,7 @@ def cli_infer_human_activity(environment, start, end, motion_feature_data, model
         df_person_features=df_person_features, model=model_obj, scaler=feature_scaler_obj
     )
     if df_person_features_with_har is None or len(df_person_features_with_har) == 0:
-        logger.warn("No human activity detected")
+        logger.warning("No human activity detected")
         return
 
     write_datafile_to_csv(df_person_features_with_har, f"{now}_human_activity", directory=inference_output, index=False)
@@ -593,13 +595,13 @@ def cli_infer_tray_interactions(
     df_person_features = df_uwb_motion_features[df_uwb_motion_features["entity_type"] == "Person"]
     # For human activity predictions
     if df_person_features is None or len(df_person_features) == 0:
-        logger.warn("No person motion events detected")
+        logger.warning("No person motion events detected")
         return
 
     # For tray carry predictions
     df_tray_features = df_uwb_motion_features[df_uwb_motion_features["entity_type"] == "Tray"]
     if df_tray_features is None or len(df_tray_features) == 0:
-        logger.warn("No tray motion events detected")
+        logger.warning("No tray motion events detected")
         return
 
     # human_activity_model_obj, human_activity_feature_scaler_obj = _load_model_and_scaler(
@@ -616,7 +618,7 @@ def cli_infer_tray_interactions(
         df_tray_features=df_tray_features, model=tray_carry_model_obj, scaler=tray_carry_feature_scaler_obj
     )
     if df_carry_events is None or len(df_carry_events) == 0:
-        logger.warn("No tray carry events detected")
+        logger.warning("No tray carry events detected")
         return
 
     if tray_positions_csv is not None:
@@ -627,7 +629,7 @@ def cli_infer_tray_interactions(
         )
 
     if df_tray_centroids is None or len(df_tray_centroids) == 0:
-        logger.warn("No tray centroids inferred")
+        logger.warning("No tray centroids inferred")
         return
 
     df_poses_3d = None
@@ -659,7 +661,7 @@ def cli_infer_tray_interactions(
         df_poses_3d=df_poses_3d,
     )
     if df_tray_interactions is None or len(df_tray_interactions) == 0:
-        logger.warn("No tray interactions inferred")
+        logger.warning("No tray interactions inferred")
         return
     else:
         write_datafile_to_csv(
@@ -694,10 +696,10 @@ def cli_infer_tray_events(environment, tray_interactions, time_zone, output):
     )
 
     if df_tray_events is None or len(df_tray_events) == 0:
-        logger.warn("No tray events inferred")
+        logger.warning("No tray events inferred")
         return
-    else:
-        write_datafile_to_csv(df_tray_events, f"{now}_tray_events", directory=tray_events_output, index=False)
+
+    write_datafile_to_csv(df_tray_events, f"{now}_tray_events", directory=tray_events_output, index=False)
 
 
 @click.command(name="infer-material-events")
@@ -724,7 +726,7 @@ def cli_infer_material_events(environment, tray_events, time_zone, output):
     )
 
     if df_material_events is None or len(df_material_events) == 0:
-        logger.warn("No tray events inferred")
+        logger.warning("No tray events inferred")
         return
     else:
         write_datafile_to_csv(

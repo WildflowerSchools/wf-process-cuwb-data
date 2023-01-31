@@ -1,9 +1,10 @@
+import os
+
 import numpy as np
 from pandas.plotting import register_matplotlib_converters
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import slugify
-import os
 
 register_matplotlib_converters()
 
@@ -147,12 +148,15 @@ def plot_tray_motion_features_with_ground_truth_multiple_devices(
     room_corners=None,
     velocity_limits=None,
     acceleration_limits=None,
-    figure_size_inches=[8, 10.5],
+    figure_size_inches=None,
     plot_show=True,
     plot_save=False,
     output_directory=".",
     filename_extension="png",
 ):
+    if figure_size_inches is None:
+        figure_size_inches = [8, 10.5]
+
     if velocity_limits is None:
         velocity_min = np.min([df_features["x_velocity_smoothed"].min(), df_features["y_velocity_smoothed"].min()])
         velocity_max = np.max([df_features["x_velocity_smoothed"].max(), df_features["y_velocity_smoothed"].max()])
@@ -213,12 +217,15 @@ def plot_tray_motion_features_with_state_multiple_devices(
     room_corners=None,
     velocity_limits=None,
     acceleration_limits=None,
-    figure_size_inches=[8, 10.5],
+    figure_size_inches=None,
     plot_show=True,
     plot_save=False,
     output_directory=".",
     filename_extension="png",
 ):
+    if figure_size_inches is None:
+        figure_size_inches = [8, 10.5]
+
     if velocity_limits is None:
         velocity_min = np.min([df_features["x_velocity_smoothed"].min(), df_features["y_velocity_smoothed"].min()])
         velocity_max = np.max([df_features["x_velocity_smoothed"].max(), df_features["y_velocity_smoothed"].max()])
@@ -348,17 +355,26 @@ def plot_positions_topdown(
     alpha=1.0,
     color_axis="quality",
     colormap_name="hot_r",
-    quality_lims=[0, 10000],
-    figure_size_inches=[10.5, 8],
+    quality_lims=None,
+    figure_size_inches=None,
     plot_show=True,
     plot_save=False,
     output_directory=".",
     filename_extension="png",
-    axis_labels=["$x$ position (meters)", "$y$ position (meters)"],
+    axis_labels=None,
     color_axis_label="Quality",
-    position_column_names=["x_meters", "y_meters"],
+    position_column_names=None,
     quality_column_name="quality",
 ):
+    if position_column_names is None:
+        position_column_names = ["x_meters", "y_meters"]
+    if axis_labels is None:
+        axis_labels = ["$x$ position (meters)", "$y$ position (meters)"]
+    if figure_size_inches is None:
+        figure_size_inches = [10.5, 8]
+    if quality_lims is None:
+        quality_lims = [0, 10000]
+
     time_min = df.index.min()
     time_max = df.index.max()
     if color_axis == "quality":
@@ -415,14 +431,21 @@ def plot_accelerations(
     marker=".",
     acceleration_max=2.0,
     alpha=1.0,
-    figure_size_inches=[10.5, 8],
+    figure_size_inches=None,
     plot_show=True,
     plot_save=False,
     output_directory=".",
     filename_extension="png",
-    y_axis_labels=["$x$ acceleration (g's)", "$y$ acceleration (g's)", "$z$ acceleration (g's)"],
-    acceleration_column_names=["x_gs", "y_gs", "z_gs"],
+    y_axis_labels=None,
+    acceleration_column_names=None,
 ):
+    if acceleration_column_names is None:
+        acceleration_column_names = ["x_gs", "y_gs", "z_gs"]
+    if y_axis_labels is None:
+        y_axis_labels = ["$x$ acceleration (g's)", "$y$ acceleration (g's)", "$z$ acceleration (g's)"]
+    if figure_size_inches is None:
+        figure_size_inches = [10.5, 8]
+
     time_min = df.index.min()
     time_max = df.index.max()
     fig, axes = plt.subplots(3, 1, sharex=True)
@@ -463,20 +486,33 @@ def plot_positions_and_accelerations(
     marker=".",
     alpha=1.0,
     colormap_name="hot_r",
-    quality_lims=[0, 10000],
+    quality_lims=None,
     acceleration_max=2.0,
-    figure_size_inches=[8, 10.5],
+    figure_size_inches=None,
     plot_show=True,
     plot_save=False,
     output_directory=".",
     filename_extension="png",
-    position_y_axis_labels=["$x$ position (meters)", "$y$ position (meters)"],
+    position_y_axis_labels=None,
     position_color_axis_label="Position quality",
-    position_column_names=["x_meters", "y_meters"],
+    position_column_names=None,
     position_quality_column_name="quality",
-    acceleration_y_axis_labels=["$x$ acceleration (g's)", "$y$ acceleration (g's)", "$z$ acceleration (g's)"],
-    acceleration_column_names=["x_gs", "y_gs", "z_gs"],
+    acceleration_y_axis_labels=None,
+    acceleration_column_names=None,
 ):
+    if acceleration_column_names is None:
+        acceleration_column_names = ["x_gs", "y_gs", "z_gs"]
+    if acceleration_y_axis_labels is None:
+        acceleration_y_axis_labels = ["$x$ acceleration (g's)", "$y$ acceleration (g's)", "$z$ acceleration (g's)"]
+    if position_column_names is None:
+        position_column_names = ["x_meters", "y_meters"]
+    if position_y_axis_labels is None:
+        position_y_axis_labels = ["$x$ position (meters)", "$y$ position (meters)"]
+    if figure_size_inches is None:
+        figure_size_inches = [8, 10.5]
+    if quality_lims is None:
+        quality_lims = [0, 10000]
+
     time_min = np.min([df_position.index.min(), df_acceleration.index.min()])
     time_max = np.max([df_position.index.max(), df_acceleration.index.max()])
     fig, axes = plt.subplots(5, 1, sharex=True)
@@ -533,12 +569,15 @@ def plot_tray_motion_features(
     room_corners=None,
     velocity_limits=None,
     acceleration_limits=None,
-    figure_size_inches=[8, 10.5],
+    figure_size_inches=None,
     plot_show=True,
     plot_save=False,
     output_directory=".",
     filename_extension="png",
 ):
+    if figure_size_inches is None:
+        figure_size_inches = [8, 10.5]
+
     time_min = np.min([df_position.index.min(), df_features.index.min()])
     time_max = np.max([df_position.index.max(), df_features.index.max()])
     fig, axes = plt.subplots(7, 1, sharex=True)
@@ -558,7 +597,7 @@ def plot_tray_motion_features(
             df_features.index,
             df_features[f"{axis_name}_velocity_smoothed"],
             "b-",
-            label=f"Smoothed ${axis_name}$ velocity (m/s)",
+            label=f"Smoothed {axis_name} velocity (m/s)",
         )
         axes[2 + axis_index].set_ylabel(r"$d{}/dt$ (m/s)".format(axis_name))
         if velocity_limits is not None:
@@ -601,12 +640,15 @@ def plot_tray_motion_features_with_ground_truth(
     room_corners=None,
     velocity_limits=None,
     acceleration_limits=None,
-    figure_size_inches=[8, 10.5],
+    figure_size_inches=None,
     plot_show=True,
     plot_save=False,
     output_directory=".",
     filename_extension="png",
 ):
+    if figure_size_inches is None:
+        figure_size_inches = [8, 10.5]
+
     time_min = np.min([df_position.index.min(), df_features.index.min()])
     time_max = np.max([df_position.index.max(), df_features.index.max()])
     ground_truth_states = df_features["ground_truth_state"].unique().tolist()
@@ -684,12 +726,15 @@ def plot_tray_motion_features_with_state(
     room_corners=None,
     velocity_limits=None,
     acceleration_limits=None,
-    figure_size_inches=[8, 10.5],
+    figure_size_inches=None,
     plot_show=True,
     plot_save=False,
     output_directory=".",
     filename_extension="png",
 ):
+    if figure_size_inches is None:
+        figure_size_inches = [8, 10.5]
+
     time_min = np.min([df_position.index.min(), df_features.index.min()])
     time_max = np.max([df_position.index.max(), df_features.index.max()])
     states = df_features[state_field_name].unique().tolist()

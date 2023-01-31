@@ -79,7 +79,7 @@ def extract_carry_events_by_device(
         return None
 
     logger.info("Extracting carry events")
-    df_dict = dict()
+    df_dict = {}
     for device_id in pd.unique(df_carry_predictions[device_id_column_name]):
         logger.info(f"Extracting carry events for device ID {device_id}")
         df_device_carry_predictions = (

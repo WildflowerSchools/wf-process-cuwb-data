@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from honeycomb_io import fetch_environment_id, fetch_person_tag_info, fetch_persons
+from honeycomb_io import fetch_environment_id, fetch_person_tag_info
 
 
 def pose_data_with_body_centroid(environment, start, end, df_3d_pose_data):

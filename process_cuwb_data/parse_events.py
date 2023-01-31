@@ -176,7 +176,7 @@ def parse_tray_events(
 def determine_best_cameras_for_trays(
     df,
     camera_device_dict,
-    time_fields=[],
+    time_fields=None,
     environment_id=None,
     environment_name=None,
     camera_device_ids=None,
@@ -192,6 +192,9 @@ def determine_best_cameras_for_trays(
     client_id=None,
     client_secret=None,
 ):
+    if time_fields is None:
+        time_fields = []
+
     if df is None:
         return None
 
@@ -281,9 +284,7 @@ def describe_tray_event(timestamp, material_name, person_name, interaction_type,
     elif interaction_type == "CARRYING_BETWEEN_NON_SHELF_LOCATIONS":
         description_text = f"{person_string} moved the {material_name} tray"
     elif interaction_type == "CARRYING_FROM_AND_TO_SHELF":
-        description_text = "{} took the {} tray from the shelf and immediately put it back".format(
-            person_string, material_name
-        )
+        description_text = f"{person_string} took the {material_name} tray from the shelf and immediately put it back"
     else:
         raise ValueError(f"Unexpected interaction type: '{interaction_type}'")
     description = f"{time_string}: {description_text}"
@@ -322,7 +323,7 @@ def generate_material_events(
         raise ValueError(f"Timezone '{time_zone}' is invalid")
 
     df_parsed_tray_events = df_parsed_tray_events.copy()
-    material_events_list = list()
+    material_events_list = []
     for _, parsed_tray_events_date_tray in df_parsed_tray_events.groupby(["date", "tray_device_id"]):
         material_events_list.extend(generate_material_events_date_tray(parsed_tray_events_date_tray))
 
@@ -470,7 +471,7 @@ def generate_material_events_date_tray(parsed_tray_events_date_tray):
         parsed_tray_events_date_tray["interaction_type"].isin(["CARRYING_FROM_SHELF", "CARRYING_TO_SHELF"])
     ].sort_values("start")
     in_use = False
-    material_events_list = list()
+    material_events_list = []
     for index, event in parsed_tray_events_date_tray_filtered.iterrows():
         interaction_type = event["interaction_type"]
         if interaction_type == "CARRYING_FROM_SHELF":
@@ -570,9 +571,7 @@ def generate_material_events_date_tray(parsed_tray_events_date_tray):
             in_use = False
         else:
             raise ValueError(
-                "Encountered unexpected state: interaction type is '{}' and in_use is {}".format(
-                    interaction_type, in_use
-                )
+                f"Encountered unexpected state: interaction type is '{interaction_type}' and in_use is {in_use}"
             )
     return material_events_list
 
@@ -679,7 +678,7 @@ def all_cameras_tray_view_data(
     position = np.nanmedian(position_data.loc[:, ["x", "y", "z"]].values, axis=0)
     if imputed_z_position is not None:
         position[2] = imputed_z_position
-    view_data_list = list()
+    view_data_list = []
     for camera_device_id, camera_calibration in camera_calibrations.items():
         camera_position = cv_utils.extract_camera_position(
             rotation_vector=camera_calibration["rotation_vector"],

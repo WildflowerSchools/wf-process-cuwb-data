@@ -1,8 +1,6 @@
 import datetime
 from typing import List, Optional
 
-import honeycomb_io
-
 from .honeycomb_service import HoneycombCachingClient
 
 

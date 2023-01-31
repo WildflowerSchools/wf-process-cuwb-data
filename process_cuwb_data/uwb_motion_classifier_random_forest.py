@@ -142,9 +142,7 @@ class UWBRandomForestClassifier:
         self.classifier.fit(X_all_train, y_all_train)
 
         logger.info(
-            "Confusion Matrix:\n{}".format(
-                sklearn.metrics.confusion_matrix(y_all_test, self.classifier.predict(X_all_test))
-            )
+            f"Confusion Matrix:\n{sklearn.metrics.confusion_matrix(y_all_test, self.classifier.predict(X_all_test))}"
         )
 
         logger.info(
@@ -169,7 +167,7 @@ class UWBRandomForestClassifier:
             feature_field_names = []
 
         if df_features is None or len(df_features) == 0:
-            logger.warn("RandomForestClassifier passed an empty feature set")
+            logger.warning("RandomForestClassifier passed an empty feature set")
             return None
 
         if model is None:

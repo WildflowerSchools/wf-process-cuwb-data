@@ -80,6 +80,7 @@ disable=R1702,
         W0108,
         W0511,  # TODO warnings
         W0703,  # Too broad an exception.
+        W1203,
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

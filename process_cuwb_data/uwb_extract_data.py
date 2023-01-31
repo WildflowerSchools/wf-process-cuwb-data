@@ -15,12 +15,12 @@ def extract_by_entity_type(df, entity_type="all"):
     # Filter by entity type
     if entity_type == "tray":
         return df[df["entity_type"].eq("Tray")]
-    elif entity_type == "person":
+    if entity_type == "person":
         return df[df["entity_type"].eq("Person")]
-    else:
-        error = f"Invalid 'entity_type' value: {entity_type}"
-        logger.error(error)
-        raise Exception(error)
+
+    error = f"Invalid 'entity_type' value: {entity_type}"
+    logger.error(error)
+    raise Exception(error)
 
 
 def extract_by_data_type_and_format(df, data_type="raw"):
@@ -30,18 +30,18 @@ def extract_by_data_type_and_format(df, data_type="raw"):
     # Filter and format by entity type
     if data_type == "position":
         return extract_position_data(df)
-    elif data_type == "accelerometer":
+    if data_type == "accelerometer":
         return extract_accelerometer_data(df)
-    elif data_type == "gyroscope":
+    if data_type == "gyroscope":
         return extract_accelerometer_data(df)
-    elif data_type == "magnetometer":
+    if data_type == "magnetometer":
         return extract_accelerometer_data(df)
-    elif data_type == "status":
+    if data_type == "status":
         return extract_status_data(df)
-    else:
-        error = f"Invalid 'data_type' value: {data_type}"
-        logger.error(error)
-        raise Exception(error)
+
+    error = f"Invalid 'data_type' value: {data_type}"
+    logger.error(error)
+    raise Exception(error)
 
 
 def extract_position_data(df):

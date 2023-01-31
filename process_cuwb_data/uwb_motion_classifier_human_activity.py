@@ -124,7 +124,7 @@ DEFAULT_FEATURE_FIELD_NAMES = (
 #         self.__classifier = None
 #
 #     def attrs(self):
-#         return dict()
+#         return {}
 #
 #     @property
 #     def classifier(self):
@@ -201,9 +201,7 @@ class HumanActivityClassifier(UWBRandomForestClassifier):
         df_features[self.prediction_field_name] = predictions
 
         logger.info(
-            "Activity Prediction (pre filter and smoothing):\n{}".format(
-                df_features.groupby(self.prediction_field_name).size()
-            )
+            f"Activity Prediction (pre filter and smoothing):\n{df_features.groupby(self.prediction_field_name).size()}"
         )
 
         # Convert human activity state from string to int
@@ -215,7 +213,7 @@ class HumanActivityClassifier(UWBRandomForestClassifier):
         # Filtering and smoothing can take awhile, use multiprocessing to help speed things up
         p = multiprocessing.Pool()
 
-        # df_dict = dict()
+        # df_dict = {}
         results = []
         for device_id in pd.unique(df_features["device_id"]):
             df_device_features = df_features.loc[df_features["device_id"] == device_id].copy().sort_index()
