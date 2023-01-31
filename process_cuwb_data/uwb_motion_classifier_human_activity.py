@@ -162,7 +162,7 @@ class HumanActivityClassifier(UWBRandomForestClassifier):
         self.prediction_field_name = prediction_field_name
 
     def filter_and_smooth_predictions(self, device_id, df_device_features, window=3):
-        logger.info("Smooth human activity classification for device ID {}".format(device_id))
+        logger.info(f"Smooth human activity classification for device ID {device_id}")
         df_device_features = SmoothLabelsFilter(window=window).filter(
             df_predictions=df_device_features, prediction_column_name=self.prediction_field_name
         )

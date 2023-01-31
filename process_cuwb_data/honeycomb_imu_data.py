@@ -21,7 +21,7 @@ def fetch_imu_data(imu_type, environment_name, start, end, entity_type="all"):
     elif imu_type == "magnetometer":
         fetch = fetch_cuwb_magnetometer_data
     else:
-        raise ValueError("Unexpected IMU type: {}".format(imu_type))
+        raise ValueError(f"Unexpected IMU type: {imu_type}")
 
     df = fetch(
         start=start,

@@ -32,7 +32,7 @@ from .uwb_predict_tray_centroids import validate_tray_centroids_dataframe
 now = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 valid_date_formats = list(
     itertools.chain.from_iterable(
-        map(lambda d: ["{}".format(d), "{}%z".format(d), "{} %Z".format(d)], ["%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"])
+        map(lambda d: [f"{d}", f"{d}%z", f"{d} %Z"], ["%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"])
     )
 )
 
@@ -133,7 +133,7 @@ def _infer_human_activity(df_person_features, model, scaler=None):
     df_person_features_with_nan = df_person_features[df_person_features.isna().any(axis=1)]
     devices_without_acceleration = list(pd.unique(df_person_features_with_nan["device_id"]))
     if len(devices_without_acceleration) > 0:
-        logger.info("Devices dropped due to missing acceleration data: {}".format(devices_without_acceleration))
+        logger.info(f"Devices dropped due to missing acceleration data: {devices_without_acceleration}")
         df_person_features.dropna(inplace=True)
 
     return infer_human_activity(model=model, scaler=scaler, df_person_features=df_person_features)
@@ -163,11 +163,11 @@ def _infer_human_activity(df_person_features, model, scaler=None):
 @click.option(
     "--output",
     type=click.Path(),
-    default="%s/output" % (os.getcwd()),
+    default=f"{os.getcwd()}/output",
     help="output folder for CUWB data, data stored in <<output>>/uwb_data/<<file>>.pkl",
 )
 def cli_fetch_cuwb_data(environment, start, end, entity_type, data_type, data_source, annonymize, output):
-    uwb_output = "{}/uwb_data".format(output)
+    uwb_output = f"{output}/uwb_data"
     Path(uwb_output).mkdir(parents=True, exist_ok=True)
 
     if data_source == "datapoints":
@@ -197,11 +197,11 @@ def cli_fetch_cuwb_data(environment, start, end, entity_type, data_type, data_so
 @click.option(
     "--output",
     type=click.Path(),
-    default="%s/output" % (os.getcwd()),
+    default=f"{os.getcwd()}/output",
     help="output folder for cuwb tray features data, features stored in <<output>>/feature_data/<<file>>.pkl",
 )
 def cli_fetch_motion_features(environment, start, end, cuwb_data, annonymize, output):
-    feature_data_output = "{}/feature_data".format(output)
+    feature_data_output = f"{output}/feature_data"
     Path(feature_data_output).mkdir(parents=True, exist_ok=True)
 
     df_uwb_data = None
@@ -236,11 +236,11 @@ def cli_fetch_motion_features(environment, start, end, cuwb_data, annonymize, ou
 @click.option(
     "--output",
     type=click.Path(),
-    default="%s/output" % (os.getcwd()),
+    default=f"{os.getcwd()}/output",
     help="output folder, output includes data features pickle (<<output>>/groundtruth/<<now>>_tray_carry_groundtruth_features.pkl)",
 )
 def cli_generate_tray_carry_groundtruth(groundtruth_csv, output):
-    groundtruth_features_output = "{}/groundtruth".format(output)
+    groundtruth_features_output = f"{output}/groundtruth"
     Path(groundtruth_features_output).mkdir(parents=True, exist_ok=True)
 
     df_groundtruth_features = generate_tray_carry_groundtruth(groundtruth_csv)
@@ -249,7 +249,7 @@ def cli_generate_tray_carry_groundtruth(groundtruth_csv, output):
         logger.warn("Unexpected result, unable to store groundtruth features")
     else:
         write_generic_pkl(
-            df_groundtruth_features, "{}_tray_carry_groundtruth_features".format(now), groundtruth_features_output
+            df_groundtruth_features, f"{now}_tray_carry_groundtruth_features", groundtruth_features_output
         )
 
 
@@ -260,11 +260,11 @@ def cli_generate_tray_carry_groundtruth(groundtruth_csv, output):
 @click.option(
     "--output",
     type=click.Path(),
-    default="%s/output" % (os.getcwd()),
+    default=f"{os.getcwd()}/output",
     help="output folder, output includes data features pickle (<<output>>/groundtruth/<<now>>_human_activity_groundtruth_features.pkl)",
 )
 def cli_generate_human_activity_groundtruth(groundtruth_csv, output):
-    groundtruth_features_output = "{}/groundtruth".format(output)
+    groundtruth_features_output = f"{output}/groundtruth"
     Path(groundtruth_features_output).mkdir(parents=True, exist_ok=True)
 
     df_groundtruth_features = generate_human_activity_groundtruth(groundtruth_csv)
@@ -273,7 +273,7 @@ def cli_generate_human_activity_groundtruth(groundtruth_csv, output):
         logger.warn("Unexpected result, unable to store groundtruth features")
     else:
         write_generic_pkl(
-            df_groundtruth_features, "{}_human_activity_groundtruth_features".format(now), groundtruth_features_output
+            df_groundtruth_features, f"{now}_human_activity_groundtruth_features", groundtruth_features_output
         )
 
 
@@ -289,21 +289,21 @@ def cli_generate_human_activity_groundtruth(groundtruth_csv, output):
 @click.option(
     "--output",
     type=click.Path(),
-    default="%s/output/models" % (os.getcwd()),
+    default=f"{os.getcwd()}/output/models",
     help="output folder, model output includes pickled model (<<output>>/models/<<DATE>>_model.pkl) and pickled scaler (<<output>>/models/<<DATE>>_scaler.pkl)",
 )
 def cli_train_human_activity_model(groundtruth_features, output):
-    models_output = "{}/models".format(output)
+    models_output = f"{output}/models"
     Path(models_output).mkdir(parents=True, exist_ok=True)
 
     df_groundtruth_features = pd.read_pickle(groundtruth_features)
     result = generate_human_activity_model(df_groundtruth_features)
 
     if result is not None:
-        write_generic_pkl(result["model"], "{}_tray_carry_model".format(now), models_output)
+        write_generic_pkl(result["model"], f"{now}_tray_carry_model", models_output)
 
         if result["scaler"] is not None:
-            write_generic_pkl(result["scaler"], "{}_tray_carry_scaler".format(now), models_output)
+            write_generic_pkl(result["scaler"], f"{now}_tray_carry_scaler", models_output)
 
 
 @click.command(
@@ -319,21 +319,21 @@ def cli_train_human_activity_model(groundtruth_features, output):
 @click.option(
     "--output",
     type=click.Path(),
-    default="%s/output" % (os.getcwd()),
+    default=f"{os.getcwd()}/output",
     help="output folder, model output includes pickled model (<<output>>/models/<<DATE>>_model.pkl) and pickled scaler (<<output>>/models/<<DATE>>_scaler.pkl).",
 )
 def cli_train_tray_carry_model(groundtruth_features, tune, output):
-    models_output = "{}/models".format(output)
+    models_output = f"{output}/models"
     Path(models_output).mkdir(parents=True, exist_ok=True)
 
     df_groundtruth_features = pd.read_pickle(groundtruth_features)
     result = generate_tray_carry_model(df_groundtruth_features, tune=tune)
 
     if result is not None:
-        write_generic_pkl(result["model"], "{}_tray_carry_model".format(now), models_output)
+        write_generic_pkl(result["model"], f"{now}_tray_carry_model", models_output)
 
         if result["scaler"] is not None:
-            write_generic_pkl(result["scaler"], "{}_tray_carry_scaler".format(now), models_output)
+            write_generic_pkl(result["scaler"], f"{now}_tray_carry_scaler", models_output)
 
 
 @click.command(name="estimate-tray-centroids", help="Estimate tray shelf locations. Output is written to a CSV")
@@ -354,13 +354,13 @@ def cli_train_tray_carry_model(groundtruth_features, tune, output):
 @click.option(
     "--output",
     type=click.Path(),
-    default="%s/output" % (os.getcwd()),
+    default=f"{os.getcwd()}/output",
     help="output folder, tray centroids stored as csv in <<output>>/locations (e.g. <<output/locations/<<DATE>>_tray_centroids.csv)",
 )
 def cli_estimate_tray_centroids(
     environment, start, end, cuwb_data, motion_feature_data, tray_carry_model, tray_carry_feature_scaler, output
 ):
-    locations_output = "{}/locations".format(output)
+    locations_output = f"{output}/locations"
     Path(locations_output).mkdir(parents=True, exist_ok=True)
 
     df_uwb_data = None
@@ -390,9 +390,7 @@ def cli_estimate_tray_centroids(
         logger.warn("No tray centroids inferred")
         return
     else:
-        write_datafile_to_csv(
-            df_tray_centroids, "{}_tray_centroids".format(now), directory=locations_output, index=False
-        )
+        write_datafile_to_csv(df_tray_centroids, f"{now}_tray_centroids", directory=locations_output, index=False)
 
 
 @click.command(
@@ -416,13 +414,13 @@ def cli_estimate_tray_centroids(
 @click.option(
     "--output",
     type=click.Path(),
-    default="%s/output" % (os.getcwd()),
+    default=f"{os.getcwd()}/output",
     help="output folder, carry events stored as csv in <<output>>/inference/tray_carry (e.g. <<output>>/inference/tray_carry/<<DATE>>_carry_events.csv)",
 )
 def cli_infer_tray_carry(
     environment, start, end, cuwb_data, motion_feature_data, tray_carry_model, tray_carry_feature_scaler, output
 ):
-    inference_output = "{}/inference/tray_carry".format(output)
+    inference_output = f"{output}/inference/tray_carry"
     Path(inference_output).mkdir(parents=True, exist_ok=True)
 
     df_uwb_data = None
@@ -452,7 +450,7 @@ def cli_infer_tray_carry(
         logger.warn("No tray carry events detected")
         return
 
-    write_datafile_to_csv(df_carry_events, "{}_carry_events".format(now), directory=inference_output, index=False)
+    write_datafile_to_csv(df_carry_events, f"{now}_carry_events", directory=inference_output, index=False)
 
 
 @click.command(
@@ -475,11 +473,11 @@ def cli_infer_tray_carry(
 @click.option(
     "--output",
     type=click.Path(),
-    default="%s/output" % (os.getcwd()),
+    default=f"{os.getcwd()}/output",
     help="output folder, carry events stored as csv in <<output>>/inference/human_activity (e.g. <<output>>/inference/human_activity/<<DATE>>_human_activity.csv)",
 )
 def cli_infer_human_activity(environment, start, end, motion_feature_data, model, feature_scaler, output):
-    inference_output = "{}/inference/human_activity".format(output)
+    inference_output = f"{output}/inference/human_activity"
     Path(inference_output).mkdir(parents=True, exist_ok=True)
 
     if motion_feature_data is None:
@@ -505,9 +503,7 @@ def cli_infer_human_activity(environment, start, end, motion_feature_data, model
         logger.warn("No human activity detected")
         return
 
-    write_datafile_to_csv(
-        df_person_features_with_har, "{}_human_activity".format(now), directory=inference_output, index=False
-    )
+    write_datafile_to_csv(df_person_features_with_har, f"{now}_human_activity", directory=inference_output, index=False)
 
 
 @click.command(
@@ -550,7 +546,7 @@ def cli_infer_human_activity(environment, start, end, motion_feature_data, model
 @click.option(
     "--output",
     type=click.Path(),
-    default="%s/output" % (os.getcwd()),
+    default=f"{os.getcwd()}/output",
     help="output folder, tray interactions stored as csv in <<output>>/inference/tray_interactions (e.g. <<output>>/inference/interactions/<<DATE>>_tray_interactions.csv)",
 )
 @click.option("--tray-positions-csv", type=click.Path(exists=True), help="CSV formatted tray shelf position data")
@@ -570,13 +566,13 @@ def cli_infer_tray_interactions(
     output,
     tray_positions_csv,
 ):
-    interactions_output = "{}/inference/tray_interactions".format(output)
+    interactions_output = f"{output}/inference/tray_interactions"
     Path(interactions_output).mkdir(parents=True, exist_ok=True)
 
     if pose_inference_base is None:
         pose_inference_base = output
 
-    Path("{}/{}".format(pose_inference_base, pose_inference_subdirectory)).mkdir(parents=True, exist_ok=True)
+    Path(f"{pose_inference_base}/{pose_inference_subdirectory}").mkdir(parents=True, exist_ok=True)
 
     if motion_feature_data is None:
         if cuwb_data is None:
@@ -667,7 +663,7 @@ def cli_infer_tray_interactions(
         return
     else:
         write_datafile_to_csv(
-            df_tray_interactions, "{}_tray_interactions".format(now), directory=interactions_output, index=False
+            df_tray_interactions, f"{now}_tray_interactions", directory=interactions_output, index=False
         )
 
 
@@ -678,11 +674,11 @@ def cli_infer_tray_interactions(
 @click.option(
     "--output",
     type=click.Path(),
-    default="%s/output" % (os.getcwd()),
+    default=f"{os.getcwd()}/output",
     help="output folder, tray events stored as csv in <<output>>/inference/df_tray_events (e.g. <<output>>/inference/df_tray_events/<<DATE>>_tray_events.csv)",
 )
 def cli_infer_tray_events(environment, tray_interactions, time_zone, output):
-    tray_events_output = "{}/inference/df_tray_events".format(output)
+    tray_events_output = f"{output}/inference/df_tray_events"
     Path(tray_events_output).mkdir(parents=True, exist_ok=True)
 
     # df_tray_interactions = pd.DataFrame(read_generic_pkl(tray_interactions))
@@ -701,7 +697,7 @@ def cli_infer_tray_events(environment, tray_interactions, time_zone, output):
         logger.warn("No tray events inferred")
         return
     else:
-        write_datafile_to_csv(df_tray_events, "{}_tray_events".format(now), directory=tray_events_output, index=False)
+        write_datafile_to_csv(df_tray_events, f"{now}_tray_events", directory=tray_events_output, index=False)
 
 
 @click.command(name="infer-material-events")
@@ -711,11 +707,11 @@ def cli_infer_tray_events(environment, tray_interactions, time_zone, output):
 @click.option(
     "--output",
     type=click.Path(),
-    default="%s/output" % (os.getcwd()),
+    default=f"{os.getcwd()}/output",
     help="output folder, tray events stored as csv in <<output>>/inference/material_events (e.g. <<output>>/inference/material_events/<<DATE>>_material_events.csv)",
 )
 def cli_infer_material_events(environment, tray_events, time_zone, output):
-    material_events_output = "{}/inference/material_events".format(output)
+    material_events_output = f"{output}/inference/material_events"
     Path(material_events_output).mkdir(parents=True, exist_ok=True)
 
     df_tray_events = pd.read_csv(tray_events)
@@ -732,7 +728,7 @@ def cli_infer_material_events(environment, tray_events, time_zone, output):
         return
     else:
         write_datafile_to_csv(
-            df_material_events, "{}_material_events".format(now), directory=material_events_output, index=False
+            df_material_events, f"{now}_material_events", directory=material_events_output, index=False
         )
 
 

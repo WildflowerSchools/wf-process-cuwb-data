@@ -230,7 +230,7 @@ class FeatureExtraction:
 
         df_dict = dict()
         for device_id in all_device_ids:
-            logger.info("Calculating motion features for device ID {}".format(device_id))
+            logger.info(f"Calculating motion features for device ID {device_id}")
 
             df_position_for_device = None
             if df_position is not None:

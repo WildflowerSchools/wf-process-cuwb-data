@@ -275,18 +275,18 @@ def describe_tray_event(timestamp, material_name, person_name, interaction_type,
     time_string = timestamp.tz_convert(time_zone).strftime("%I:%M %p")
     person_string = person_name if pd.notnull(person_name) else "An unknown person"
     if interaction_type == "CARRYING_FROM_SHELF":
-        description_text = "{} took the {} tray from shelf".format(person_string, material_name)
+        description_text = f"{person_string} took the {material_name} tray from shelf"
     elif interaction_type == "CARRYING_TO_SHELF":
-        description_text = "{} put the {} tray back on the shelf".format(person_string, material_name)
+        description_text = f"{person_string} put the {material_name} tray back on the shelf"
     elif interaction_type == "CARRYING_BETWEEN_NON_SHELF_LOCATIONS":
-        description_text = "{} moved the {} tray".format(person_string, material_name)
+        description_text = f"{person_string} moved the {material_name} tray"
     elif interaction_type == "CARRYING_FROM_AND_TO_SHELF":
         description_text = "{} took the {} tray from the shelf and immediately put it back".format(
             person_string, material_name
         )
     else:
-        raise ValueError("Unexpected interaction type: '{}'".format(interaction_type))
-    description = "{}: {}".format(time_string, description_text)
+        raise ValueError(f"Unexpected interaction type: '{interaction_type}'")
+    description = f"{time_string}: {description_text}"
     return description
 
 
@@ -585,11 +585,11 @@ def describe_material_event(
     to_shelf_person_string = person_name_to_shelf if pd.notnull(person_name_to_shelf) else "an unknown person"
     if pd.notnull(start) and pd.notnull(end):
         if duration_seconds > 90:
-            duration_string = "{} minutes".format(round(duration_seconds / 60))
+            duration_string = f"{round(duration_seconds / 60)} minutes"
         elif duration_seconds > 30:
             duration_string = "1 minute"
         else:
-            duration_string = "{} seconds".format(round(duration_seconds))
+            duration_string = f"{round(duration_seconds)} seconds"
         if person_name_from_shelf == person_name_to_shelf:
             description_text = "{} took {} from shelf and put it back {} later".format(
                 from_shelf_person_string, material_name, duration_string
@@ -599,7 +599,7 @@ def describe_material_event(
                 from_shelf_person_string, material_name, to_shelf_person_string, duration_string
             )
     elif pd.notnull(start):
-        description_text = "{} took {} from shelf but never put it back".format(from_shelf_person_string, material_name)
+        description_text = f"{from_shelf_person_string} took {material_name} from shelf but never put it back"
     elif pd.notnull(end):
         if to_shelf_person_string == "an unknown person":
             to_shelf_person_string = to_shelf_person_string.capitalize()
@@ -608,7 +608,7 @@ def describe_material_event(
         )
     else:
         raise ValueError("Unexpected state: both start and end of material event are null")
-    description = "{}: {}".format(time_string, description_text)
+    description = f"{time_string}: {description_text}"
     return description
 
 

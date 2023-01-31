@@ -116,7 +116,7 @@ class UWBRandomForestClassifier:
             feature_field_names = []
 
         if not isinstance(self.classifier, skRandomForestClassifier):
-            raise Exception("Classifier model type is {}, must be RandomForestClassifier".format(type(self.classifier)))
+            raise Exception(f"Classifier model type is {type(self.classifier)}, must be RandomForestClassifier")
 
         df_groundtruth[ground_truth_label_field_name] = df_groundtruth[ground_truth_label_field_name].str.lower()
 
@@ -130,8 +130,8 @@ class UWBRandomForestClassifier:
         values_train, counts_train = np.unique(y_all_train, return_counts=True)
         values_test, counts_test = np.unique(y_all_test, return_counts=True)
 
-        logger.info("Training label balance:\n{}".format(dict(zip(values_train, counts_train / np.sum(counts_train)))))
-        logger.info("Test label balance:\n{}".format(dict(zip(values_test, counts_test / np.sum(counts_test)))))
+        logger.info(f"Training label balance:\n{dict(zip(values_train, counts_train / np.sum(counts_train)))}")
+        logger.info(f"Test label balance:\n{dict(zip(values_test, counts_test / np.sum(counts_test)))}")
 
         sc = None
         if scale_features:
@@ -177,12 +177,10 @@ class UWBRandomForestClassifier:
             raise Exception("RandomForestClassifier required, is None")
 
         if not isinstance(model, skRandomForestClassifier):
-            raise Exception(
-                "RandomForestClassifier model type is {}, must be RandomForestClassifier".format(type(model))
-            )
+            raise Exception(f"RandomForestClassifier model type is {type(model)}, must be RandomForestClassifier")
 
         if scaler is not None and not isinstance(scaler, StandardScaler):
-            raise Exception("Feature scaler type is {}, must be StandardScaler".format(type(self.scaler)))
+            raise Exception(f"Feature scaler type is {type(self.scaler)}, must be StandardScaler")
 
         df_features = df_features.copy()
 

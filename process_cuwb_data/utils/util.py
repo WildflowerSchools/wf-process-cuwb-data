@@ -22,7 +22,7 @@ def filter_entity_type(dataframe, entity_type="all"):
     elif entity_type.lower() == "person":
         return dataframe.loc[dataframe["entity_type"].str.lower() == "person"].copy()
     else:
-        error = "Invalid 'entity_type' value: {}".format(entity_type)
+        error = f"Invalid 'entity_type' value: {entity_type}"
         raise ValueError(error)
 
 
@@ -31,7 +31,7 @@ def filter_data_type_and_format(df, data_type="all"):
         return df
 
     if data_type not in ["position", "accelerometer", "gyroscope", "magnetometer"]:
-        error = "Invalid 'data_type' value: {}".format(data_type)
+        error = f"Invalid 'data_type' value: {data_type}"
         raise ValueError(error)
 
     return df.loc[df["type"] == data_type].copy()

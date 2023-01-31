@@ -213,12 +213,10 @@ def resample_geom(geom, start_time, end_time, frames_per_second=10.0, progress_b
 
 
 def project_onto_camera_views(geom_3d, camera_info_df):
-    logger.info(
-        "Creating 2D geoms from 3D geom, one for each camera: {}".format(camera_info_df["device_name"].to_dict())
-    )
+    logger.info(f"Creating 2D geoms from 3D geom, one for each camera: {camera_info_df['device_name'].to_dict()}")
     geom_2d_dict = dict()
     for device_id, camera_info in camera_info_df.iterrows():
-        logger.info("Creating 2D geom for camera {}".format(camera_info["device_name"]))
+        logger.info(f"Creating 2D geom for camera {camera_info['device_name']}")
         geom_2d_dict[device_id] = dict()
         geom_2d_dict[device_id]["device_name"] = camera_info["device_name"]
         geom_2d_dict[device_id]["geom"] = geom_3d.project(
@@ -239,7 +237,7 @@ def write_json(geom_dict, output_directory=".", prefix="geom_2d", indent=None):
         )
     )
     for device_id, geom_info in geom_dict.items():
-        logger.info("Writing geom data to local JSON file for {}".format(geom_info["device_name"]))
+        logger.info(f"Writing geom data to local JSON file for {geom_info['device_name']}")
         path = os.path.join(output_directory, "_".join([prefix, geom_info["device_name"]]) + ".json")
         with open(path, "w") as fp:
             fp.write(geom_info["geom"].to_json(indent=indent))

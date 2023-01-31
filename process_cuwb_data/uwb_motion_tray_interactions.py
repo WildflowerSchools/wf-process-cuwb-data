@@ -21,7 +21,7 @@ CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF = 0.5
 
 def map_column_name_to_dimension_space(column_name, num_dimensions):
     dims = ["x", "y", "z"]
-    return list(map(lambda d: "{}_{}".format(d, column_name), dims[0:num_dimensions]))
+    return list(map(lambda d: f"{d}_{column_name}", dims[0:num_dimensions]))
 
 
 def modify_carry_events_with_track_ids(df_carry_events):
@@ -745,7 +745,7 @@ def infer_tray_device_interactions(df_features, df_carry_events, df_tray_centroi
     #   interaction_type (str)
     #   human_activity_category_start (str)
     #   human_activity_category_end (str)
-    logger.info("Tray motion interactions\n{}".format(df_tray_interactions))
+    logger.info(f"Tray motion interactions\n{df_tray_interactions}")
     df_tray_interactions = df_tray_interactions.rename(
         columns={
             "device_id": "tray_device_id",

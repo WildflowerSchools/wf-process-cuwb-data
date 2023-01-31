@@ -40,10 +40,10 @@ def fetch_tray_device_assignments(environment_name, start, end):
 
 def fetch_cuwb_data(environment_name, start, end, entity_type="all", data_type="all"):
     if entity_type not in ["tray", "person", "all"]:
-        raise ValueError("Invalid 'entity_type' value: {}".format(entity_type))
+        raise ValueError(f"Invalid 'entity_type' value: {entity_type}")
 
     if data_type not in ["position", "accelerometer", "gyroscope", "magnetometer", "all"]:
-        raise ValueError("Invalid 'data_type' value: {}".format(data_type))
+        raise ValueError(f"Invalid 'data_type' value: {data_type}")
 
     if data_type == "all":
         imu_types_to_fetch = ["position", "accelerometer", "gyroscope", "magnetometer"]
@@ -95,10 +95,10 @@ def fetch_cuwb_data_from_datapoints(
     entity_assignment_info=True,
 ):
     if entity_type not in ["tray", "person", "all"]:
-        raise ValueError("Invalid 'entity_type' value: {}".format(type))
+        raise ValueError(f"Invalid 'entity_type' value: {type}")
 
     if data_type not in ["position", "accelerometer", "status", "raw"]:
-        raise ValueError("Invalid 'data_type' value: {}".format(type))
+        raise ValueError(f"Invalid 'data_type' value: {type}")
 
     df = fetch_raw_cuwb_data(
         environment_name=environment_name,
@@ -272,7 +272,7 @@ def generate_groundtruth(groundtruth_csv, groundtruth_type):
         elif groundtruth_type == ground_truth.GROUNDTRUTH_TYPE_HUMAN_ACTIVITY:
             entity_type = "person"
         else:
-            logger.error("Unable to build groundtruth, unknown type requested: {}".format(groundtruth_type))
+            logger.error(f"Unable to build groundtruth, unknown type requested: {groundtruth_type}")
             return None
 
         valid, msg = ground_truth.validate_ground_truth(df_groundtruth, groundtruth_type=groundtruth_type)

@@ -114,15 +114,15 @@ def plot_tray_motion_features_multiple_devices(
         df_features_reduced = df_features[df_features["device_id"] == device_id]
         device_serial_numbers = df_position_reduced["device_serial_number"].unique().tolist()
         if len(device_serial_numbers) == 0:
-            raise ValueError("Device serial number for device ID {} not found in position data".format(device_id))
+            raise ValueError(f"Device serial number for device ID {device_id} not found in position data")
         if len(device_serial_numbers) > 1:
-            raise ValueError("Multiple device serial numbers found in data for device ID {}".format(device_id))
+            raise ValueError(f"Multiple device serial numbers found in data for device ID {device_id}")
         device_serial_number = device_serial_numbers[0]
         material_names = df_position_reduced["material_name"].unique().tolist()
         if len(material_names) == 0:
-            raise ValueError("Material name for device ID {} not found in position data".format(device_id))
+            raise ValueError(f"Material name for device ID {device_id} not found in position data")
         if len(material_names) > 1:
-            raise ValueError("Multiple material names found in data for device ID {}".format(device_id))
+            raise ValueError(f"Multiple material names found in data for device ID {device_id}")
         entity_name = material_names[0]
         plot_tray_motion_features(
             df_position=df_position_reduced,
@@ -178,15 +178,15 @@ def plot_tray_motion_features_with_ground_truth_multiple_devices(
         df_features_reduced = df_features[df_features["device_id"] == device_id]
         device_serial_numbers = df_position_reduced["device_serial_number"].unique().tolist()
         if len(device_serial_numbers) == 0:
-            raise ValueError("Device serial number for device ID {} not found in position data".format(device_id))
+            raise ValueError(f"Device serial number for device ID {device_id} not found in position data")
         if len(device_serial_numbers) > 1:
-            raise ValueError("Multiple device serial numbers found in data for device ID {}".format(device_id))
+            raise ValueError(f"Multiple device serial numbers found in data for device ID {device_id}")
         device_serial_number = device_serial_numbers[0]
         material_names = df_position_reduced["material_name"].unique().tolist()
         if len(material_names) == 0:
-            raise ValueError("Material name for device ID {} not found in position data".format(device_id))
+            raise ValueError(f"Material name for device ID {device_id} not found in position data")
         if len(material_names) > 1:
-            raise ValueError("Multiple material names found in data for device ID {}".format(device_id))
+            raise ValueError(f"Multiple material names found in data for device ID {device_id}")
         entity_name = material_names[0]
         plot_tray_motion_features_with_ground_truth(
             df_position=df_position_reduced,
@@ -244,15 +244,15 @@ def plot_tray_motion_features_with_state_multiple_devices(
         df_features_reduced = df_features[df_features["device_id"] == device_id]
         device_serial_numbers = df_position_reduced["device_serial_number"].unique().tolist()
         if len(device_serial_numbers) == 0:
-            raise ValueError("Device serial number for device ID {} not found in position data".format(device_id))
+            raise ValueError(f"Device serial number for device ID {device_id} not found in position data")
         if len(device_serial_numbers) > 1:
-            raise ValueError("Multiple device serial numbers found in data for device ID {}".format(device_id))
+            raise ValueError(f"Multiple device serial numbers found in data for device ID {device_id}")
         device_serial_number = device_serial_numbers[0]
         material_names = df_position_reduced["material_name"].unique().tolist()
         if len(material_names) == 0:
-            raise ValueError("Material name for device ID {} not found in position data".format(device_id))
+            raise ValueError(f"Material name for device ID {device_id} not found in position data")
         if len(material_names) > 1:
-            raise ValueError("Multiple material names found in data for device ID {}".format(device_id))
+            raise ValueError(f"Multiple material names found in data for device ID {device_id}")
         entity_name = material_names[0]
         plot_tray_motion_features_with_state(
             df_position=df_position_reduced,
@@ -321,7 +321,7 @@ def plot_positions(
     axes[1].set_xlabel("Time (UTC)")
     axes[1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
     fig.colorbar(plots[1], ax=axes).set_label(color_axis_label)
-    fig.suptitle("{} ({})".format(entity_name, device_serial_number))
+    fig.suptitle(f"{entity_name} ({device_serial_number})")
     fig.set_size_inches(figure_size_inches[0], figure_size_inches[1])
     if plot_show:
         plt.show()
@@ -389,7 +389,7 @@ def plot_positions_topdown(
     axes.set_ylabel(axis_labels[1])
     cbar = fig.colorbar(plot, ax=axes)
     cbar.set_label(color_axis_label)
-    fig.suptitle("{} ({})".format(entity_name, device_serial_number))
+    fig.suptitle(f"{entity_name} ({device_serial_number})")
     fig.set_size_inches(figure_size_inches[0], figure_size_inches[1])
     fig.autofmt_xdate()
     if plot_show:
@@ -436,7 +436,7 @@ def plot_accelerations(
     axes[2].set_xlim(time_min, time_max)
     axes[2].set_xlabel("Time (UTC)")
     axes[2].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-    fig.suptitle("{} ({})".format(entity_name, device_serial_number))
+    fig.suptitle(f"{entity_name} ({device_serial_number})")
     fig.set_size_inches(figure_size_inches[0], figure_size_inches[1])
     if plot_show:
         plt.show()
@@ -507,7 +507,7 @@ def plot_positions_and_accelerations(
     axes[4].set_xlabel("Time (UTC)")
     axes[4].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
     fig.colorbar(plots[1], ax=axes).set_label(position_color_axis_label)
-    fig.suptitle("{} ({})".format(entity_name, device_serial_number))
+    fig.suptitle(f"{entity_name} ({device_serial_number})")
     fig.set_size_inches(figure_size_inches[0], figure_size_inches[1])
     if plot_show:
         plt.show()
@@ -546,9 +546,9 @@ def plot_tray_motion_features(
     for axis_index, axis_name in enumerate(["x", "y"]):
         axes[axis_index].plot(
             df_position.index,
-            df_position["{}_meters".format(axis_name)],
+            df_position[f"{axis_name}_meters"],
             "g-",
-            label="${}$ position (m)".format(axis_name),
+            label=f"${axis_name}$ position (m)",
         )
         axes[axis_index].set_ylabel(r"${}$ (m)".format(axis_name))
         if room_corners is not None:
@@ -556,9 +556,9 @@ def plot_tray_motion_features(
     for axis_index, axis_name in enumerate(["x", "y"]):
         axes[2 + axis_index].plot(
             df_features.index,
-            df_features["{}_velocity_smoothed".format(axis_name)],
+            df_features[f"{axis_name}_velocity_smoothed"],
             "b-",
-            label="Smoothed ${}$ velocity (m/s)".format(axis_name),
+            label=f"Smoothed ${axis_name}$ velocity (m/s)",
         )
         axes[2 + axis_index].set_ylabel(r"$d{}/dt$ (m/s)".format(axis_name))
         if velocity_limits is not None:
@@ -566,7 +566,7 @@ def plot_tray_motion_features(
     for axis_index, axis_name in enumerate(["x", "y", "z"]):
         axes[4 + axis_index].plot(
             df_features.index,
-            df_features["{}_acceleration_normalized".format(axis_name)],
+            df_features[f"{axis_name}_acceleration_normalized"],
             "b-",
             label=r"Normalized ${}$ acceleration ($\mathrm{{m}}/\mathrm{{s}}^2$)".format(axis_name),
         )
@@ -574,7 +574,7 @@ def plot_tray_motion_features(
         if acceleration_limits is not None:
             axes[4 + axis_index].set_ylim(acceleration_limits[0], acceleration_limits[1])
     axes[6].set_xlabel("Time (UTC)")
-    extra_artists.append(fig.suptitle("{} ({})".format(entity_name, device_serial_number)))
+    extra_artists.append(fig.suptitle(f"{entity_name} ({device_serial_number})"))
     fig.set_size_inches(figure_size_inches[0], figure_size_inches[1])
     if plot_show:
         plt.show()
@@ -615,7 +615,7 @@ def plot_tray_motion_features_with_ground_truth(
     for axis_index, axis_name in enumerate(["x", "y"]):
         axes[axis_index].scatter(
             x=df_position.index,
-            y=df_position["{}_meters".format(axis_name)],
+            y=df_position[f"{axis_name}_meters"],
             marker=".",
             s=1,
         )
@@ -627,7 +627,7 @@ def plot_tray_motion_features_with_ground_truth(
             axes[2 + axis_index].scatter(
                 x=df_features.loc[df_features["ground_truth_state"] == ground_truth_state].index,
                 y=df_features.loc[
-                    df_features["ground_truth_state"] == ground_truth_state, "{}_velocity_smoothed".format(axis_name)
+                    df_features["ground_truth_state"] == ground_truth_state, f"{axis_name}_velocity_smoothed"
                 ],
                 c=color_dict[ground_truth_state],
                 marker=".",
@@ -643,7 +643,7 @@ def plot_tray_motion_features_with_ground_truth(
                 x=df_features.loc[df_features["ground_truth_state"] == ground_truth_state].index,
                 y=df_features.loc[
                     df_features["ground_truth_state"] == ground_truth_state,
-                    "{}_acceleration_normalized".format(axis_name),
+                    f"{axis_name}_acceleration_normalized",
                 ],
                 c=color_dict[ground_truth_state],
                 marker=".",
@@ -655,7 +655,7 @@ def plot_tray_motion_features_with_ground_truth(
             axes[4 + axis_index].set_ylim(acceleration_limits[0], acceleration_limits[1])
     axes[6].set_xlim(time_min, time_max)
     axes[6].set_xlabel("Time (UTC)")
-    extra_artists.append(fig.suptitle("{} ({})".format(entity_name, device_serial_number)))
+    extra_artists.append(fig.suptitle(f"{entity_name} ({device_serial_number})"))
     extra_artists.append(axes[2].legend(loc="upper left", bbox_to_anchor=(1.0, 1.0)))
     fig.set_size_inches(figure_size_inches[0], figure_size_inches[1])
     if plot_show:
@@ -698,7 +698,7 @@ def plot_tray_motion_features_with_state(
     for axis_index, axis_name in enumerate(["x", "y"]):
         axes[axis_index].scatter(
             x=df_position.index,
-            y=df_position["{}_meters".format(axis_name)],
+            y=df_position[f"{axis_name}_meters"],
             marker=".",
             s=1,
         )
@@ -709,7 +709,7 @@ def plot_tray_motion_features_with_state(
         for state in states:
             axes[2 + axis_index].scatter(
                 x=df_features.loc[df_features[state_field_name] == state].index,
-                y=df_features.loc[df_features[state_field_name] == state, "{}_velocity_smoothed".format(axis_name)],
+                y=df_features.loc[df_features[state_field_name] == state, f"{axis_name}_velocity_smoothed"],
                 c=color_dict[state],
                 marker=".",
                 s=1,
@@ -722,9 +722,7 @@ def plot_tray_motion_features_with_state(
         for state in states:
             axes[4 + axis_index].scatter(
                 x=df_features.loc[df_features[state_field_name] == state].index,
-                y=df_features.loc[
-                    df_features[state_field_name] == state, "{}_acceleration_normalized".format(axis_name)
-                ],
+                y=df_features.loc[df_features[state_field_name] == state, f"{axis_name}_acceleration_normalized"],
                 c=color_dict[state],
                 marker=".",
                 s=1,
@@ -735,7 +733,7 @@ def plot_tray_motion_features_with_state(
             axes[4 + axis_index].set_ylim(acceleration_limits[0], acceleration_limits[1])
     axes[6].set_xlim(time_min, time_max)
     axes[6].set_xlabel("Time (UTC)")
-    extra_artists.append(fig.suptitle("{} ({})".format(entity_name, device_serial_number)))
+    extra_artists.append(fig.suptitle(f"{entity_name} ({device_serial_number})"))
     extra_artists.append(axes[2].legend(loc="upper left", bbox_to_anchor=(1.0, 1.0)))
     fig.set_size_inches(figure_size_inches[0], figure_size_inches[1])
     if plot_show:

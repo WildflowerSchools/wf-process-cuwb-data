@@ -18,7 +18,7 @@ def extract_by_entity_type(df, entity_type="all"):
     elif entity_type == "person":
         return df[df["entity_type"].eq("Person")]
     else:
-        error = "Invalid 'entity_type' value: {}".format(entity_type)
+        error = f"Invalid 'entity_type' value: {entity_type}"
         logger.error(error)
         raise Exception(error)
 
@@ -39,7 +39,7 @@ def extract_by_data_type_and_format(df, data_type="raw"):
     elif data_type == "status":
         return extract_status_data(df)
     else:
-        error = "Invalid 'data_type' value: {}".format(data_type)
+        error = f"Invalid 'data_type' value: {data_type}"
         logger.error(error)
         raise Exception(error)
 

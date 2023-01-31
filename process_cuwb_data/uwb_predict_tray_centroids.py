@@ -13,7 +13,7 @@ DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE = 2
 
 def map_column_name_to_dimension_space(column_name, num_dimensions):
     dims = ["x", "y", "z"]
-    return list(map(lambda d: "{}_{}".format(d, column_name), dims[0:num_dimensions]))
+    return list(map(lambda d: f"{d}_{column_name}", dims[0:num_dimensions]))
 
 
 def validate_tray_centroids_dataframe(df_tray_centroids):
@@ -29,7 +29,7 @@ def validate_tray_centroids_dataframe(df_tray_centroids):
             missing_columns.append(rcolumn)
 
     if len(missing_columns) > 0:
-        return False, "Tray centroids data missing column(s) {}".format(missing_columns)
+        return False, f"Tray centroids data missing column(s) {missing_columns}"
 
     if (
         df_tray_centroids.x_centroid.dtype != "float64"
@@ -126,7 +126,7 @@ def predict_tray_centroids(df_tray_features_no_movement):
 
         X = df_tray_no_movement_for_device[position_cols].copy().round(2)
         # Estimate the number of clusters per device, allow all processors to work
-        logger.info("Estimating # of clusters for: {}".format(device_id))
+        logger.info(f"Estimating # of clusters for: {device_id}")
         bandwidth = cluster.estimate_bandwidth(X, quantile=0.3, n_samples=15000)
 
         # If min_bin_freq is too large, MeanShift will fail
@@ -139,7 +139,7 @@ def predict_tray_centroids(df_tray_features_no_movement):
             X
         )
 
-        logger.info("Clusters for device {} est: {}".format(device_id, len(clustering.cluster_centers_)))
+        logger.info(f"Clusters for device {device_id} est: {len(clustering.cluster_centers_)}")
         for label, val in enumerate(clustering.cluster_centers_):
             tray_clusters.append(
                 pd.DataFrame(
@@ -179,7 +179,7 @@ def predict_tray_centroids(df_tray_features_no_movement):
     logger.info("Estimating tray centroids (tray's shelf position)")
     tray_centroids = []
     for device_id in pd.unique(df_tray_clusters["device_id"]):
-        logger.info("Estimating tray centroids for device: {}".format(device_id))
+        logger.info(f"Estimating tray centroids for device: {device_id}")
         df_tray_no_movement_for_device = df_tray_features_no_movement[
             df_tray_features_no_movement["device_id"] == device_id
         ]

@@ -41,7 +41,7 @@ def pose_data_with_body_centroid(environment, start, end, df_3d_pose_data):
 
     cols = []
     for k in keypoints:
-        cols.extend(list(map(lambda c: "{}_{}".format(k["name"], c), list("xyz"))))
+        cols.extend(list(map(lambda c: f"{k['name']}_{c}", list("xyz"))))
 
     np_flattened_poses = np.array(df_3d_pose_data["keypoint_coordinates_3d"].to_list())
     np_flattened_chest_keypoints = np_flattened_poses[:, list(map(lambda x: x["idx"], keypoints)), :]

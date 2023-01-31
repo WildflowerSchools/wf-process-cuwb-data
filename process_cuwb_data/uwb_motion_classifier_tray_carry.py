@@ -148,7 +148,7 @@ class TrayCarryClassifier(UWBRandomForestClassifier):
             param_grid=param_grid,
         )
 
-        logger.info("Ideal tuned params: {}".format(cv_rfc.best_params_))
+        logger.info(f"Ideal tuned params: {cv_rfc.best_params_}")
 
         return cv_rfc
 
@@ -170,10 +170,10 @@ class TrayCarryClassifier(UWBRandomForestClassifier):
         return result
 
     def filter_and_smooth_predictions(self, device_id, df_device_features, window=10):
-        logger.info("Filter tray carry classification anomalies (hmm model) for device ID {}".format(device_id))
+        logger.info(f"Filter tray carry classification anomalies (hmm model) for device ID {device_id}")
         df_device_features = TrayCarryHmmFilter().filter(df_device_features, self.prediction_field_name)
 
-        logger.info("Smooth tray carry classification for device ID {}".format(device_id))
+        logger.info(f"Smooth tray carry classification for device ID {device_id}")
         df_device_features = SmoothLabelsFilter(window=window).filter(
             df_predictions=df_device_features, prediction_column_name=self.prediction_field_name
         )

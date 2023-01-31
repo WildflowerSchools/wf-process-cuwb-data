@@ -81,14 +81,14 @@ def extract_carry_events_by_device(
     logger.info("Extracting carry events")
     df_dict = dict()
     for device_id in pd.unique(df_carry_predictions[device_id_column_name]):
-        logger.info("Extracting carry events for device ID {}".format(device_id))
+        logger.info(f"Extracting carry events for device ID {device_id}")
         df_device_carry_predictions = (
             df_carry_predictions.loc[df_carry_predictions[device_id_column_name] == device_id].copy().sort_index()
         )
         df_carry_events = extract_carry_events_for_device(
             df_device_carry_predictions, prediction_column_name, device_id_column_name
         )
-        logger.info("Extracted {} carry events for device ID {}".format(len(df_carry_events), device_id))
+        logger.info(f"Extracted {len(df_carry_events)} carry events for device ID {device_id}")
 
         if len(df_carry_events) > 0:
             df_carry_events.drop(df_carry_events[df_carry_events["quality_median"] < 1000].index, inplace=True)

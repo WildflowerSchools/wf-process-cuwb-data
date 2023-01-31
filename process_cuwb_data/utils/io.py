@@ -10,7 +10,7 @@ from .log import logger
 def write_datafile_to_csv(df, filename, directory=".", index=True):
     filename = filename + ".csv"
     path = os.path.join(directory, filename)
-    logger.info("Writing datafile '{}' to {}".format(filename, path))
+    logger.info(f"Writing datafile '{filename}' to {path}")
     df.to_csv(path, index=index)
 
 
@@ -18,14 +18,14 @@ def write_generic_pkl(record, filename, directory="."):
     filename = filename + ".pkl"
     path = os.path.join(directory, filename)
     with open(path, "wb") as fp:
-        logger.info("Writing pickle '{}' record to {}".format(filename, path))
+        logger.info(f"Writing pickle '{filename}' record to {path}")
         pickle.dump(record, fp)
 
 
 def read_generic_pkl(path):
     with open(path, "rb") as fp:
         record = pickle.load(fp)
-        logger.info("Loaded pickle record '{}', type '{}'".format(path, type(record).__name__))
+        logger.info(f"Loaded pickle record '{path}', type '{type(record).__name__}'")
 
     return record
 
@@ -50,10 +50,10 @@ def write_cuwb_data_pkl(
         directory,
     )
     if df is None:
-        logger.warning("Cannot write CUWB data to pickle, dataframe provided == None: {}".format(path))
+        logger.warning(f"Cannot write CUWB data to pickle, dataframe provided == None: {path}")
         return
 
-    logger.info("Writing CUWB data to {}".format(path))
+    logger.info(f"Writing CUWB data to {path}")
     df.to_pickle(path)
 
 
@@ -75,7 +75,7 @@ def read_cuwb_data_pkl(
         entity_assignment_info,
         directory,
     )
-    logger.info("Reading CUWB data from {}".format(path))
+    logger.info(f"Reading CUWB data from {path}")
     df = pd.read_pickle(path)
     return df
 

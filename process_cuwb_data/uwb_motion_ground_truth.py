@@ -17,7 +17,7 @@ def validate_ground_truth(df_groundtruth, groundtruth_type):
     elif groundtruth_type == GROUNDTRUTH_TYPE_HUMAN_ACTIVITY:
         category_enum_class = HumanActivity
     else:
-        return False, "Unknown groundtruth_type ('{}') supplied to validate_ground_truth".format(groundtruth_type)
+        return False, f"Unknown groundtruth_type ('{groundtruth_type}') supplied to validate_ground_truth"
 
     # Verify required columns exist
     missing_columns = []
@@ -26,7 +26,7 @@ def validate_ground_truth(df_groundtruth, groundtruth_type):
             missing_columns.append(rcolumn)
 
     if len(missing_columns) > 0:
-        return False, "Groundtruth data missing column(s) {}".format(missing_columns)
+        return False, f"Groundtruth data missing column(s) {missing_columns}"
 
     if "data_source" not in df_groundtruth.columns:
         df_groundtruth["data_source"] = GroundtruthDataSource.IMU_TABLES.name
