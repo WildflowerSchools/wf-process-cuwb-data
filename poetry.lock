@@ -23,14 +23,14 @@ trio = ["trio (>=0.16,<0.22)"]
 
 [[package]]
 name = "astroid"
-version = "2.13.4"
+version = "2.14.1"
 description = "An abstract syntax tree for Python with inference support."
 category = "dev"
 optional = false
 python-versions = ">=3.7.2"
 files = [
-    {file = "astroid-2.13.4-py3-none-any.whl", hash = "sha256:fe430a1dcc6af3abbccd29ba9f2544dcafc0610d37018b5102c232ff917e4bbf"},
-    {file = "astroid-2.13.4.tar.gz", hash = "sha256:805d47d685a490f4024e3744064e919998b0eef6619e6ea6d2052deec5333fd5"},
+    {file = "astroid-2.14.1-py3-none-any.whl", hash = "sha256:23c718921acab5f08cbbbe9293967f1f8fec40c336d19cd75dc12a9ea31d2eb2"},
+    {file = "astroid-2.14.1.tar.gz", hash = "sha256:bd1aa4f9915c98e8aaebcd4e71930154d4e8c9aaf05d35ac0a63d1956091ae3f"},
 ]
 
 [package.dependencies]
@@ -117,18 +117,18 @@ uvloop = ["uvloop (>=0.15.2)"]
 
 [[package]]
 name = "boto3"
-version = "1.26.60"
+version = "1.26.63"
 description = "The AWS SDK for Python"
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "boto3-1.26.60-py3-none-any.whl", hash = "sha256:5fd2810217a74a38078a19fb85a9e5d6934d0c146eb060967a3ffd7ab33cdf00"},
-    {file = "boto3-1.26.60.tar.gz", hash = "sha256:f0824b3bcf803800d3ecef903b4840427e4b3d37a069f6fc9a86310f7e036ad5"},
+    {file = "boto3-1.26.63-py3-none-any.whl", hash = "sha256:c84857aceccc422d9fb96c26bbc4ec2808b93b39a2886907efef811e6f0b5ea7"},
+    {file = "boto3-1.26.63.tar.gz", hash = "sha256:f688555dd427271e0493e6d166126ce76e1744dd89d626575ba7c2e62ba86e14"},
 ]
 
 [package.dependencies]
-botocore = ">=1.29.60,<1.30.0"
+botocore = ">=1.29.63,<1.30.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.6.0,<0.7.0"
 
@@ -137,14 +137,14 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.29.60"
+version = "1.29.63"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "botocore-1.29.60-py3-none-any.whl", hash = "sha256:c4ae251e7df0cf01d893eb945bc8f23c14989ed349775a8e16c949f08a068f9a"},
-    {file = "botocore-1.29.60.tar.gz", hash = "sha256:a21217ccf4613c9ebbe4c3192e13ba91d46be642560e39a16406662a398a107b"},
+    {file = "botocore-1.29.63-py3-none-any.whl", hash = "sha256:9e14f8dba1252a03d0a7db7240dc48fa4a3ac470434a044b23c0001f648d6d4f"},
+    {file = "botocore-1.29.63.tar.gz", hash = "sha256:710864600818b80c865334e12af729923e2886cc760685c614c0eae9cbbfdd4d"},
 ]
 
 [package.dependencies]
@@ -1114,11 +1114,11 @@ files = [
 [package.dependencies]
 numpy = [
     {version = ">=1.21.0", markers = "python_version <= \"3.9\" and platform_system == \"Darwin\" and platform_machine == \"arm64\""},
-    {version = ">=1.21.2", markers = "python_version >= \"3.10\""},
-    {version = ">=1.21.4", markers = "python_version >= \"3.10\" and platform_system == \"Darwin\""},
     {version = ">=1.19.3", markers = "python_version >= \"3.6\" and platform_system == \"Linux\" and platform_machine == \"aarch64\" or python_version >= \"3.9\""},
     {version = ">=1.17.0", markers = "python_version >= \"3.7\""},
     {version = ">=1.17.3", markers = "python_version >= \"3.8\""},
+    {version = ">=1.21.2", markers = "python_version >= \"3.10\""},
+    {version = ">=1.21.4", markers = "python_version >= \"3.10\" and platform_system == \"Darwin\""},
 ]
 
 [[package]]
@@ -1442,18 +1442,18 @@ tests = ["coverage[toml] (==5.0.4)", "pytest (>=6.0.0,<7.0.0)"]
 
 [[package]]
 name = "pylint"
-version = "2.15.10"
+version = "2.16.1"
 description = "python code static checker"
 category = "dev"
 optional = false
 python-versions = ">=3.7.2"
 files = [
-    {file = "pylint-2.15.10-py3-none-any.whl", hash = "sha256:9df0d07e8948a1c3ffa3b6e2d7e6e63d9fb457c5da5b961ed63106594780cc7e"},
-    {file = "pylint-2.15.10.tar.gz", hash = "sha256:b3dc5ef7d33858f297ac0d06cc73862f01e4f2e74025ec3eff347ce0bc60baf5"},
+    {file = "pylint-2.16.1-py3-none-any.whl", hash = "sha256:bad9d7c36037f6043a1e848a43004dfd5ea5ceb05815d713ba56ca4503a9fe37"},
+    {file = "pylint-2.16.1.tar.gz", hash = "sha256:ffe7fa536bb38ba35006a7c8a6d2efbfdd3d95bbf21199cad31f76b1c50aaf30"},
 ]
 
 [package.dependencies]
-astroid = ">=2.12.13,<=2.14.0-dev0"
+astroid = ">=2.14.1,<=2.16.0-dev0"
 colorama = {version = ">=0.4.5", markers = "sys_platform == \"win32\""}
 dill = [
     {version = ">=0.2", markers = "python_version < \"3.11\""},
@@ -2023,14 +2023,14 @@ requests = ">=2.28.2,<3.0.0"
 
 [[package]]
 name = "wf-geom-render"
-version = "0.3.0"
+version = "0.4.0"
 description = "A library for projecting 3D geoms into 2D videos"
 category = "main"
 optional = false
-python-versions = "*"
+python-versions = ">=3.8,<4.0"
 files = [
-    {file = "wf-geom-render-0.3.0.tar.gz", hash = "sha256:53a35eed1810e16d1e449bcce578e2f6cada0cc4343b69bfe34b7e8a2b90cc88"},
-    {file = "wf_geom_render-0.3.0-py3-none-any.whl", hash = "sha256:41dc7f6aabd3c74389eb8de8c7f6f2d55decd829734c83e4474c01289e198527"},
+    {file = "wf_geom_render-0.4.0-py3-none-any.whl", hash = "sha256:df1e7409dc7b4c0ac127d411bd2f72669de3b2a801b1c2ab99a79e2ca6b90e41"},
+    {file = "wf_geom_render-0.4.0.tar.gz", hash = "sha256:cc4382d1b40a899243a86d65aa2a6d3b2d3fa6ad89cc2b64b290e37c35c8539e"},
 ]
 
 [package.dependencies]
@@ -2237,4 +2237,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.12"
-content-hash = "365aa19f9aac501ee5594e551552673cd5a8f36748eff286951eaf2409ba2387"
+content-hash = "8a77d7a2bd7f20658c32b9364653da1222832f220cb38c68a70822bb1fbb336c"

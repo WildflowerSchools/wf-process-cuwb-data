@@ -4,7 +4,7 @@ dynamic = ["version"]
 
 [tool.poetry]
 name = "wf-process-cuwb-data"
-version = "1.7.1"
+version = "1.7.2"
 description = "Tools for reading, processing, and writing CUWB data"
 authors = ["Theodore Quinn <ted.quinn@wildflowerschools.org>", "Benjamin Jaffe-Talberg <ben.talberg@gmail.com>"]
 readme = "README.md"
@@ -37,7 +37,7 @@ toml = "^0.10.2"
 wf-honeycomb-io = "^2.0.0"
 wf-process-pose-data = "^6.2.0"
 pyyaml = "^6.0"
-wf-geom-render = "^0.3.0"
+wf-geom-render = "^0.4.0"
 
 [tool.poetry.scripts]
 process_cuwb_data = "process_cuwb_data.cli:cli"
