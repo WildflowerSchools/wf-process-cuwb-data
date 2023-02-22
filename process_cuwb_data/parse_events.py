@@ -15,7 +15,7 @@ from .utils.log import logger
 
 
 def parse_tray_events(
-    df_tray_events,
+    df_tray_interactions,
     environment_id=None,
     environment_name=None,
     time_zone=None,
@@ -33,7 +33,7 @@ def parse_tray_events(
     client_id=None,
     client_secret=None,
 ):
-    if df_tray_events is None:
+    if df_tray_interactions is None:
         return None
 
     if environment_id is None and environment_name is None:
@@ -58,8 +58,8 @@ def parse_tray_events(
     camera_helper = CameraHelper(
         environment_id=environment_id,
         environment_name=environment_name,
-        start=df_tray_events["start"].min(),
-        end=df_tray_events["end"].max(),
+        start=df_tray_interactions["start"].min(),
+        end=df_tray_interactions["end"].max(),
         **client_params,
     )
 
@@ -75,7 +75,7 @@ def parse_tray_events(
         if default_camera_device_id is None:
             raise ValueError(f"Default camera name {default_camera_name} not found")
 
-    person_ids = df_tray_events["person_id"].dropna().unique().tolist()
+    person_ids = df_tray_interactions["person_id"].dropna().unique().tolist()
     person_info = honeycomb_io.fetch_persons(person_ids=person_ids, output_format="dataframe", **client_params)
     person_info = person_info.rename(
         columns={
@@ -85,15 +85,15 @@ def parse_tray_events(
     ).astype("object")
     person_info = person_info.where(pd.notnull(person_info), None)
 
-    df_tray_events = df_tray_events.copy()
-    df_tray_events["id"] = [str(uuid.uuid4()) for _ in range(len(df_tray_events))]
-    df_tray_events["date"] = df_tray_events["start"].dt.tz_convert(time_zone).apply(lambda x: x.date())
-    df_tray_events["timestamp"] = df_tray_events["start"]
-    df_tray_events = df_tray_events.drop(columns=person_info.columns, errors="ignore").join(
+    df_tray_interactions = df_tray_interactions.copy()
+    df_tray_interactions["id"] = [str(uuid.uuid4()) for _ in range(len(df_tray_interactions))]
+    df_tray_interactions["date"] = df_tray_interactions["start"].dt.tz_convert(time_zone).apply(lambda x: x.date())
+    df_tray_interactions["timestamp"] = df_tray_interactions["start"]
+    df_tray_interactions = df_tray_interactions.drop(columns=person_info.columns, errors="ignore").join(
         person_info, how="left", on="person_id"
     )
     df_tray_events = determine_best_cameras_for_trays(
-        df=df_tray_events,
+        df=df_tray_interactions,
         time_fields=["start", "end"],
         camera_device_dict=camera_helper.get_camera_info_dict(),
         environment_id=environment_id,
@@ -167,6 +167,8 @@ def parse_tray_events(
             "all_in_middle_camera_names_end",
             "all_in_frame_camera_device_ids_end",
             "all_in_frame_camera_names_end",
+            "tray_start_distance_from_source",
+            "tray_end_distance_from_source",
         ]
     )
     df_tray_events.sort_values("timestamp", inplace=True)

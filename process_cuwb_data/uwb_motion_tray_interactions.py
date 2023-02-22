@@ -16,7 +16,8 @@ from process_cuwb_data.uwb_motion_enum_interaction_types import InteractionType
 DIMENSIONS_WHEN_COMPUTING_CHILD_TRAY_DISTANCE = 2
 DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE = 2
 CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_PERSON = 1.25
-CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF = 0.5
+CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF = 0.75
+TRAY_POSITION_SECONDS_TO_AVERAGE_BEFORE_OR_AFTER_CARRY = 2
 
 
 def map_column_name_to_dimension_space(column_name, num_dimensions):
@@ -43,10 +44,11 @@ def modify_carry_events_with_track_ids(df_carry_events):
     return df_carry_events_with_track_id
 
 
-def augment_carry_events_start_and_end_times(df_carry_events_with_track_ids, num_seconds=1.0):
+def augment_carry_events_start_and_end_times(
+    df_carry_events_with_track_ids, num_seconds=TRAY_POSITION_SECONDS_TO_AVERAGE_BEFORE_OR_AFTER_CARRY
+):
     """
-    Add/subtract 1 second from tray
-    carry start and end. Assumption is the tray will be more stable when observed a second
+    Add/subtract second(s) from tray carry start and end. Assumption is the tray will be more stable when observed a short period
     before and after tray carrying.
 
     :param df_carry_events_with_track_ids:
@@ -62,6 +64,14 @@ def augment_carry_events_start_and_end_times(df_carry_events_with_track_ids, num
 
 
 def get_estimated_tray_location_from_carry_events(df_features, df_carry_events):
+    """
+    Given a dataframe of UWB features and a dataframe of carry events, determine an average position where the tray was
+    located before or after a carry event took place,
+
+    :param df_features:
+    :param df_carry_events:
+    :return: DataFrame with tray positions for each carry event
+    """
     df_tray_features = df_features[df_features["entity_type"] == "Tray"]
 
     # Fudge start/stop times to get a better guess at resting tray locations
@@ -70,14 +80,13 @@ def get_estimated_tray_location_from_carry_events(df_features, df_carry_events):
     carry_events_with_positions = []
     position_cols = map_column_name_to_dimension_space("position", DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE)
     for _, row in df_carry_events_with_track_ids_and_augmented_times.iterrows():
-        # TODO: Rather than use the start_augmented time, consider trying to find
-        # the moment between 'start_augmented' and actual 'start' when a given
-        # tray is nearest to a given tray's centroid or shelf location
         device_id_mask = df_tray_features["device_id"] == row["device_id"]
-        if row["start_augmented"] in df_tray_features.index:
-            start_mask = (df_tray_features.index == row["start_augmented"]) & device_id_mask
-        elif row["start"] in df_tray_features.index:
-            start_mask = (df_tray_features.index == row["start"]) & device_id_mask
+        if row["start_augmented"] in df_tray_features.index or row["start"] in df_tray_features.index:
+            start_mask = (
+                (df_tray_features.index >= row["start_augmented"])
+                & (df_tray_features.index <= row["start"])
+                & device_id_mask
+            )
         else:
             logger.warning(
                 "Couldn't determine a carry event start time for '{}', skipping carry event".format(
@@ -86,18 +95,21 @@ def get_estimated_tray_location_from_carry_events(df_features, df_carry_events):
             )
             continue
 
-        if row["end_augmented"] in df_tray_features.index:
-            end_mask = (df_tray_features.index == row["end_augmented"]) & device_id_mask
-        elif row["end"] in df_tray_features.index:
-            end_mask = (df_tray_features.index == row["end"]) & device_id_mask
+        if row["end_augmented"] in df_tray_features.index or row["end"] in df_tray_features.index:
+            end_mask = (
+                (df_tray_features.index >= row["end"])
+                & (df_tray_features.index <= row["end_augmented"])
+                & device_id_mask
+            )
         else:
             logger.warning(
                 f"Couldn't determine a carry event end time for '{df_tray_features['device_id']}', skipping carry event"
             )
             continue
 
-        cols = [*["device_id"], *position_cols]
-        df_start_position = df_tray_features.loc[start_mask][cols]
+        cols = ["device_id", *position_cols]
+        df_start_position = df_tray_features.loc[start_mask][cols].copy()
+        df_start_position = df_start_position.assign(carry_moment="start", tray_track_id=row["tray_track_id"])
         if len(df_start_position) == 0:
             logger.warning(
                 "Expected a carry event for '{}' at time {} to exist but none found, skipping carry event".format(
@@ -106,11 +118,8 @@ def get_estimated_tray_location_from_carry_events(df_features, df_carry_events):
             )
             continue
 
-        df_start_position = df_start_position.assign(carry_moment="start")
-        df_start_position = df_start_position.assign(tray_track_id=row["tray_track_id"])
-        df_start_position.index = [row["start"]]
-
-        df_end_position = df_tray_features.loc[end_mask][cols]
+        df_end_position = df_tray_features.loc[end_mask][cols].copy()
+        df_end_position = df_end_position.assign(carry_moment="end", tray_track_id=row["tray_track_id"])
         if len(df_end_position) == 0:
             logger.warning(
                 "Expected a carry event for '{}' at time {} to exist but none found, skipping carry event".format(
@@ -119,15 +128,26 @@ def get_estimated_tray_location_from_carry_events(df_features, df_carry_events):
             )
             continue
 
-        df_end_position = df_end_position.assign(carry_moment="end")
-        df_end_position = df_end_position.assign(tray_track_id=row["tray_track_id"])
-        df_end_position.index = [row["end"]]
+        # Take the average x/y location of a tray over the short period before the tray is picked up
+        # Use set_axis to set the index to the original carry start time
+        df_start_position_flattened = (
+            df_start_position.groupby(["device_id", "carry_moment", "tray_track_id"], as_index=False)
+            .mean()
+            .set_axis([row["start"]])
+        )
 
-        carry_events_with_positions.append(df_start_position)
-        carry_events_with_positions.append(df_end_position)
+        # Take the average x/y location of a tray over the short period after the tray is picked up
+        # Use set_axis to set the index to the original carry end time
+        df_end_position_flattened = (
+            df_end_position.groupby(["device_id", "carry_moment", "tray_track_id"], as_index=False)
+            .mean()
+            .set_axis([row["end"]])
+        )
 
-    df_positions_for_carry_event_moments = pd.concat(carry_events_with_positions)
-    return df_positions_for_carry_event_moments
+        carry_events_with_positions.append(df_start_position_flattened)
+        carry_events_with_positions.append(df_end_position_flattened)
+
+    return pd.concat(carry_events_with_positions)
 
 
 def filter_features_by_carry_events_and_split_by_device_type(df_features, df_carry_events_with_track_ids):
@@ -239,6 +259,7 @@ def generate_person_tray_distances(df_people_features, df_tray_features):
     v_start = m.Value("f", start)  # Share timer object
     time_indexes = df_people_features.index.unique(level=0)
 
+    # This computes distances between all people and all active trays
     df_person_tray_distances = pd.concat(
         p.map(
             partial(
@@ -268,7 +289,7 @@ def generate_person_tray_distances(df_people_features, df_tray_features):
 def aggregate_clean_filter_person_tray_distances(df_person_tray_distances, df_carry_events_with_track_ids):
     """
     Determine the aggregated median distance between each person and tray. Note
-    that this function also handles tracks pose data tracks which might have time
+    that this function also handles pose data tracks which might have time
     gaps. To handle this there is logic to clean and filter the data structure
     before returning the nearest person<->tray candidates.
 
@@ -331,7 +352,7 @@ def aggregate_clean_filter_person_tray_distances(df_person_tray_distances, df_ca
     #
     # 1) In this example, a tray is carried for 4 seconds
     # 2) This dataset includes both uwb data as well as pose track data
-    # 3) Notice that Cookie has one uwb track and two pose tracks. Pose tracks can get interruped, so we might see multiple over a given time frame. It's for this reason we capture a start and end time.
+    # 3) Notice that Cookie has one uwb track and two pose tracks. Pose tracks can get interrupted, so we might see multiple over a given time frame. It's for this reason we capture a start and end time.
     # 4) Also notice there are two tracks for Elmo, one uwb based and one pose based
     # 5) Elmo's UWB track appears closest to the given tray/material (0.33810 meters median). It is just a hair closer than what the pose track came up with (0.36287 meters median)
     #
@@ -416,7 +437,7 @@ def aggregate_clean_filter_person_tray_distances(df_person_tray_distances, df_ca
     )
 
     # Filter step-2 (B):
-    # Step B is to look for pose tracks that are diconnected but related and try to
+    # Step B is to look for pose tracks that are disconnected but related and try to
     # group those together
     for _, carry_event_row in df_carry_events_with_track_ids.iterrows():
         tray_track_id = carry_event_row["tray_track_id"]
@@ -551,6 +572,7 @@ def infer_tray_device_interactions(df_features, df_carry_events, df_tray_centroi
     if len(df_carry_events) == 0:
         return None
 
+    # Assign 'track_ids' to each of the carry events (track_ids will be simple integers)
     df_carry_events_with_track_ids = modify_carry_events_with_track_ids(df_carry_events)
     df_filtered_people, df_filtered_trays_with_track_ids = filter_features_by_carry_events_and_split_by_device_type(
         df_features, df_carry_events_with_track_ids
@@ -577,6 +599,20 @@ def infer_tray_device_interactions(df_features, df_carry_events, df_tray_centroi
 
     #############
     # Combine carry events w/ tray positions dataframe with the tray centroids dataframe
+    # e.g.:
+    # timestamp,                        device_id,                           x_position, y_position, carry_moment, tray_track_id, x_centroid, y_centroid, start_datetime,                   end_datetime
+    # 2023-02-01 16:44:22.500000+00:00, ac516167-8100-4194-ae8a-c621c5c51797,7.29457,    3.79320,    start,        0,             7.17808,    4.07066,    2023-02-01 15:30:52.700000+00:00, 2023-02-02 00:53:30.800000+00:00
+    # 2023-02-01 16:44:25.700000+00:00, ac516167-8100-4194-ae8a-c621c5c51797,8.64999,    4.86790,    end,          0,             7.17808,    4.07066,    2023-02-01 15:30:52.700000+00:00, 2023-02-02 00:53:30.800000+00:00
+    # 2023-02-01 16:51:09.300000+00:00, ac516167-8100-4194-ae8a-c621c5c51797,8.66874,    4.79676,    start,        1,             7.17808,    4.07066,    2023-02-01 15:30:52.700000+00:00, 2023-02-02 00:53:30.800000+00:00
+    # 2023-02-01 16:51:12.600000+00:00, ac516167-8100-4194-ae8a-c621c5c51797,8.65962,    4.76793,    end,          1,             7.17808,    4.07066,    2023-02-01 15:30:52.700000+00:00, 2023-02-02 00:53:30.800000+00:00
+    # 2023-02-01 16:52:10.800000+00:00, ac516167-8100-4194-ae8a-c621c5c51797,8.56247,    4.78381,    start,        2,             7.17808,    4.07066,    2023-02-01 15:30:52.700000+00:00, 2023-02-02 00:53:30.800000+00:00
+    # 2023-02-01 16:52:14.600000+00:00, ac516167-8100-4194-ae8a-c621c5c51797,8.63493,    4.72182,    end,          2,             7.17808,    4.07066,    2023-02-01 15:30:52.700000+00:00, 2023-02-02 00:53:30.800000+00:00
+    # 2023-02-01 16:52:21.400000+00:00, ac516167-8100-4194-ae8a-c621c5c51797,8.71208,    4.58933,    start,        3,             7.17808,    4.07066,    2023-02-01 15:30:52.700000+00:00, 2023-02-02 00:53:30.800000+00:00
+    # 2023-02-01 16:52:38.500000+00:00, ac516167-8100-4194-ae8a-c621c5c51797,8.81275,    4.66336,    end,          3,             7.17808,    4.07066,    2023-02-01 15:30:52.700000+00:00, 2023-02-02 00:53:30.800000+00:00
+    # 2023-02-01 16:52:37.900000+00:00, ac516167-8100-4194-ae8a-c621c5c51797,8.84668,    4.65792,    start,        4,             7.17808,    4.07066,    2023-02-01 15:30:52.700000+00:00, 2023-02-02 00:53:30.800000+00:00
+    # 2023-02-01 16:53:01.900000+00:00, ac516167-8100-4194-ae8a-c621c5c51797,8.89275,    4.86840,    end,          4,             7.17808,    4.07066,    2023-02-01 15:30:52.700000+00:00, 2023-02-02 00:53:30.800000+00:00
+    # 2023-02-01 16:53:15.900000+00:00, ac516167-8100-4194-ae8a-c621c5c51797,8.64723,    4.75539,    start,        5,             7.17808,    4.07066,    2023-02-01 15:30:52.700000+00:00, 2023-02-02 00:53:30.800000+00:00
+    # 2023-02-01 16:53:22+00:00,        ac516167-8100-4194-ae8a-c621c5c51797,8.67704,    4.60055,    end,          5,             7.17808,    4.07066,    2023-02-01 15:30:52.700000+00:00, 2023-02-02 00:53:30.800000+00:00
     #############
     df_carry_event_position_and_centroid = (
         df_positions_for_carry_event_moments.rename_axis("timestamp")
@@ -743,7 +779,6 @@ def infer_tray_device_interactions(df_features, df_carry_events, df_tray_centroi
     #   interaction_type (str)
     #   human_activity_category_start (str)
     #   human_activity_category_end (str)
-    logger.info(f"Tray motion interactions\n{df_tray_interactions}")
     df_tray_interactions = df_tray_interactions.rename(
         columns={
             "device_id": "tray_device_id",

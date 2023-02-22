@@ -1,8 +1,11 @@
 import multiprocessing
+import os.path
 import platform
 
+from deprecated import deprecated
 import numpy as np
 import pandas as pd
+from platformdirs import user_cache_dir
 
 from honeycomb_io import (
     fetch_material_tray_devices_assignments,
@@ -11,11 +14,13 @@ from honeycomb_io import (
 
 import process_pose_data
 
+
 from .honeycomb_imu_data import fetch_imu_data
 from .honeycomb_pose_data import pose_data_with_body_centroid as _pose_data_with_body_centroid
 from .honeycomb_service import HoneycombCachingClient
 from . import parse_events
-from .utils.io import load_csv
+from .utils import io
+from .utils import const
 from .utils.log import logger
 from .utils.util import filter_data_type_and_format
 from .uwb_extract_data import extract_by_data_type_and_format, extract_by_entity_type
@@ -39,7 +44,40 @@ def fetch_tray_device_assignments(environment_name, start, end):
     return df_tray_device_assignments
 
 
-def fetch_cuwb_data(environment_name, start, end, entity_type="all", data_type="all"):
+def fetch_cuwb_data(
+    environment_name,
+    start,
+    end,
+    entity_type="all",
+    data_type="all",
+    cache=True,
+    cache_dir=user_cache_dir(appname=const.APP_NAME, appauthor=const.APP_AUTHOR),
+    overwrite_cache=False,
+    cache_sub_dir="uwb_data",
+):
+    cache_options = {
+        "filename_prefix": "uwb",
+        "environment_name": environment_name,
+        "start_time": start,
+        "end_time": end,
+        "entity_type": entity_type,
+        "data_type": data_type,
+        "include_meta_fields": True,
+        "directory": "/".join([cache_dir, cache_sub_dir]),
+    }
+    if cache or overwrite_cache:
+        try:
+            if overwrite_cache:
+                cached_path = io.cuwb_data_path(**cache_options)
+                if os.path.exists(cached_path):
+                    os.remove(cached_path)
+
+            df_uwb_data = io.read_cuwb_data_pkl(**cache_options)
+            if df_uwb_data is not None:
+                return df_uwb_data
+        except Exception as e:
+            logger.warning(f"Error attempting to read cuwb data: {e}")
+
     if entity_type not in ["tray", "person", "all"]:
         raise ValueError(f"Invalid 'entity_type' value: {entity_type}")
 
@@ -82,9 +120,15 @@ def fetch_cuwb_data(environment_name, start, end, entity_type="all", data_type="
         df_imu_data = pd.concat(filtered_imu_data)
     p.close()
 
-    return extract_by_entity_type(df_imu_data, entity_type)
+    df_uwb_data = extract_by_entity_type(df_imu_data, entity_type)
+
+    if cache:
+        io.write_cuwb_data_pkl(df=df_uwb_data, **cache_options)
+
+    return df_uwb_data
 
 
+@deprecated(version="1.6.0", reason="Datapoints are not longer stored in S3")
 def fetch_cuwb_data_from_datapoints(
     environment_name,
     start_time,
@@ -114,6 +158,7 @@ def fetch_cuwb_data_from_datapoints(
     return extract_by_data_type_and_format(df, data_type)
 
 
+@deprecated(version="1.6.0", reason="Datapoints are not longer stored in S3")
 def fetch_motion_features_from_datapoints(
     environment_name, start, end, df_uwb_data=None, entity_type="all", include_meta_fields=False, fillna=None
 ):
@@ -126,8 +171,41 @@ def fetch_motion_features_from_datapoints(
 
 
 def fetch_motion_features(
-    environment_name, start, end, df_uwb_data=None, entity_type="all", include_meta_fields=True, fillna=None
+    environment_name,
+    start,
+    end,
+    df_uwb_data=None,
+    entity_type="all",
+    include_meta_fields=True,
+    fillna="forward_backward",
+    cache=True,
+    overwrite_cache=False,
+    cache_dir=user_cache_dir(appname=const.APP_NAME, appauthor=const.APP_AUTHOR),
+    cache_sub_dir="motion_feature_data",
 ):
+    cache_options = {
+        "filename_prefix": "motion_features",
+        "environment_name": environment_name,
+        "start_time": start,
+        "end_time": end,
+        "entity_type": entity_type,
+        "include_meta_fields": include_meta_fields,
+        "fillna": fillna,
+        "directory": "/".join([cache_dir, cache_sub_dir]),
+    }
+    if cache or overwrite_cache:
+        try:
+            if overwrite_cache:
+                cached_path = io.cuwb_data_path(**cache_options)
+                if os.path.exists(cached_path):
+                    os.remove(cached_path)
+            else:
+                df_motion_features = io.read_cuwb_data_pkl(**cache_options)
+                if df_motion_features is not None:
+                    return df_motion_features
+        except Exception as e:
+            logger.warning(f"Error attempting to read motion_features data: {e}")
+
     if df_uwb_data is None:
         df_uwb_data = fetch_cuwb_data(environment_name, start, end, data_type="all", entity_type="all")
 
@@ -181,13 +259,16 @@ def fetch_motion_features(
         # We don't need to check for duplicate device IDs because our functions
         # for fetching device assignments, device entity assignments, and tray
         # material assignments all enforce uniqueness by default
-        return df_motion_features.join(df_meta_fields, on="device_id", how="left")
-    else:
-        return df_motion_features
+        df_motion_features = df_motion_features.join(df_meta_fields, on="device_id", how="left")
+
+    if cache:
+        io.write_cuwb_data_pkl(df=df_motion_features, **cache_options)
+
+    return df_motion_features
 
 
 def extract_motion_features_from_raw_datapoints(
-    df_cuwb_features, entity_type="all", include_meta_fields=False, fillna=None
+    df_cuwb_features, entity_type="all", include_meta_fields=False, fillna="forward_backward"
 ):
     df_motion_features = extract_motion_features(
         df_position=extract_by_data_type_and_format(df_cuwb_features, data_type="position"),
@@ -243,7 +324,7 @@ def extract_motion_features_from_raw_datapoints(
 
 
 def extract_motion_features(
-    df_position, df_acceleration, df_gyroscope=None, df_magnetometer=None, entity_type="all", fillna=None
+    df_position, df_acceleration, df_gyroscope=None, df_magnetometer=None, entity_type="all", fillna="forward_backward"
 ):
     f = FeatureExtraction()
     return f.extract_motion_features_for_multiple_devices(
@@ -266,7 +347,7 @@ def generate_human_activity_groundtruth(groundtruth_csv):
 
 def generate_groundtruth(groundtruth_csv, groundtruth_type):
     try:
-        df_groundtruth = load_csv(groundtruth_csv)
+        df_groundtruth = io.load_csv(groundtruth_csv)
 
         if groundtruth_type == ground_truth.GROUNDTRUTH_TYPE_TRAY_CARRY:
             entity_type = "tray"
@@ -374,16 +455,55 @@ def generate_tray_carry_model(df_groundtruth_features, tune=False):
         return tc.fit(df_groundtruth=df_groundtruth_features, scale_features=False)
 
 
-def estimate_tray_centroids(model, df_tray_features, scaler=None):
+def estimate_tray_centroids(
+    environment_name,
+    start,
+    end,
+    model,
+    df_tray_features,
+    scaler=None,
+    cache=True,
+    overwrite_cache=False,
+    cache_dir=user_cache_dir(appname=const.APP_NAME, appauthor=const.APP_AUTHOR),
+    cache_sub_dir="tray_centroids",
+):
     """
     Estimate the shelf location of each Tray (in x,y,z coords)
 
+    :param environment_name:
+    :param start:
+    :param end:
     :param model: Tray carry classifier (RandomForest Model)
     :param scaler: Tray carry scaling model used to standardize features
     :param df_tray_features: Dataframe with uwb data containing uwb_motion_classifiers.DEFAULT_FEATURE_FIELD_NAMES
+    :param cache:
+    :param overwrite_cache:
+    :param cache_dir:
+    :param cache_sub_dir:
     :return: Dataframe with tray centroid predictions
     """
+    cache_options = {
+        "filename_prefix": "tray_centroids",
+        "environment_name": environment_name,
+        "start_time": start,
+        "end_time": end,
+        "directory": "/".join([cache_dir, cache_sub_dir]),
+    }
+    if cache or overwrite_cache:
+        try:
+            if overwrite_cache:
+                cached_path = io.cuwb_data_path(**cache_options)
+                if os.path.exists(cached_path):
+                    os.remove(cached_path)
+            else:
+                df_tray_centroids = io.read_cuwb_data_pkl(**cache_options)
+                if df_tray_centroids is not None:
+                    return df_tray_centroids
+        except Exception as e:
+            logger.warning(f"Error attempting to read tray_centroids data: {e}")
+
     df_tray_features = df_tray_features.copy()
+    df_tray_features = df_tray_features[df_tray_features["entity_type"].str.lower() == "tray"]
 
     df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = (
         df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate().fillna(method="bfill")
@@ -393,7 +513,10 @@ def estimate_tray_centroids(model, df_tray_features, scaler=None):
         model=model, scaler=scaler, df_tray_features=df_tray_features
     )
     # df_tray_features_no_movement = heuristic_filter_no_movement_from_tray_features(df_tray_features)
-    return predict_tray_centroids(df_tray_features_no_movement=df_tray_features_no_movement)
+    df_tray_centroids = predict_tray_centroids(df_tray_features_no_movement=df_tray_features_no_movement)
+
+    if cache:
+        io.write_cuwb_data_pkl(df=df_tray_centroids, **cache_options)
 
 
 def infer_tray_carry(model, df_tray_features, scaler=None):
@@ -406,6 +529,7 @@ def infer_tray_carry(model, df_tray_features, scaler=None):
     :return: Dataframe with uwb data containing a "predicted_tray_carry_label" column
     """
     df_tray_features = df_tray_features.copy()
+    df_tray_features = df_tray_features[df_tray_features["entity_type"].str.lower() == "tray"]
 
     tc = TrayCarryClassifier(model=model, feature_scaler=scaler)
     df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = (
@@ -516,7 +640,7 @@ def pose_data_with_body_centroid(
 
 def infer_tray_events(environment_name, time_zone, df_tray_interactions, default_camera_name=None):
     return parse_events.parse_tray_events(
-        df_tray_events=df_tray_interactions,
+        df_tray_interactions=df_tray_interactions,
         environment_name=environment_name,
         time_zone=time_zone,
         default_camera_name=default_camera_name,

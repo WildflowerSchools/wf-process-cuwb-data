@@ -38,6 +38,8 @@ wf-honeycomb-io = "^2.0.0"
 wf-process-pose-data = "^6.2.0"
 pyyaml = "^6.0"
 wf-geom-render = "^0.4.0"
+platformdirs = "^3.0.0"
+deprecated = "^1.2.13"
 
 [tool.poetry.scripts]
 process_cuwb_data = "process_cuwb_data.cli:cli"
