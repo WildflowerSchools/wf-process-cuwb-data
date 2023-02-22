@@ -372,7 +372,7 @@ def cli_estimate_tray_centroids(
 
     if motion_feature_data is None:
         df_uwb_motion_features = fetch_motion_features(
-            environment, start, end, include_meta_fields=True, df_uwb_data=df_uwb_data, fillna="interpolate"
+            environment, start, end, include_meta_fields=True, df_uwb_data=df_uwb_data, fillna="forward_backward"
         )
     else:
         df_uwb_motion_features = read_generic_pkl(motion_feature_data)
@@ -432,7 +432,7 @@ def cli_infer_tray_carry(
 
     if motion_feature_data is None:
         df_uwb_motion_features = fetch_motion_features(
-            environment, start, end, df_uwb_data=df_uwb_data, fillna="interpolate"
+            environment, start, end, df_uwb_data=df_uwb_data, fillna="forward_backward"
         )
     else:
         df_uwb_motion_features = read_generic_pkl(motion_feature_data)
@@ -584,7 +584,7 @@ def cli_infer_tray_interactions(
             df_uwb_data = df_uwb_data.loc[(df_uwb_data.index >= start) & (df_uwb_data.index <= end)]
 
         df_uwb_motion_features = fetch_motion_features(
-            environment, start, end, df_uwb_data=df_uwb_data, fillna="interpolate"
+            environment, start, end, df_uwb_data=df_uwb_data, fillna="forward_backward"
         )
     else:
         df_uwb_motion_features = read_generic_pkl(motion_feature_data)

@@ -275,7 +275,13 @@ class FeatureExtraction:
         )
 
     def extract_motion_features(
-        self, df_position, df_acceleration, df_gyroscope=None, df_magnetometer=None, fillna=None, join="outer"
+        self,
+        df_position,
+        df_acceleration,
+        df_gyroscope=None,
+        df_magnetometer=None,
+        fillna="forward_backward",
+        join="outer",
     ):
         df_velocity_features = pd.DataFrame(columns=FeatureExtraction.VELOCITY_COLUMNS)
         if df_position is not None:
@@ -311,6 +317,7 @@ class FeatureExtraction:
 
         df_features.replace([np.inf, -np.inf], np.nan, inplace=True)
 
+        logger.info(f"Using fillna method: {fillna}")
         if fillna == "average":
             df_features.fillna(df_features.mean(), inplace=True)
         elif fillna == "drop":
@@ -318,8 +325,10 @@ class FeatureExtraction:
         elif fillna == "pad":
             df_features.fillna(method="pad", inplace=True)
         elif fillna == "forward_backward":
+            logger.info("Applying forward_backward filter to feature set")
             df_features = df_features.fillna(method="ffill").fillna(method="bfill")
         elif fillna == "interpolate":  # linear interpolation, use bfill to fill in nan's at front of dataframe
+            logger.info("Applying standard bfill interpolation filter to feature set")
             df_features = df_features.interpolate().fillna(method="bfill")
 
         return df_features
@@ -438,7 +447,7 @@ class FeatureExtraction:
 
     def average_xyz_duplicates(self, df, x_col="x", y_col="y", z_col="z", group_by_cols=None, inplace=False):
         """
-        Ciholas' IMU system will sometimes output multiple readings at the sametime ("sametime" after we lost access to the Ciholas network_time attribute")
+        Ciholas' IMU system will sometimes output multiple readings at the same time ("same time" after we lost access to the Ciholas network_time attribute")
 
         This method will average the x/y/z values for any of those duplicates and the duplicates will be removed.
 

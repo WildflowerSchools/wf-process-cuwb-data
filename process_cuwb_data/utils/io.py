@@ -36,18 +36,28 @@ def write_cuwb_data_pkl(
     environment_name,
     start_time,
     end_time,
+    entity_type=None,
+    data_type=None,
     environment_assignment_info=False,
     entity_assignment_info=False,
+    include_meta_fields=False,
+    fillna=None,
     directory=".",
 ):
+    os.makedirs(directory, exist_ok=True)
+
     path = cuwb_data_path(
-        filename_prefix,
-        environment_name,
-        start_time,
-        end_time,
-        environment_assignment_info,
-        entity_assignment_info,
-        directory,
+        filename_prefix=filename_prefix,
+        environment_name=environment_name,
+        start_time=start_time,
+        end_time=end_time,
+        entity_type=entity_type,
+        data_type=data_type,
+        environment_assignment_info=environment_assignment_info,
+        entity_assignment_info=entity_assignment_info,
+        include_meta_fields=include_meta_fields,
+        fillna=fillna,
+        directory=directory,
     )
     if df is None:
         logger.warning(f"Cannot write CUWB data to pickle, dataframe provided == None: {path}")
@@ -62,19 +72,32 @@ def read_cuwb_data_pkl(
     environment_name,
     start_time,
     end_time,
+    entity_type=None,
+    data_type=None,
     environment_assignment_info=False,
     entity_assignment_info=False,
+    include_meta_fields=False,
+    fillna=None,
     directory=".",
 ):
     path = cuwb_data_path(
-        filename_prefix,
-        environment_name,
-        start_time,
-        end_time,
-        environment_assignment_info,
-        entity_assignment_info,
-        directory,
+        filename_prefix=filename_prefix,
+        environment_name=environment_name,
+        start_time=start_time,
+        end_time=end_time,
+        entity_type=entity_type,
+        data_type=data_type,
+        environment_assignment_info=environment_assignment_info,
+        entity_assignment_info=entity_assignment_info,
+        include_meta_fields=include_meta_fields,
+        fillna=fillna,
+        directory=directory,
     )
+
+    if not os.path.exists(path):
+        logger.info(f"Unable to read CUWB data from {path}, path does not exist")
+        return None
+
     logger.info(f"Reading CUWB data from {path}")
     df = pd.read_pickle(path)
     return df
@@ -85,8 +108,12 @@ def cuwb_data_path(
     environment_name,
     start_time,
     end_time,
+    entity_type=None,
+    data_type=None,
     environment_assignment_info=False,
     entity_assignment_info=False,
+    include_meta_fields=False,
+    fillna=None,
     directory=".",
 ):
     start_time_string = "None"
@@ -96,10 +123,18 @@ def cuwb_data_path(
     if end_time is not None:
         end_time_string = datetime_filename_format(end_time)
     filename = "-".join([filename_prefix, environment_name, start_time_string, end_time_string])
+    if entity_type:
+        filename = f"{filename}-(entity_type_{entity_type})"
+    if data_type:
+        filename = f"{filename}-(data_type_{data_type})"
     if environment_assignment_info:
-        filename = filename + "(env_assignments)"
+        filename = f"{filename}-(env_assignments)"
     if entity_assignment_info:
-        filename = filename + "(entity_assignments)"
+        filename = f"{filename}-(entity_assignments)"
+    if include_meta_fields:
+        filename = f"{filename}-(include_meta_fields)"
+    if fillna:
+        filename = f"{filename}-(fillna-{fillna})"
     filename = filename + ".pkl"
     path = os.path.join(directory, filename)
     return path
