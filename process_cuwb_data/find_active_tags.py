@@ -2,9 +2,9 @@ import pandas as pd
 import datetime
 
 def find_active_tags(
-        accelerometer_data,
-        max_gap_duration=datetime.timedelta(seconds=20),
-        min_segment_duration=datetime.timedelta(minutes=2)
+    accelerometer_data,
+    max_gap_duration=datetime.timedelta(seconds=20),
+    min_segment_duration=datetime.timedelta(minutes=2)
 ):
     active_tag_dfs = list()
     for device_id, accelerometer_data_tag in accelerometer_data.groupby('device_id'):
@@ -31,9 +31,9 @@ def find_active_tags(
     return active_tags
 
 def find_time_segments(
-        timestamps,
-        max_gap_duration=datetime.timedelta(seconds=20),
-        min_segment_duration=datetime.timedelta(minutes=2)
+    timestamps,
+    max_gap_duration=datetime.timedelta(seconds=20),
+    min_segment_duration=datetime.timedelta(minutes=2)
 ):
     time_segments = list()
     if len(timestamps) < 2:
