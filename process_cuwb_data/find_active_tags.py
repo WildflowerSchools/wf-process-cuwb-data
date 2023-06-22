@@ -8,7 +8,7 @@ def find_active_tags(
 ):
     active_tag_dfs = list()
     for device_id, accelerometer_data_tag in accelerometer_data.groupby('device_id'):
-        time_segments_tag_list = identify_time_segments(
+        time_segments_tag_list = find_time_segments(
             timestamps=accelerometer_data_tag['timestamp'],
             max_gap_duration=max_gap_duration,
             min_segment_duration=min_segment_duration
@@ -30,7 +30,7 @@ def find_active_tags(
     )
     return active_tags
 
-def identify_time_segments(
+def find_time_segments(
         timestamps,
         max_gap_duration=datetime.timedelta(seconds=20),
         min_segment_duration=datetime.timedelta(minutes=2)
