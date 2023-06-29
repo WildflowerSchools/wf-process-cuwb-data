@@ -16,6 +16,7 @@ def fetch_geoms_2d(
     environment_name,
     start_time,
     end_time,
+    df_cuwb_position_data = None,
     z_axis_override=0.5,
     device_ids=None,
     smooth=False,
@@ -24,9 +25,13 @@ def fetch_geoms_2d(
     notebook=False,
 ):
     # Fetch CUWB position data
-    df_position = fetch_imu_data(imu_type="position", environment_name=environment_name, start=start_time, end=end_time)
-    if z_axis_override:
-        df_position["z"] = z_axis_override
+    if df_cuwb_position_data is not None:
+        df_position = df_cuwb_position_data.loc[
+            (df_cuwb_position_data.index >= start_time) &
+            (df_cuwb_position_data.index <= end_time)
+        ]
+    else:
+        df_position = fetch_imu_data(imu_type="position", environment_name=environment_name, start=start_time, end=end_time)
 
     df_position = df_position[
         [
@@ -47,6 +52,9 @@ def fetch_geoms_2d(
             "material_name",
         ]
     ]
+
+    if z_axis_override:
+        df_position["z"] = z_axis_override
 
     if device_ids:
         df_position = df_position[df_position["device_id"].isin(device_ids)]
@@ -73,7 +81,10 @@ def fetch_geoms_2d(
     )
 
     # Fetch camera info
-    camera_info_df = fetch_camera_info(environment_name=environment_name, start=start_time, end=end_time)
+    camera_info_df = fetch_camera_info(
+        environment_name=environment_name,
+        start=start_time,
+        end=end_time)
     camera_calibrations = fetch_camera_calibrations(
         camera_ids=camera_info_df.index.unique().to_list(), start=start_time, end=end_time
     )
@@ -82,7 +93,8 @@ def fetch_geoms_2d(
 
     # Project onto camera views
     geom_collection_2d_dict = project_onto_camera_views(
-        geom_3d=geom_collection_3d, camera_info_df=camera_info_with_calibrations_df
+        geom_3d=geom_collection_3d,
+        camera_info_df=camera_info_with_calibrations_df
     )
     return geom_collection_2d_dict
 

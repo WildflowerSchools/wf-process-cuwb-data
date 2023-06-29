@@ -65,8 +65,8 @@ class CameraUWBLineOfSight:
         position_window_end = timestamp + datetime.timedelta(seconds=position_window_seconds / 2)
         if df_cuwb_position_data is not None:
             position_data = df_cuwb_position_data.loc[
-                (df_cuwb_position_data['timestamp'] >= position_window_start) &
-                (df_cuwb_position_data['timestamp'] <= position_window_end)
+                (df_cuwb_position_data.index >= position_window_start) &
+                (df_cuwb_position_data.index <= position_window_end)
             ]
         else:
             position_data = honeycomb_io.fetch_cuwb_position_data(
