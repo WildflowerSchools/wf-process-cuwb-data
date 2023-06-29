@@ -31,9 +31,9 @@ def find_active_tags(
     return active_tags
 
 def find_time_segments(
-    timestamps,
-    max_gap_duration=datetime.timedelta(seconds=20),
-    min_segment_duration=datetime.timedelta(minutes=2)
+        timestamps,
+        max_gap_duration=datetime.timedelta(seconds=20),
+        min_segment_duration=datetime.timedelta(minutes=2)
 ):
     time_segments = list()
     if len(timestamps) < 2:
@@ -44,7 +44,8 @@ def find_time_segments(
     for timestamp in timestamps_sorted[1:]:
         if timestamp - previous_timestamp <= max_gap_duration:
             previous_timestamp = timestamp
-            continue
+            if timestamp != timestamps_sorted[-1]:
+                continue
         end = previous_timestamp
         if end - start >= min_segment_duration:
             time_segments.append({'start': start, 'end': end})
