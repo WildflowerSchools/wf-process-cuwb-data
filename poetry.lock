@@ -1122,12 +1122,12 @@ files = [
 [package.dependencies]
 numpy = [
     {version = ">=1.21.0", markers = "python_version <= \"3.9\" and platform_system == \"Darwin\" and platform_machine == \"arm64\""},
-    {version = ">=1.21.2", markers = "python_version >= \"3.10\""},
-    {version = ">=1.21.4", markers = "python_version >= \"3.10\" and platform_system == \"Darwin\""},
-    {version = ">=1.22.0", markers = "python_version >= \"3.11\""},
     {version = ">=1.19.3", markers = "python_version >= \"3.6\" and platform_system == \"Linux\" and platform_machine == \"aarch64\" or python_version >= \"3.9\""},
     {version = ">=1.17.0", markers = "python_version >= \"3.7\""},
     {version = ">=1.17.3", markers = "python_version >= \"3.8\""},
+    {version = ">=1.21.2", markers = "python_version >= \"3.10\""},
+    {version = ">=1.21.4", markers = "python_version >= \"3.10\" and platform_system == \"Darwin\""},
+    {version = ">=1.22.0", markers = "python_version >= \"3.11\""},
 ]
 
 [[package]]
@@ -2035,17 +2035,19 @@ name = "wf-geom-render"
 version = "0.4.0"
 description = "A library for projecting 3D geoms into 2D videos"
 optional = false
-python-versions = ">=3.8,<4.0"
-files = [
-    {file = "wf_geom_render-0.4.0-py3-none-any.whl", hash = "sha256:df1e7409dc7b4c0ac127d411bd2f72669de3b2a801b1c2ab99a79e2ca6b90e41"},
-    {file = "wf_geom_render-0.4.0.tar.gz", hash = "sha256:cc4382d1b40a899243a86d65aa2a6d3b2d3fa6ad89cc2b64b290e37c35c8539e"},
-]
+python-versions = "^3.8"
+files = []
+develop = true
 
 [package.dependencies]
 matplotlib = ">=3.1.2"
 numpy = ">=1.17"
 tqdm = ">=4.41.1"
 wf-cv-utils = ">=0.3.1"
+
+[package.source]
+type = "directory"
+url = "../wf-geom-render"
 
 [[package]]
 name = "wf-gqlpycgen"
@@ -2146,22 +2148,24 @@ version = "3.3.5"
 description = "Library for working with video files and interacting with the wildflower video-service"
 optional = false
 python-versions = ">=3.8,<3.12"
-files = [
-    {file = "wf_video_io-3.3.5-py3-none-any.whl", hash = "sha256:6cf0565eebe790de1e45d7be9570492bddbbed0ef818fd8f4308b4f1c6f4c723"},
-    {file = "wf_video_io-3.3.5.tar.gz", hash = "sha256:8456bce212c72593913ef57fc99d41bfc271f2fefa6984c6e0732fc9c9cb6df6"},
-]
+files = []
+develop = true
 
 [package.dependencies]
-ffmpeg-python = ">=0.2.0,<0.3.0"
-jmespath = ">=1.0.1,<2.0.0"
+ffmpeg-python = "^0.2.0"
+jmespath = "^1.0.1"
 opencv-python = ">=4.6.0"
-pyyaml = ">=6.0,<7.0"
-tenacity = ">=8.1.0,<9.0.0"
-urllib3 = ">=1.26.12,<2.0.0"
+pyyaml = "^6.0"
+tenacity = "^8.1.0"
+urllib3 = "^1.26.12"
 wf-cv-utils = ">=3.4.0"
 wf-fastapi-auth0 = ">=1.0"
-wf-gqlpycgen = ">=0.7.4,<0.8.0"
+wf-gqlpycgen = "^0.7.4"
 wf-honeycomb-io = ">=2.0.0"
+
+[package.source]
+type = "directory"
+url = "../wf-video-io"
 
 [[package]]
 name = "wrapt"
@@ -2265,4 +2269,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.12"
-content-hash = "fea9a80f284d311938eeceb14f4e815afbabf2dd5457f824847946070f8c8c81"
+content-hash = "9ed3e26ebef63d1dc13bf1a21d9cc1bd2b3ad80830c19e33f3f807a588cfa5cc"

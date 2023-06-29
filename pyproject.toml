@@ -1,5 +1,5 @@
 [project]
-name = "PROJECT_NAME"
+name = "wf-process-cuwb-data"
 dynamic = ["version"]
 
 [tool.poetry]
@@ -38,9 +38,10 @@ scikit-learn = "^1.2.2"
 scipy = "^1.6.3"
 toml = "^0.10.2"
 torch = "^2.0.1"
-wf-geom-render = "^0.4.0"
 wf-honeycomb-io = "^2.0.0"
 wf-process-pose-data = "^6.2.0"
+wf-geom-render = {path = "../wf-geom-render", develop = true}
+wf-video-io = {path = "../wf-video-io", develop = true}
 
 [tool.poetry.scripts]
 process_cuwb_data = "process_cuwb_data.cli:cli"
