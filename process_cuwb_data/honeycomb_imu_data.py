@@ -11,7 +11,7 @@ from honeycomb_io import (
 from .utils.util import filter_entity_type
 
 
-def fetch_imu_data(imu_type, environment_name, start, end, entity_type="all"):
+def fetch_imu_data(imu_type, environment_name, start, end, device_ids=None, entity_type="all"):
     if imu_type == "position":
         fetch = fetch_cuwb_position_data
     elif imu_type == "accelerometer":
@@ -26,7 +26,7 @@ def fetch_imu_data(imu_type, environment_name, start, end, entity_type="all"):
     df = fetch(
         start=start,
         end=end,
-        device_ids=None,
+        device_ids=device_ids,
         environment_id=None,
         environment_name=environment_name,
         device_types=["UWBTAG"],
