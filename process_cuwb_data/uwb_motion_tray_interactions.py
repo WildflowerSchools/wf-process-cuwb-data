@@ -6,7 +6,8 @@ import time
 import numpy as np
 import pandas as pd
 from torch import cdist
-#from scipy.spatial.distance import cdist
+
+# from scipy.spatial.distance import cdist
 
 from process_cuwb_data.utils.log import logger
 from process_cuwb_data.utils.util import dataframe_tuple_columns_to_underscores
@@ -235,8 +236,9 @@ def people_trays_cdist_iterable(idx, _df_people, _df_trays, v_count, v_start, lo
 
     df_people_and_trays = df_people_by_idx.join(df_trays_by_idx, how="inner", lsuffix="_person", rsuffix="_tray")
     distances = cdist(
-        #df_people_by_idx[position_cols].to_numpy(), df_trays_by_idx[position_cols].to_numpy(), metric="euclidean"
-        df_people_by_idx[position_cols].to_numpy(), df_trays_by_idx[position_cols].to_numpy()
+        # df_people_by_idx[position_cols].to_numpy(), df_trays_by_idx[position_cols].to_numpy(), metric="euclidean"
+        df_people_by_idx[position_cols].to_numpy(),
+        df_trays_by_idx[position_cols].to_numpy(),
     )
 
     return df_people_and_trays.assign(person_tray_distance=distances.flatten())

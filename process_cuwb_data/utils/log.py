@@ -14,7 +14,7 @@ class Logger:
         stdout_handler.setLevel(logging.DEBUG)
         stdout_handler.setFormatter(formatter)
 
-        if os.getenv("ENABLE_HONEYCOMB_LOGS", "false").lower() in ['true', 't']:
+        if os.getenv("ENABLE_HONEYCOMB_LOGS", "false").lower() in ["true", "t"]:
             honeycomb_logger = logging.getLogger("minimal_honeycomb")
             honeycomb_logger.setLevel(logging.DEBUG)
             honeycomb_logger.addHandler(stdout_handler)
@@ -27,7 +27,7 @@ class Logger:
             gqlpycgen_logger.setLevel(logging.DEBUG)
             gqlpycgen_logger.addHandler(stdout_handler)
 
-        if os.getenv("ENABLE_GEOM_RENDER_LOGS", "false").lower() in ['true', 't']:
+        if os.getenv("ENABLE_GEOM_RENDER_LOGS", "false").lower() in ["true", "t"]:
             geom_render_core_logger = logging.getLogger("geom_render.core")
             geom_render_core_logger.setLevel(logging.DEBUG)
             geom_render_core_logger.addHandler(stdout_handler)
