@@ -1,10 +1,10 @@
 import datetime
 
 import cv_utils
-import honeycomb_io
 import numpy as np
 import pandas as pd
 
+from .honeycomb_imu_data import fetch_imu_data, smooth_imu_position_data
 from .honeycomb_service import HoneycombCachingClient
 from .utils.log import logger
 
@@ -20,15 +20,8 @@ class CameraUWBLineOfSight:
         camera_device_ids=None,
         camera_calibrations=None,
         position_window_seconds=4,
-        imputed_z_position=1.0,
+        z_axis_override=0.5,
         df_cuwb_position_data=None,
-        chunk_size=100,
-        client=None,
-        uri=None,
-        token_uri=None,
-        audience=None,
-        client_id=None,
-        client_secret=None,
     ):
         honeycomb_caching_client = HoneycombCachingClient()
 
@@ -42,15 +35,11 @@ class CameraUWBLineOfSight:
                     "If camera calibration info is not specified, must specify either camera device IDs or environment_name ID or environment_name name"
                 )
 
-        client_params = {
-            "chunk_size": chunk_size,
-            "client": client,
-            "uri": uri,
-            "token_uri": token_uri,
-            "audience": audience,
-            "client_id": client_id,
-            "client_secret": client_secret,
-        }
+        if environment_name is None:
+            df_all_environments = honeycomb_caching_client.fetch_all_environments()
+            environment_name = df_all_environments[df_all_environments.index == environment_id].iloc[0][
+                "environment_name"
+            ]
 
         if camera_device_ids is None:
             camera_info = honeycomb_caching_client.fetch_camera_devices(
@@ -61,33 +50,35 @@ class CameraUWBLineOfSight:
             camera_calibrations = honeycomb_caching_client.fetch_camera_calibrations(
                 camera_ids=tuple(camera_device_ids), start=timestamp, end=timestamp
             )
-        position_window_start = timestamp - datetime.timedelta(seconds=position_window_seconds / 2)
-        position_window_end = timestamp + datetime.timedelta(seconds=position_window_seconds / 2)
+        position_window_start = timestamp
+        position_window_end = timestamp + datetime.timedelta(seconds=position_window_seconds)
         if df_cuwb_position_data is not None:
-            position_data = df_cuwb_position_data.loc[
+            df_position_data = df_cuwb_position_data.loc[
                 (df_cuwb_position_data.index >= position_window_start)
                 & (df_cuwb_position_data.index <= position_window_end)
             ]
         else:
-            position_data = honeycomb_io.fetch_cuwb_position_data(
+            df_position_data = fetch_imu_data(
+                imu_type="position",
+                environment_name=environment_name,
                 start=position_window_start,
                 end=position_window_end,
                 device_ids=[tag_device_id],
-                environment_id=None,
-                environment_name=None,
-                device_types=["UWBTAG"],
-                output_format="dataframe",
-                sort_arguments=None,
-                **client_params,
             )
-        if len(position_data) == 0:
+
+        if tag_device_id is not None:
+            df_position_data = df_position_data[df_position_data["device_id"] == tag_device_id]
+
+        if len(df_position_data) == 0:
             err = f"Unable to find position data between {position_window_start} and {position_window_end}, cannot determine best camera views"
             logger.warning(err)
             raise ValueError(err)
 
-        position = np.nanmedian(position_data.loc[:, ["x", "y", "z"]].values, axis=0)
-        if imputed_z_position is not None:
-            position[2] = imputed_z_position
+        df_position_data = smooth_imu_position_data(df_position=df_position_data)
+
+        median_position = np.nanmedian(df_position_data.loc[:, ["x", "y", "z"]].values, axis=0)
+        if z_axis_override is not None:
+            median_position[2] = z_axis_override
 
         view_data_list = []
         for camera_device_id, camera_calibration in camera_calibrations.items():
@@ -95,32 +86,31 @@ class CameraUWBLineOfSight:
                 rotation_vector=camera_calibration["rotation_vector"],
                 translation_vector=camera_calibration["translation_vector"],
             )
-            distance_from_camera = np.linalg.norm(np.subtract(position, camera_position))
-            image_position = cv_utils.project_points(
-                object_points=position,
+            distance_from_camera = np.linalg.norm(np.subtract(median_position, camera_position))
+            projected_position_2d_coordinates = cv_utils.project_points(
+                object_points=median_position.reshape((-1, 3)),
                 rotation_vector=camera_calibration["rotation_vector"],
                 translation_vector=camera_calibration["translation_vector"],
                 camera_matrix=camera_calibration["camera_matrix"],
                 distortion_coefficients=camera_calibration["distortion_coefficients"],
                 remove_behind_camera=True,
                 remove_outside_frame=True,
-                image_corners=np.asarray(
-                    [[0.0, 0.0], [camera_calibration["image_width"], camera_calibration["image_height"]]]
-                ),
+                image_corners=[[0, 0], [camera_calibration["image_width"], camera_calibration["image_height"]]],
             )
-            image_position = np.squeeze(image_position)
-            if np.all(np.isfinite(image_position)):
+            projected_position_2d_coordinates = np.squeeze(projected_position_2d_coordinates)
+            if np.all(np.isfinite(projected_position_2d_coordinates)):
                 in_frame = True
                 distance_from_image_center = np.linalg.norm(
                     np.subtract(
-                        image_position, [camera_calibration["image_width"] / 2, camera_calibration["image_height"] / 2]
+                        projected_position_2d_coordinates,
+                        [camera_calibration["image_width"] / 2, camera_calibration["image_height"] / 2],
                     )
                 )
                 in_middle = (
-                    image_position[0] > camera_calibration["image_width"] * (3.5 / 10.0)
-                    and image_position[0] < camera_calibration["image_width"] * (6.5 / 10.0)
-                    and image_position[1] > camera_calibration["image_height"] * (2.0 / 10.0)
-                    and image_position[1] < camera_calibration["image_height"] * (8.0 / 10.0)
+                    projected_position_2d_coordinates[0] > camera_calibration["image_width"] * (2.5 / 10.0)
+                    and projected_position_2d_coordinates[0] < camera_calibration["image_width"] * (7.5 / 10.0)
+                    and projected_position_2d_coordinates[1] > camera_calibration["image_height"] * (2.0 / 10.0)
+                    and projected_position_2d_coordinates[1] < camera_calibration["image_height"] * (8.0 / 10.0)
                 )
             else:
                 in_frame = False
@@ -129,9 +119,9 @@ class CameraUWBLineOfSight:
             view_data_list.append(
                 {
                     "camera_device_id": camera_device_id,
-                    "position": position,
+                    "position": median_position,
                     "distance_from_camera": distance_from_camera,
-                    "image_position": image_position,
+                    "projected_position_2d_coordinates": projected_position_2d_coordinates,
                     "distance_from_image_center": distance_from_image_center,
                     "in_frame": in_frame,
                     "in_middle": in_middle,
@@ -170,7 +160,7 @@ class CameraUWBLineOfSight:
                         "camera_device_id": self.default_camera_device_id,
                         "position": None,
                         "distance_from_camera": None,
-                        "image_position": None,
+                        "projected_position_2d_coordinates": None,
                         "distance_from_image_center": None,
                         "in_frame": None,
                         "in_middle": None,
@@ -179,9 +169,6 @@ class CameraUWBLineOfSight:
             ).set_index(["camera_device_id"])
 
         return best_camera_view.sort_values("distance_from_image_center").iloc[:1]
-
-    def test(self):
-        return True
 
     def best_camera_view_device_id(self):
         df_best_camera_view = self.best_camera_view()

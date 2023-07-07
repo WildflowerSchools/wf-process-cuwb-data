@@ -137,8 +137,8 @@ def parse_tray_events(
             "material_id",
             "material_name",
             "duration_seconds",
-            "person_device_id",
             "person_id",
+            "person_device_id",
             "person_type",
             "person_name",
             "person_first_name",
@@ -687,7 +687,7 @@ def all_cameras_tray_view_data(
             translation_vector=camera_calibration["translation_vector"],
         )
         distance_from_camera = np.linalg.norm(np.subtract(position, camera_position))
-        image_position = cv_utils.project_points(
+        projected_position_2d_coordinates = cv_utils.project_points(
             object_points=position,
             rotation_vector=camera_calibration["rotation_vector"],
             translation_vector=camera_calibration["translation_vector"],
@@ -699,19 +699,20 @@ def all_cameras_tray_view_data(
                 [[0.0, 0.0], [camera_calibration["image_width"], camera_calibration["image_height"]]]
             ),
         )
-        image_position = np.squeeze(image_position)
-        if np.all(np.isfinite(image_position)):
+        projected_position_2d_coordinates = np.squeeze(projected_position_2d_coordinates)
+        if np.all(np.isfinite(projected_position_2d_coordinates)):
             in_frame = True
             distance_from_image_center = np.linalg.norm(
                 np.subtract(
-                    image_position, [camera_calibration["image_width"] / 2, camera_calibration["image_height"] / 2]
+                    projected_position_2d_coordinates,
+                    [camera_calibration["image_width"] / 2, camera_calibration["image_height"] / 2],
                 )
             )
             in_middle = (
-                image_position[0] > camera_calibration["image_width"] * (1.0 / 10.0)
-                and image_position[0] < camera_calibration["image_width"] * (9.0 / 10.0)
-                and image_position[1] > camera_calibration["image_height"] * (1.0 / 10.0)
-                and image_position[1] < camera_calibration["image_height"] * (9.0 / 10.0)
+                projected_position_2d_coordinates[0] > camera_calibration["image_width"] * (1.0 / 10.0)
+                and projected_position_2d_coordinates[0] < camera_calibration["image_width"] * (9.0 / 10.0)
+                and projected_position_2d_coordinates[1] > camera_calibration["image_height"] * (1.0 / 10.0)
+                and projected_position_2d_coordinates[1] < camera_calibration["image_height"] * (9.0 / 10.0)
             )
         else:
             in_frame = False
@@ -722,7 +723,7 @@ def all_cameras_tray_view_data(
                 "camera_device_id": camera_device_id,
                 "position": position,
                 "distance_from_camera": distance_from_camera,
-                "image_position": image_position,
+                "projected_position_2d_coordinates": projected_position_2d_coordinates,
                 "distance_from_image_center": distance_from_image_center,
                 "in_frame": in_frame,
                 "in_middle": in_middle,

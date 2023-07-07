@@ -7,9 +7,8 @@ import numpy as np
 import geom_render
 from honeycomb_io import fetch_camera_info, fetch_camera_calibrations
 
-from process_cuwb_data.honeycomb_imu_data import fetch_imu_data
+from process_cuwb_data.honeycomb_imu_data import fetch_imu_data, smooth_imu_position_data
 from process_cuwb_data.utils.log import logger
-from process_cuwb_data.uwb_motion_filters import TrayMotionButterFiltFiltFilter
 
 
 def fetch_geoms_2d(
@@ -31,7 +30,11 @@ def fetch_geoms_2d(
         ]
     else:
         df_position = fetch_imu_data(
-            imu_type="position", environment_name=environment_name, start=start_time, end=end_time
+            imu_type="position",
+            environment_name=environment_name,
+            start=start_time,
+            end=end_time,
+            device_ids=device_ids,
         )
 
     df_position = df_position[
@@ -61,15 +64,7 @@ def fetch_geoms_2d(
         df_position = df_position[df_position["device_id"].isin(device_ids)]
 
     if smooth:
-        position_filter = TrayMotionButterFiltFiltFilter(useSosFiltFilt=True)
-        df_position_smoothed = pd.DataFrame(data=None, columns=df_position.columns)
-        for device_id in df_position["device_id"].unique().tolist():
-            df_positions_for_device = df_position.loc[df_position["device_id"] == device_id].copy().sort_index()
-
-            df_positions_for_device["x"] = position_filter.filter(series=df_positions_for_device["x"])
-            df_positions_for_device["y"] = position_filter.filter(series=df_positions_for_device["y"])
-            df_position_smoothed = pd.concat([df_position_smoothed, df_positions_for_device])
-        df_position = df_position_smoothed
+        df_position = smooth_imu_position_data(df_position=df_position)
 
     # Create 3D geom collection from data
     geom_collection_3d = create_geom_collection_3d(
