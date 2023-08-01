@@ -3,27 +3,28 @@ import datetime
 import pandas as pd
 
 
-def find_active_tags(
-    accelerometer_data,
+def find_active_periods(
+    data,
     max_gap_duration=datetime.timedelta(seconds=20),
     min_segment_duration=datetime.timedelta(minutes=2),
+    timestamp_field_name='timestamp',
 ):
-    active_tag_dfs = []
-    for device_id, accelerometer_data_tag in accelerometer_data.groupby("device_id"):
-        time_segments_tag_list = find_time_segments(
-            timestamps=accelerometer_data_tag["timestamp"],
+    active_period_dfs = []
+    for device_id, tag_data in data.groupby("device_id"):
+        time_segments_list = find_time_segments(
+            timestamps=tag_data[timestamp_field_name],
             max_gap_duration=max_gap_duration,
             min_segment_duration=min_segment_duration,
         )
-        if len(time_segments_tag_list) > 0:
-            time_segments = pd.DataFrame(time_segments_tag_list)
+        if len(time_segments_list) > 0:
+            time_segments = pd.DataFrame(time_segments_list)
             time_segments["device_id"] = device_id
-            active_tag_dfs.append(time_segments)
+            active_period_dfs.append(time_segments)
     column_names = ["device_id", "start", "end"]
-    if len(active_tag_dfs) == 0:
+    if len(active_period_dfs) == 0:
         return pd.DataFrame(columns=column_names)
-    active_tags = pd.concat(active_tag_dfs).reindex(columns=column_names)
-    return active_tags
+    active_periods = pd.concat(active_period_dfs).reindex(columns=column_names)
+    return active_periods
 
 
 def find_time_segments(
