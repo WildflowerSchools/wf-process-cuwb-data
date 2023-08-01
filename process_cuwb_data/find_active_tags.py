@@ -1,6 +1,6 @@
-import datetime
-
 import pandas as pd
+import numpy as np
+import datetime
 
 
 def find_active_periods(
@@ -26,6 +26,42 @@ def find_active_periods(
     active_periods = pd.concat(active_period_dfs).reindex(columns=column_names)
     return active_periods
 
+def intersect_active_periods(
+    active_periods_a,
+    active_periods_b,
+):
+    active_periods = (
+        active_periods_a
+        .set_index('device_id')
+        .join(
+            active_periods_b.set_index('device_id'),
+            how='left',
+            lsuffix='_a',
+            rsuffix='_b'
+        )
+    )
+
+    active_periods['start'] = np.maximum(
+        active_periods['start_a'],
+        active_periods['start_b'],
+    )
+
+    active_periods['end'] = np.minimum(
+        active_periods['end_a'],
+        active_periods['end_b'],
+    )
+
+    active_periods = (
+        active_periods
+        .loc[active_periods['start'] < active_periods['end']]
+        .reset_index()
+        .reindex(columns=[
+            'device_id',
+            'start',
+            'end',
+        ])
+    )
+    return active_periods  
 
 def find_time_segments(
     timestamps, max_gap_duration=datetime.timedelta(seconds=20), min_segment_duration=datetime.timedelta(minutes=2)
