@@ -1,6 +1,11 @@
+import honeycomb_io
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import datetime
+import dateutil
+import pathlib
 
 def find_active_tags(
     position_data,
@@ -106,3 +111,117 @@ def find_time_segments(
         start = timestamp
         previous_timestamp = timestamp
     return time_segments
+
+def visualize_active_tags(
+    active_tags,
+    start=None,
+    end=None,
+    device_ids=None,
+    timezone_name='UTC',
+    honeycomb_chunk_size=100,
+    honeycomb_client=None,
+    honeycomb_uri=None,
+    honeycomb_token_uri=None,
+    honeycomb_audience=None,
+    honeycomb_client_id=None,
+    honeycomb_client_secret=None,
+    show_visualization=True,
+    save_visualization=False,
+    save_path=None,
+):
+    if start is None:
+        start = active_tags['start'].min()
+    if end is None:
+        end = active_tags['end'].max()
+    if device_ids is None:
+        device_ids = active_tags['device_id'].unique().tolist()
+    device_info = honeycomb_io.fetch_devices(
+        device_ids=device_ids,
+        output_format='dataframe',
+        chunk_size=honeycomb_chunk_size,
+        client=honeycomb_client,
+        uri=honeycomb_uri,
+        token_uri=honeycomb_token_uri,
+        audience=honeycomb_audience,
+        client_id=honeycomb_client_id,
+        client_secret=honeycomb_client_secret,
+    )
+    entity_assignments = honeycomb_io.fetch_device_entity_assignments_by_device_id(
+        device_ids=device_ids,
+        start=start,
+        end=end,
+        require_unique_assignment=True,
+        require_all_devices=True,
+        output_format='dataframe',
+        chunk_size=honeycomb_chunk_size,
+        client=honeycomb_client,
+        uri=honeycomb_uri,
+        token_uri=honeycomb_token_uri,
+        audience=honeycomb_audience,
+        client_id=honeycomb_client_id,
+        client_secret=honeycomb_client_secret,
+    )
+    device_info = device_info.join(
+        entity_assignments.set_index('device_id'),
+        how='left'
+    )
+    tray_ids = device_info['tray_id'].dropna().unique().tolist()
+    material_assignments = honeycomb_io.fetch_tray_material_assignments_by_tray_id(
+        tray_ids=tray_ids,
+        start=start,
+        end=end,
+        require_unique_assignment=True,
+        require_all_trays=True,
+        output_format='dataframe',
+        chunk_size=honeycomb_chunk_size,
+        client=honeycomb_client,
+        uri=honeycomb_uri,
+        token_uri=honeycomb_token_uri,
+        audience=honeycomb_audience,
+        client_id=honeycomb_client_id,
+        client_secret=honeycomb_client_secret,
+    )
+    device_info = device_info.join(
+        material_assignments.set_index('tray_id'),
+        how='left',
+        on='tray_id'
+    )
+    device_info = device_info.sort_values([
+        'entity_type',
+        'person_type',
+        'person_short_name',
+        'material_name',
+    ])
+    device_info['tag_label'] = device_info.apply(
+        lambda row: f"{row['person_type'].title()}: {row['person_short_name']}" if row['entity_type'] == 'Person' else f"{row['entity_type']}: {row['material_name']}",
+        axis=1
+    )
+    device_info['tag_position'] = range(len(device_info), 0, -1)
+    fig, ax = plt.subplots()
+    for device_id, active_tags_device in active_tags.groupby('device_id'):
+        bar_y_position = device_info.loc[device_id, 'tag_position'] - 0.4
+        bar_y_length = 0.8
+        bar_y = (bar_y_position, bar_y_length)
+        bars_x = list()
+        for period_index, period in active_tags_device.iterrows():
+            bar_x_position = period['start']
+            bar_x_length = period['end'] - period['start']
+            bars_x.append((bar_x_position, bar_x_length))
+        ax.broken_barh(
+            bars_x,
+            bar_y,
+            label=device_id
+        )
+    ax.set_yticks(device_info['tag_position'], labels=device_info['tag_label'])
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M', tz=timezone_name))
+    ax.set_title(f"Active tags ({start.astimezone(dateutil.tz.gettz(timezone_name)).strftime('%b %-d, %Y')})")
+    ax.set_xlabel(f"Time ({timezone_name})")
+    fig.set_size_inches(10.5, 8)
+    if save_visualization:
+        if save_path is None:
+            raise ValueError('Must specify save path')
+        save_path = pathlib.Path(save_path)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path)
+    if show_visualization:
+        plt.show()
