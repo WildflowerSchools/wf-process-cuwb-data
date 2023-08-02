@@ -2,6 +2,29 @@ import pandas as pd
 import numpy as np
 import datetime
 
+def find_active_tags(
+    position_data,
+    accelerometer_data,
+    max_gap_duration=datetime.timedelta(seconds=20),
+    min_segment_duration=datetime.timedelta(minutes=2),
+):
+    active_periods_position = find_active_periods(
+        data=position_data,
+        max_gap_duration=max_gap_duration,
+        min_segment_duration=min_segment_duration,
+        timestamp_field_name='timestamp',
+    )
+    active_periods_accelerometer = find_active_periods(
+        data=accelerometer_data,
+        max_gap_duration=max_gap_duration,
+        min_segment_duration=min_segment_duration,
+        timestamp_field_name='timestamp',
+    )
+    active_tags = intersect_active_periods(
+        active_periods_a=active_periods_position,
+        active_periods_b=active_periods_accelerometer,
+    )
+    return active_tags
 
 def find_active_periods(
     data,
