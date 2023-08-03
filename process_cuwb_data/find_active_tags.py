@@ -7,12 +7,22 @@ import datetime
 import dateutil
 import pathlib
 
+from process_cuwb_data.utils.log import logger
+
+
 def find_active_tags(
     position_data,
     accelerometer_data,
     max_gap_duration=datetime.timedelta(seconds=20),
     min_segment_duration=datetime.timedelta(minutes=2),
 ):
+    if len(position_data) == 0 or len(accelerometer_data) == 0:
+        logger.warning('Empty data; no active periods')
+        return pd.DataFrame([], columns=[
+            'device_id',
+            'start',
+            'end',
+        ])
     active_periods_position = find_active_periods(
         data=position_data,
         max_gap_duration=max_gap_duration,
@@ -37,6 +47,13 @@ def find_active_periods(
     min_segment_duration=datetime.timedelta(minutes=2),
     timestamp_field_name='timestamp',
 ):
+    if len(data) == 0:
+        logger.warning('Empty data; no active periods')
+        return pd.DataFrame([], columns=[
+            'device_id',
+            'start',
+            'end',
+        ])
     active_period_dfs = []
     for device_id, tag_data in data.groupby("device_id"):
         time_segments_list = find_time_segments(
@@ -58,6 +75,13 @@ def intersect_active_periods(
     active_periods_a,
     active_periods_b,
 ):
+    if len(active_periods_a) == 0 or len(active_periods_b) == 0:
+        logger.warning('Intersection with empty active periods list is empty')
+        return pd.DataFrame([], columns=[
+            'device_id',
+            'start',
+            'end',
+        ])
     active_periods = (
         active_periods_a
         .set_index('device_id')
@@ -130,6 +154,9 @@ def visualize_active_tags(
     save_visualization=False,
     save_path=None,
 ):
+    if len(active_tags) == 0:
+        logger.warning('No active periods to visualize')
+        return
     if start is None:
         start = active_tags['start'].min()
     if end is None:
