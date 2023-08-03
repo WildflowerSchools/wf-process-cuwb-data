@@ -118,6 +118,7 @@ def visualize_active_tags(
     end=None,
     device_ids=None,
     timezone_name='UTC',
+    require_all=True,
     honeycomb_chunk_size=100,
     honeycomb_client=None,
     honeycomb_uri=None,
@@ -151,7 +152,7 @@ def visualize_active_tags(
         start=start,
         end=end,
         require_unique_assignment=True,
-        require_all_devices=True,
+        require_all_devices=require_all,
         output_format='dataframe',
         chunk_size=honeycomb_chunk_size,
         client=honeycomb_client,
@@ -171,7 +172,7 @@ def visualize_active_tags(
         start=start,
         end=end,
         require_unique_assignment=True,
-        require_all_trays=True,
+        require_all_trays=require_all,
         output_format='dataframe',
         chunk_size=honeycomb_chunk_size,
         client=honeycomb_client,
@@ -193,7 +194,7 @@ def visualize_active_tags(
         'material_name',
     ])
     device_info['tag_label'] = device_info.apply(
-        lambda row: f"{row['person_type'].title()}: {row['person_short_name']}" if row['entity_type'] == 'Person' else f"{row['entity_type']}: {row['material_name']}",
+        generate_tag_label,
         axis=1
     )
     device_info['tag_position'] = range(len(device_info), 0, -1)
@@ -225,3 +226,13 @@ def visualize_active_tags(
         plt.savefig(save_path)
     if show_visualization:
         plt.show()
+
+def generate_tag_label(row):
+    if pd.isna(row['entity_type']):
+        return f"Unknown: {row['device_name']}"
+    elif row['entity_type'] == 'Person':
+        return f"{row['person_type'].title()}: {row['person_short_name']}"
+    elif row['entity_type'] == 'Tray':
+        return f"{row['entity_type']}: {row['material_name']}"
+    else:
+        raise ValueError('Failed to parse row {row}')
