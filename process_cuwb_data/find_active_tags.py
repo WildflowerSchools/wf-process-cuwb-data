@@ -250,7 +250,7 @@ def visualize_active_tags(
             raise ValueError('Must specify save path')
         save_path = pathlib.Path(save_path)
         save_path.parent.mkdir(parents=True, exist_ok=True)
-        plt.savefig(save_path)
+        plt.savefig(save_path, bbox_inches="tight")
     if show_visualization:
         plt.show()
 
