@@ -50,7 +50,7 @@ class CameraHelper:
             df_e = honeycomb_caching_client.fetch_all_environments()
             if df_e is None:
                 raise ValueError(f"Couldn't find environment_name by id: {self.environment_id}")
-            self.environment_name = df_e.loc[e["environment_id"] == self.environment_id][0]
+            self.environment_name = df_e.loc[df_e["environment_id"] == self.environment_id][0]
 
         self.start = start
         self.end = end
