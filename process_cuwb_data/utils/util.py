@@ -14,19 +14,19 @@ def dataframe_tuple_columns_to_underscores(df, inplace=False):
         return df
 
 
-def filter_entity_type(dataframe, entity_type="all"):
+def filter_by_entity_type(df, entity_type="all"):
     if entity_type.lower() == "all":
-        return dataframe
+        return df
     if entity_type.lower() == "tray":
-        return dataframe.loc[dataframe["entity_type"].str.lower() == "tray"].copy()
+        return df.loc[df["entity_type"].str.lower() == "tray"].copy()
     if entity_type.lower() == "person":
-        return dataframe.loc[dataframe["entity_type"].str.lower() == "person"].copy()
+        return df.loc[df["entity_type"].str.lower() == "person"].copy()
 
     error = f"Invalid 'entity_type' value: {entity_type}"
     raise ValueError(error)
 
 
-def filter_data_type_and_format(df, data_type="all"):
+def filter_by_data_type(df, data_type="all"):
     if data_type == "all" or data_type is None or len(df) == 0:
         return df
 

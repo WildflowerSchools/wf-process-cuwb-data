@@ -22,7 +22,7 @@ from . import parse_events
 from .utils import io
 from .utils import const
 from .utils.log import logger
-from .utils.util import filter_data_type_and_format
+from .utils.util import filter_by_data_type
 from .uwb_extract_data import extract_by_data_type_and_format, extract_by_entity_type
 from .uwb_motion_classifier_human_activity import HumanActivityClassifier
 from .uwb_motion_classifier_tray_carry import TrayCarryClassifier
@@ -104,7 +104,7 @@ def fetch_cuwb_data(
             p.apply_async(
                 fetch_imu_data,
                 kwds=dict(
-                    imu_type=imu_type, environment_name=environment_name, start=start, end=end, entity_type=entity_type
+                    imu_type=imu_type, environment_name=environment_name, start=start, end=end, entity_type=entity_type, cache_directory="/".join([cache_dir, cache_sub_dir]), use_cache=cache
                 ),
             )
         )
@@ -209,11 +209,11 @@ def fetch_motion_features(
     if df_uwb_data is None:
         df_uwb_data = fetch_cuwb_data(environment_name, start, end, data_type="all", entity_type="all")
 
-    df_position = filter_data_type_and_format(df_uwb_data, "position")
-    df_accelerometer = filter_data_type_and_format(df_uwb_data, "accelerometer")
-    # df_gyroscope = filter_data_type_and_format(df_uwb_data, "gyroscope")
+    df_position = filter_by_data_type(df_uwb_data, "position")
+    df_accelerometer = filter_by_data_type(df_uwb_data, "accelerometer")
+    # df_gyroscope = filter_by_data_type(df_uwb_data, "gyroscope")
     df_gyroscope = pd.DataFrame()
-    # df_magnetometer = filter_data_type_and_format(df_uwb_data, "magnetometer")
+    # df_magnetometer = filter_by_data_type(df_uwb_data, "magnetometer")
     df_magnetometer = pd.DataFrame()
     df_motion_features = extract_motion_features(
         df_position=df_position,
