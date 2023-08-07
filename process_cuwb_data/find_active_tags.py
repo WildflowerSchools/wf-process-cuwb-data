@@ -21,6 +21,7 @@ def find_active_tags(
         return pd.DataFrame(
             [],
             columns=[
+                "environment_id",
                 "device_id",
                 "start",
                 "end",
@@ -56,13 +57,14 @@ def find_active_periods(
         return pd.DataFrame(
             [],
             columns=[
+                "environment_id",
                 "device_id",
                 "start",
                 "end",
             ],
         )
     active_period_dfs = []
-    for device_id, tag_data in data.groupby("device_id"):
+    for (environment_id, device_id), tag_data in data.groupby(by=["environment_id", "device_id"]):
         time_segments_list = find_time_segments(
             timestamps=tag_data[timestamp_field_name],
             max_gap_duration=max_gap_duration,
@@ -70,9 +72,10 @@ def find_active_periods(
         )
         if len(time_segments_list) > 0:
             time_segments = pd.DataFrame(time_segments_list)
+            time_segments["environment_id"] = environment_id
             time_segments["device_id"] = device_id
             active_period_dfs.append(time_segments)
-    column_names = ["device_id", "start", "end"]
+    column_names = ["environment_id", "device_id", "start", "end"]
     if len(active_period_dfs) == 0:
         return pd.DataFrame(columns=column_names)
     active_periods = pd.concat(active_period_dfs).reindex(columns=column_names)
@@ -88,13 +91,14 @@ def intersect_active_periods(
         return pd.DataFrame(
             [],
             columns=[
+                "environment_id",
                 "device_id",
                 "start",
                 "end",
             ],
         )
-    active_periods = active_periods_a.set_index("device_id").join(
-        active_periods_b.set_index("device_id"), how="left", lsuffix="_a", rsuffix="_b"
+    active_periods = active_periods_a.set_index(["environment_id", "device_id"]).join(
+        active_periods_b.set_index(["environment_id", "device_id"]), how="left", lsuffix="_a", rsuffix="_b"
     )
 
     active_periods["start"] = np.maximum(
@@ -112,6 +116,7 @@ def intersect_active_periods(
         .reset_index()
         .reindex(
             columns=[
+                "environment_id",
                 "device_id",
                 "start",
                 "end",
