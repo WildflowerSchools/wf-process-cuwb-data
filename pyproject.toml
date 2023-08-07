@@ -4,7 +4,7 @@ dynamic = ["version"]
 
 [tool.poetry]
 name = "wf-process-cuwb-data"
-version = "1.11.0"
+version = "1.11.1"
 description = "Tools for reading, processing, and writing CUWB data"
 authors = ["Theodore Quinn <ted.quinn@wildflowerschools.org>", "Benjamin Jaffe-Talberg <ben.talberg@gmail.com>"]
 readme = "README.md"
@@ -25,10 +25,9 @@ boto3 = "^1.17"
 click = "^8.0.0"
 click-log = "^0.4.0"
 deprecated = "^1.2.13"
-matplotlib = "^3.4.1"
 nocasedict = "^2.0.0"
 numpy = "^1.20.2"
-pandas = "^1.2.4"
+pandas = ">=1.2.4"
 platformdirs = "^3.0.0"
 python = ">=3.8,<3.12"
 python-dotenv = "^1.0.0"
