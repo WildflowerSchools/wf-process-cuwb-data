@@ -104,7 +104,13 @@ def fetch_cuwb_data(
             p.apply_async(
                 fetch_imu_data,
                 kwds=dict(
-                    imu_type=imu_type, environment_name=environment_name, start=start, end=end, entity_type=entity_type, cache_directory="/".join([cache_dir, cache_sub_dir]), use_cache=cache
+                    imu_type=imu_type,
+                    environment_name=environment_name,
+                    start=start,
+                    end=end,
+                    entity_type=entity_type,
+                    cache_directory="/".join([cache_dir, cache_sub_dir]),
+                    use_cache=cache,
                 ),
             )
         )

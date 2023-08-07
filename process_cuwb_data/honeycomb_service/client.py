@@ -22,10 +22,26 @@ class HoneycombCachingClient:
         auth_audience=None,
     ):
         url = os.getenv("HONEYCOMB_URI", "https://honeycomb.api.wildflower-tech.org/graphql") if url is None else url
-        auth_domain = os.getenv("HONEYCOMB_DOMAIN", os.getenv("AUTH0_DOMAIN", "wildflowerschools.auth0.com")) if auth_domain is None else auth_domain
-        auth_client_id = os.getenv("HONEYCOMB_CLIENT_ID", os.getenv("AUTH0_CLIENT_ID", None)) if auth_client_id is None else auth_client_id
-        auth_client_secret = os.getenv("HONEYCOMB_CLIENT_SECRET", os.getenv("AUTH0_CLIENT_SECRET", None)) if auth_client_secret is None else auth_client_secret
-        auth_audience = os.getenv("HONEYCOMB_AUDIENCE", os.getenv("API_AUDIENCE", "wildflower-tech.org")) if auth_audience is None else auth_audience
+        auth_domain = (
+            os.getenv("HONEYCOMB_DOMAIN", os.getenv("AUTH0_DOMAIN", "wildflowerschools.auth0.com"))
+            if auth_domain is None
+            else auth_domain
+        )
+        auth_client_id = (
+            os.getenv("HONEYCOMB_CLIENT_ID", os.getenv("AUTH0_CLIENT_ID", None))
+            if auth_client_id is None
+            else auth_client_id
+        )
+        auth_client_secret = (
+            os.getenv("HONEYCOMB_CLIENT_SECRET", os.getenv("AUTH0_CLIENT_SECRET", None))
+            if auth_client_secret is None
+            else auth_client_secret
+        )
+        auth_audience = (
+            os.getenv("HONEYCOMB_AUDIENCE", os.getenv("API_AUDIENCE", "wildflower-tech.org"))
+            if auth_audience is None
+            else auth_audience
+        )
 
         if auth_client_id is None:
             raise ValueError("HONEYCOMB_CLIENT_ID (or AUTH0_CLIENT_ID) is required")
@@ -89,7 +105,18 @@ class HoneycombCachingClient:
         return honeycomb_io.fetch_all_environments(output_format="dataframe", **self.client_params)
 
     @lru_cache(maxsize=10)
-    def fetch_device_ids(self, environment_id=None, environment_name=None, device_types: tuple = None, device_ids: tuple = None, part_numbers: tuple = None, serial_numbers: tuple = None, start=None, end=None, chunk_size=200):
+    def fetch_device_ids(
+        self,
+        environment_id=None,
+        environment_name=None,
+        device_types: tuple = None,
+        device_ids: tuple = None,
+        part_numbers: tuple = None,
+        serial_numbers: tuple = None,
+        start=None,
+        end=None,
+        chunk_size=200,
+    ):
         return honeycomb_io.fetch_device_ids(
             device_types=list(device_types) if device_types else None,
             device_ids=list(device_ids) if device_ids else None,
