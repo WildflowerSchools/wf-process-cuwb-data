@@ -5,7 +5,7 @@ import time
 
 import numpy as np
 import pandas as pd
-from torch import cdist
+import torch
 
 # from scipy.spatial.distance import cdist
 
@@ -235,10 +235,9 @@ def people_trays_cdist_iterable(idx, _df_people, _df_trays, v_count, v_start, lo
     position_cols = map_column_name_to_dimension_space("position", DIMENSIONS_WHEN_COMPUTING_CHILD_TRAY_DISTANCE)
 
     df_people_and_trays = df_people_by_idx.join(df_trays_by_idx, how="inner", lsuffix="_person", rsuffix="_tray")
-    distances = cdist(
-        # df_people_by_idx[position_cols].to_numpy(), df_trays_by_idx[position_cols].to_numpy(), metric="euclidean"
-        df_people_by_idx[position_cols].to_numpy(),
-        df_trays_by_idx[position_cols].to_numpy(),
+    distances = torch.cdist(
+        torch.tensor(df_people_by_idx[position_cols].to_numpy()),
+        torch.tensor(df_trays_by_idx[position_cols].to_numpy()),
     )
 
     return df_people_and_trays.assign(person_tray_distance=distances.flatten())
@@ -700,7 +699,7 @@ def infer_tray_device_interactions(df_features, df_carry_events, df_tray_centroi
         )
         .size()
         .reset_index()
-        .drop(0, 1)
+        .drop(0, axis=1)
     )
     df_final_carry_events_with_distances = df_final_carry_events_with_distances.merge(
         df_tray_assignments, how="left", left_on="device_id", right_on="device_id"

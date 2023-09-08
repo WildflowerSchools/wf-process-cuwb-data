@@ -77,7 +77,7 @@ def combine_features_with_ground_truth_data(
 
         df_features_masked = df_features.loc[mask].copy()
         df_features_masked["ground_truth_state"] = row["ground_truth_state"]
-        df_features_filtered = df_features_filtered.append(df_features_masked)
+        df_features_filtered = pd.concat([df_features_filtered, df_features_masked])
 
         # if CarryCategory(row['ground_truth_state']) != CarryCategory(baseline_state):
         #     df_features.loc[

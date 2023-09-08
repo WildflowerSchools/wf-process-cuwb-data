@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier as skRandomForestClassifier
+from sklearn.metrics import ConfusionMatrixDisplay
 import sklearn.model_selection
 from sklearn.preprocessing import StandardScaler
 
@@ -12,7 +13,7 @@ class UWBRandomForestClassifier:
         self,
         n_estimators=100,
         max_depth=30,
-        max_features="auto",
+        max_features="sqrt",
         min_samples_leaf=1,
         min_samples_split=2,
         class_weight="balanced_subsample",
@@ -85,7 +86,7 @@ class UWBRandomForestClassifier:
         if param_grid is None:
             param_grid = {
                 "n_estimators": [75, 100, 200],
-                "max_features": ["auto"],
+                "max_features": ["sqrt"],
                 "max_depth": [None, 30, 50, 60],
                 "criterion": ["gini", "entropy"],
                 "min_samples_split": [2, 5],
@@ -141,8 +142,9 @@ class UWBRandomForestClassifier:
 
         self.classifier.fit(X_all_train, y_all_train)
 
+        confusion_matrix = sklearn.metrics.confusion_matrix(y_all_test, self.classifier.predict(X_all_test))
         logger.info(
-            f"Confusion Matrix:\n{sklearn.metrics.confusion_matrix(y_all_test, self.classifier.predict(X_all_test))}"
+            f"Confusion Matrix:\n{confusion_matrix}"
         )
 
         logger.info(
@@ -150,15 +152,16 @@ class UWBRandomForestClassifier:
                 sklearn.metrics.classification_report(y_all_test, self.classifier.predict(X_all_test))
             )
         )
-
-        disp = sklearn.metrics.plot_confusion_matrix(
-            self.classifier, X_all_test, y_all_test, cmap=plt.cm.Blues, normalize=None, values_format="n"
-        )
-        disp.ax_.set_title(
-            "Random forest ({} estimators, {} max depth): test set".format(
-                self.classifier.n_estimators, self.classifier.max_depth
-            )
-        )
+        #
+        # disp = sklearn.metrics.plot_confusion_matrix(
+        #     self.classifier, X_all_test, y_all_test, cmap=plt.cm.Blues, normalize=None, values_format="n"
+        # )
+        # disp.ax_.set_title(
+        #     "Random forest ({} estimators, {} max depth): test set".format(
+        #         self.classifier.n_estimators, self.classifier.max_depth
+        #     )
+        # )
+        disp = ConfusionMatrixDisplay(confusion_matrix=confusion_matrix).plot(cmap=plt.cm.Blues)
 
         return dict(model=self.classifier, scaler=sc, confusion_matrix_plot=disp)
 

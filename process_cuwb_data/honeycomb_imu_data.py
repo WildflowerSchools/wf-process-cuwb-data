@@ -4,6 +4,7 @@ import json
 import pathlib
 
 import pandas as pd
+from platformdirs import user_cache_dir
 
 from honeycomb_io import (
     fetch_cuwb_position_data,
@@ -18,6 +19,7 @@ from honeycomb_io import (
 from .honeycomb_service import HoneycombCachingClient
 from .utils.log import logger
 from .uwb_motion_filters import TrayMotionButterFiltFiltFilter
+from .utils import const
 from .utils.util import filter_by_entity_type
 
 
@@ -29,7 +31,7 @@ def fetch_imu_data(
     device_ids=None,
     entity_type="all",
     use_cache: bool = True,
-    cache_directory="/data/uwb_data",
+    cache_directory="/".join([user_cache_dir(appname=const.APP_NAME, appauthor=const.APP_AUTHOR), "uwb_data"]),
 ):
     file_path = None
     if use_cache:
@@ -113,7 +115,7 @@ def generate_imu_file_path(
     environment_id=None,
     environment_name=None,
     entity_type=None,
-    cache_directory="/data/uwb_data",
+    cache_directory="/".join([user_cache_dir(appname=const.APP_NAME, appauthor=const.APP_AUTHOR), "uwb_data"]),
 ):
     honeycomb_caching_client = HoneycombCachingClient()
 

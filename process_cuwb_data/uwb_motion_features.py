@@ -411,10 +411,12 @@ class FeatureExtraction:
         start = df.index.min().floor(self.frequency)
         end = df.index.max().ceil(self.frequency)
 
-        regular_index = pd.date_range(start=start, end=end, freq=self.frequency)
-        df = df.reindex(df.index.union(regular_index))
+        regularized_index = pd.date_range(start=start, end=end, freq=self.frequency)
+        df = df.reindex(df.index.union(regularized_index))
         df = df.interpolate(method="time", limit=5, limit_area="inside")
-        df = df.reindex(regular_index).dropna()
+
+        # Drop all rows that have an NA value (excluding the anchor_count column)
+        df = df.reindex(regularized_index).dropna(subset=df.columns.difference(['anchor_count']))
         return df
 
     def detect_peaks(self, np_array, width=None, min_height_as_percentage_of_max=0.8):

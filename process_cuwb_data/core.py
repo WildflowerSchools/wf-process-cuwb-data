@@ -373,7 +373,7 @@ def generate_groundtruth(groundtruth_csv, groundtruth_type):
 
     df_features = None
     for (environment, start_datetime), group_df in df_groundtruth.groupby(
-        by=["environment_name", pd.Grouper(key="start_datetime", freq="D")]
+        by=["environment", pd.Grouper(key="start_datetime", freq="D")]
     ):
         start = group_df.agg({"start_datetime": [np.min]}).iloc[0]["start_datetime"]
         end = group_df.agg({"end_datetime": [np.max]}).iloc[0]["end_datetime"]
@@ -402,7 +402,7 @@ def generate_groundtruth(groundtruth_csv, groundtruth_type):
         if df_features is None:
             df_features = df_environment_features.copy()
         else:
-            df_features = df_features.append(df_environment_features)
+            df_features = pd.concat([df_features, df_environment_features])
 
     df_groundtruth_features = None
     try:

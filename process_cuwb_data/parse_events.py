@@ -24,7 +24,7 @@ def parse_tray_events(
     default_camera_name=None,
     camera_calibrations=None,
     position_window_seconds=4,
-    imputed_z_position=1.0,
+    z_axis_override=1.0,
     chunk_size=100,
     client=None,
     uri=None,
@@ -102,7 +102,7 @@ def parse_tray_events(
         default_camera_device_id=default_camera_device_id,
         camera_calibrations=camera_calibrations,
         position_window_seconds=position_window_seconds,
-        imputed_z_position=imputed_z_position,
+        z_axis_override=z_axis_override,
         **client_params,
     )
 
@@ -185,7 +185,7 @@ def determine_best_cameras_for_trays(
     default_camera_device_id=None,
     camera_calibrations=None,
     position_window_seconds=4,
-    imputed_z_position=1.0,
+    z_axis_override=1.0,
     chunk_size=100,
     client=None,
     uri=None,
@@ -216,14 +216,7 @@ def determine_best_cameras_for_trays(
         camera_device_ids=camera_device_ids,
         camera_calibrations=camera_calibrations,
         position_window_seconds=position_window_seconds,
-        imputed_z_position=imputed_z_position,
-        chunk_size=chunk_size,
-        client=client,
-        uri=uri,
-        token_uri=token_uri,
-        audience=audience,
-        client_id=client_id,
-        client_secret=client_secret,
+        z_axis_override=z_axis_override,
     )
 
     def generate_camera_recommendations(event, event_time_field):
@@ -303,7 +296,7 @@ def generate_material_events(
     default_camera_name=None,
     camera_calibrations=None,
     position_window_seconds=4,
-    imputed_z_position=1.0,
+    z_axis_override=1.0,
     chunk_size=100,
     client=None,
     uri=None,
@@ -389,7 +382,7 @@ def generate_material_events(
         default_camera_device_id=default_camera_device_id,
         camera_calibrations=camera_calibrations,
         position_window_seconds=position_window_seconds,
-        imputed_z_position=imputed_z_position,
+        z_axis_override=z_axis_override,
         **client_params,
     )
 
@@ -621,7 +614,7 @@ def all_cameras_tray_view_data(
     camera_device_ids=None,
     camera_calibrations=None,
     position_window_seconds=4,
-    imputed_z_position=1.0,
+    z_axis_override=1.0,
     chunk_size=100,
     client=None,
     uri=None,
@@ -678,8 +671,8 @@ def all_cameras_tray_view_data(
         client_secret=client_secret,
     )
     position = np.nanmedian(position_data.loc[:, ["x", "y", "z"]].values, axis=0)
-    if imputed_z_position is not None:
-        position[2] = imputed_z_position
+    if z_axis_override is not None:
+        position[2] = z_axis_override
     view_data_list = []
     for camera_device_id, camera_calibration in camera_calibrations.items():
         camera_position = cv_utils.extract_camera_position(

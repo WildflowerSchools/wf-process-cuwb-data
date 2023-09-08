@@ -66,13 +66,13 @@ class CameraUWBLineOfSight:
                 device_ids=[tag_device_id],
             )
 
-        if tag_device_id is not None:
-            df_position_data = df_position_data[df_position_data["device_id"] == tag_device_id]
-
-        if len(df_position_data) == 0:
-            err = f"Unable to find position data between {position_window_start} and {position_window_end}, cannot determine best camera views"
+        if df_position_data is None or len(df_position_data) == 0:
+            err = f"Unable to find position data between {position_window_start} and {position_window_end} for device {tag_device_id}, cannot determine best camera views"
             logger.warning(err)
             raise ValueError(err)
+
+        if tag_device_id is not None:
+            df_position_data = df_position_data[df_position_data["device_id"] == tag_device_id]
 
         df_position_data = smooth_imu_position_data(df_position=df_position_data)
 

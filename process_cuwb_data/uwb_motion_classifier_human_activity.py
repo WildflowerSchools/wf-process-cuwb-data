@@ -147,7 +147,7 @@ class HumanActivityClassifier(UWBRandomForestClassifier):
         super().__init__(
             n_estimators=100,
             max_depth=30,
-            max_features="auto",
+            max_features="sqrt",
             min_samples_leaf=1,
             min_samples_split=2,
             class_weight="balanced_subsample",
