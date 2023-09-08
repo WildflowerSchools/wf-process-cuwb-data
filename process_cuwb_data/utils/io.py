@@ -150,9 +150,9 @@ def load_csv(path):
     df.rename(columns={"start_time": "start_datetime", "end_time": "end_datetime"}, inplace=True)
 
     if "start_datetime" in df.columns:
-        df["start_datetime"] = pd.to_datetime(df["start_datetime"], format='ISO8601')
+        df["start_datetime"] = pd.to_datetime(df["start_datetime"], format="ISO8601")
     if "end_datetime" in df.columns:
-        df["end_datetime"] = pd.to_datetime(df["end_datetime"], format='ISO8601')
+        df["end_datetime"] = pd.to_datetime(df["end_datetime"], format="ISO8601")
 
     if len(df["start_datetime"]) == 0:
         return df

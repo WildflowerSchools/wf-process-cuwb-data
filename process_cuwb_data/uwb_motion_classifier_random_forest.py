@@ -143,9 +143,7 @@ class UWBRandomForestClassifier:
         self.classifier.fit(X_all_train, y_all_train)
 
         confusion_matrix = sklearn.metrics.confusion_matrix(y_all_test, self.classifier.predict(X_all_test))
-        logger.info(
-            f"Confusion Matrix:\n{confusion_matrix}"
-        )
+        logger.info(f"Confusion Matrix:\n{confusion_matrix}")
 
         logger.info(
             "Classification Report:\n{}".format(

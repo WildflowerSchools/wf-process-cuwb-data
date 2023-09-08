@@ -416,7 +416,7 @@ class FeatureExtraction:
         df = df.interpolate(method="time", limit=5, limit_area="inside")
 
         # Drop all rows that have an NA value (excluding the anchor_count column)
-        df = df.reindex(regularized_index).dropna(subset=df.columns.difference(['anchor_count']))
+        df = df.reindex(regularized_index).dropna(subset=df.columns.difference(["anchor_count"]))
         return df
 
     def detect_peaks(self, np_array, width=None, min_height_as_percentage_of_max=0.8):
