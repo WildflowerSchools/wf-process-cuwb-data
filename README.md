@@ -53,7 +53,7 @@ Tray centroids, or tray positions, are the most likely locations of a tray's she
         --start 2023-01-06T07:30:00-0800 \
         --end 2023-01-06T17:00:00-0800 \
         --cuwb-data ./output/uwb_data/uwb-dahlia-20230106-153000-20230107-010000.pkl \
-        --tray-carry-model ./output/models/tray_carry_model_v1.pkl
+        --tray-carry-model ./output/models/tray_carry_model_v2.pkl
 
 
 ### Train Tray Detection Model
@@ -88,7 +88,7 @@ This will download data from Honeycomb and prepare it for the next step of feedi
     1. Use the model you've trained by following the steps to **Train Tray Detection Model**
     2. Or, download the latest model:
 ```
-    curl -L 'https://drive.google.com/uc?export=download&id=1_veyjLdAa8Fq7eYeT9GLdkcS6_VY0FLX' --output ./output/models/tray_carry_model_v1.pkl
+    curl -L 'https://drive.google.com/uc?export=download&id=1U3QV5TNZCs_GF-L2GO8t-h-BeJs7cCph' --output ./output/models/tray_carry_model_v2.pkl
 ```   
 
 ### Infer Tray Interaction 
