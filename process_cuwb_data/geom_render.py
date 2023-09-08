@@ -168,7 +168,7 @@ def create_geom_collection_3d(
         geom_list = [
             geom_render.Point3D(
                 coordinate_indices=[0],
-                color=colors[entity_type],
+                color=colors[entity_type] if entity_type in colors else "#0000ff",
                 object_type=entity_type,
                 object_id=entity_id,
                 object_name=entity_name,
@@ -177,7 +177,7 @@ def create_geom_collection_3d(
             geom_render.Text3D(
                 text=entity_name,
                 coordinate_indices=[0],
-                color=colors[entity_type],
+                color=colors[entity_type] if entity_type in colors else "#0000ff",
                 object_type=entity_type,
                 object_id=entity_id,
                 object_name=entity_name,
