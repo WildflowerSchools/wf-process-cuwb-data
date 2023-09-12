@@ -24,9 +24,9 @@ class FeatureExtraction:
     VELOCITY_COLUMNS = [
         "quality",
         "anchor_count",
-        "x_mps",
-        "y_mps",
-        "z_mps",
+        # "x_position",
+        # "y_position",
+        # "z_position",
         "x_position_smoothed",
         "y_position_smoothed",
         "z_position_smoothed",
@@ -164,14 +164,24 @@ class FeatureExtraction:
 
         df_uwb_data = self.filter_uwb_data_by_acceleration_activity(df_uwb_data=df_uwb_data)
 
-        df_dict = {}
+        all_features = []
         for device_id, df_device_uwb_data in df_uwb_data.groupby(by="device_id"):
             logger.info(f"Calculating motion features for device ID {device_id}")
 
+            df_device_uwb_data = df_device_uwb_data.sort_index()
+            # df_device_uwb_data["active_session_id"] = (
+            #     df_device_uwb_data.index.to_series().diff() >= pd.to_timedelta("60 seconds")
+            # ).cumsum()
+
+            # for _, df_device_active_session_uwb_data in df_device_uwb_data.groupby(by="active_session_id"):
             df_device_position = filter_by_data_type(df_device_uwb_data, "position")
             df_device_acceleration = filter_by_data_type(df_device_uwb_data, "accelerometer")
-            df_device_gyroscope = filter_by_data_type(df_device_uwb_data, "gyroscope")  # pd.DataFrame()
-            df_device_magnetometer = filter_by_data_type(df_device_uwb_data, "magnetometer")  # pd.DataFrame()
+            df_device_gyroscope = filter_by_data_type(
+                df_device_uwb_data, "gyroscope"
+            )
+            df_device_magnetometer = filter_by_data_type(
+                df_device_uwb_data, "magnetometer"
+            )
 
             df_features = self.extract_motion_features(
                 df_position=df_device_position,
@@ -183,9 +193,9 @@ class FeatureExtraction:
             )
             df_features["device_id"] = device_id
 
-            df_dict[device_id] = df_features
+            all_features.append(df_features)
 
-        df_all = pd.concat(df_dict.values())
+        df_all = pd.concat(all_features)
         return df_all
 
     def extract_tray_motion_features_for_multiple_devices(self, df_uwb_data):
@@ -257,15 +267,15 @@ class FeatureExtraction:
         df = df.copy()
 
         if "x" in df.columns:
-            df.rename(columns={"x": "x_mps", "y": "y_mps", "z": "z_mps"}, inplace=True)
+            df.rename(columns={"x": "x_position", "y": "y_position", "z": "z_position"}, inplace=True)
 
         if "x_meters" in df.columns:
-            df.rename(columns={"x_meters": "x_mps", "y_meters": "y_mps", "z_meters": "z_mps"}, inplace=True)
+            df.rename(columns={"x_meters": "x_position", "y_meters": "y_position", "z_meters": "z_position"}, inplace=True)
 
-        df = self.average_xyz_duplicates(df, x_col="x_mps", y_col="y_mps", z_col="z_mps")
+        df = self.average_xyz_duplicates(df, x_col="x_position", y_col="y_position", z_col="z_position")
 
-        df = df.reindex(columns=["x_mps", "y_mps", "z_mps", "quality", "anchor_count"])
-        df = self.regularize_index_and_smooth(df, fillna="interpolate")
+        df = df.reindex(columns=["x_position", "y_position", "z_position", "quality", "anchor_count"])
+        df = self.regularize_index_and_smooth(df)
         df = self.calculate_velocity_features(df=df)
         df = df.sort_index()
         return df
@@ -319,7 +329,7 @@ class FeatureExtraction:
         df = self.regularize_index_and_smooth(df)
         return df
 
-    def regularize_index_and_smooth(self, df, fillna=0):
+    def regularize_index_and_smooth(self, df):
         df = df.copy()
 
         if len(df) == 0:
@@ -414,11 +424,11 @@ class FeatureExtraction:
             df = df.copy()
 
         if "x" in df.columns:
-            df.rename(columns={"x": "x_mps", "y": "y_mps", "z": "z_mps"}, inplace=True)
+            df.rename(columns={"x": "x_position", "y": "y_position", "z": "z_position"}, inplace=True)
 
-        df["x_position_smoothed"] = self.position_filter.filter(series=df["x_mps"])
-        df["y_position_smoothed"] = self.position_filter.filter(series=df["y_mps"])
-        df["z_position_smoothed"] = self.position_filter.filter(series=df["z_mps"])
+        df["x_position_smoothed"] = self.position_filter.filter(series=df["x_position"])
+        df["y_position_smoothed"] = self.position_filter.filter(series=df["y_position"])
+        df["z_position_smoothed"] = self.position_filter.filter(series=df["z_position"])
         # Old method of computing velocity, switched to savgol with deriv=1
         # df['x_velocity_smoothed']=df['x_acceleration_smoothed'].diff().divide(df.index.to_series().diff().apply(lambda dt: dt.total_seconds()))
         # df['y_velocity_smoothed']=df['y_acceleration_smoothed'].diff().divide(df.index.to_series().diff().apply(lambda dt: dt.total_seconds()))
@@ -442,7 +452,7 @@ class FeatureExtraction:
             df[["x_velocity_smoothed_magnitude", "y_velocity_smoothed_magnitude"]].pow(2).sum(axis=1).pow(0.5)
         )
 
-        window = int(1 / (pd.tseries.frequencies.to_offset(self.frequency).nanos / 1000000000))
+        window = pd.tseries.frequencies.to_offset("2s")  # int(1 / (pd.tseries.frequencies.to_offset(self.frequency).nanos / 1000000000))
 
         df["x_velocity_mean"] = df["x_velocity_smoothed_magnitude"].rolling(window=window, center=True).mean()
         df["y_velocity_mean"] = df["y_velocity_smoothed_magnitude"].rolling(window=window, center=True).mean()
@@ -523,10 +533,6 @@ class FeatureExtraction:
 
         if not inplace:
             return df
-
-    def remove_wos_position_signature(self, df, x_col="x", y_col="y", z_col="z", inplace=False):
-        if not inplace:
-            df = df.copy()
 
     def filter_uwb_data_by_acceleration_activity(self, df_uwb_data: pd.DataFrame, inplace: bool = False):
         """
@@ -628,7 +634,7 @@ class FeatureExtraction:
             df_acceleration = df_acceleration.copy()
 
         df_acceleration["gap"] = df_acceleration.sort_index().index.to_series().diff() > pd.to_timedelta("0.5 seconds")
-        drop_index = df_acceleration.loc[df_acceleration["gap"] == True].index
+        drop_index = df_acceleration.loc[df_acceleration["gap"]].index
 
         logger.info(
             f"Correcting for WoS, dropping {len(drop_index) + 1} indices by searching for time gaps and removing first data instance"
@@ -670,7 +676,7 @@ class FeatureExtraction:
             .pow(0.5)
         )
 
-        window = int(1 / (pd.tseries.frequencies.to_offset(self.frequency).nanos / 1000000000))
+        window = pd.tseries.frequencies.to_offset("2s")  # int(1 / (pd.tseries.frequencies.to_offset(self.frequency).nanos / 1000000000))
 
         df["x_acceleration_mean"] = df["x_acceleration_normalized"].rolling(window=window, center=True).mean()
         df["y_acceleration_mean"] = df["y_acceleration_normalized"].rolling(window=window, center=True).mean()
@@ -761,20 +767,20 @@ class FeatureExtraction:
         )
 
         df["x_acceleration_energy"] = (
-            df["x_acceleration_normalized"].pow(2).rolling(window=window, center=True).sum().div(window)
+            df["x_acceleration_normalized"].pow(2).rolling(window=window, center=True).mean()
         )
         df["y_acceleration_energy"] = (
-            df["y_acceleration_normalized"].pow(2).rolling(window=window, center=True).sum().div(window)
+            df["y_acceleration_normalized"].pow(2).rolling(window=window, center=True).mean()
         )
         df["z_acceleration_energy"] = (
-            df["z_acceleration_normalized"].pow(2).rolling(window=window, center=True).sum().div(window)
+            df["z_acceleration_normalized"].pow(2).rolling(window=window, center=True).mean()
         )
         df["acceleration_average_energy"] = df[
             ["x_acceleration_energy", "y_acceleration_energy", "z_acceleration_energy"]
         ].mean(axis=1)
 
         df["acceleration_vector_magnitude_energy"] = (
-            df["acceleration_vector_magnitude"].pow(2).rolling(window=window, center=True).sum().div(window)
+            df["acceleration_vector_magnitude"].pow(2).rolling(window=window, center=True).mean()
         )
 
         df["x_y_acceleration_correlation"] = (

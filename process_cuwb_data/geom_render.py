@@ -96,11 +96,14 @@ def create_geom_collection_3d(
     start_time,
     end_time,
     frames_per_second=10.0,
-    colors={"Person": "#ff0000", "Tray": "#00ff00"},
+    colors=None,
     progress_bar=False,
     notebook=False,
 ):
     # Create dictionary of 3D geom collections, one for each object in data
+    if colors is None:
+        colors = {"Person": "#ff0000", "Tray": "#00ff00"}
+
     logger.info(
         "Creating dictionary of 3D geom collections for each sensor in data: {}".format(
             df["device_serial_number"].unique().tolist()

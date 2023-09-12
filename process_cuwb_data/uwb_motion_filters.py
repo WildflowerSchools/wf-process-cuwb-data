@@ -108,18 +108,21 @@ class TrayCarryHmmFilter:
         transition_matrix=np.array([[0.9999, 0.0001], [0.03, 0.97]]),
         observation_matrix=np.array([[0.95, 0.05], [0.15, 0.85]]),
     ):
+        # Initial probability
+        #    Not Carry 0.999
+        #    Carry     0.001
         self.initial_probability = initial_probability_vector
 
         # Transition Matrix
-        #                 Not Carry(t)   Carry(t)
-        # Not Carry(t-1)  0.9999         0.0001
-        # Carry(t-1)      0.03           0.97
+        #                    Not Carry(t)   Carry(t)
+        #    Not Carry(t-1)  0.9999         0.0001
+        #    Carry(t-1)      0.03           0.97
         self.transition_matrix = transition_matrix
 
         # Observation Matrix
-        #                 Not Carry(Yt)   Carry(Yt)
-        # Not Carry(Xt)   0.95            0.05
-        # Carry(Xt)       0.15            0.85
+        #                    Not Carry(Yt)   Carry(Yt)
+        #    Not Carry(Xt)   0.95            0.05
+        #    Carry(Xt)       0.15            0.85
         self.observation_matrix = observation_matrix
 
     def filter(self, df_predictions, prediction_column_name, inplace=False):
@@ -130,11 +133,11 @@ class TrayCarryHmmFilter:
         for idx, (_, row) in enumerate(df_predictions.iterrows()):
             observed_state = row[prediction_column_name]
             if idx == 0:
-                unnormalized_probabilities = self.initial_probability * self.observation_matrix[:, observed_state]
+                unnormalized_probabilities = self.initial_probability * self.observation_matrix[observed_state]
             else:
                 previous_probability = hmm_probability[idx - 1]
                 unnormalized_probabilities = (
-                    previous_probability.dot(self.transition_matrix) * self.observation_matrix[:, observed_state]
+                    previous_probability.dot(self.transition_matrix) * self.observation_matrix[observed_state]
                 )
 
             hmm_probability[idx] = unnormalized_probabilities / np.linalg.norm(unnormalized_probabilities)

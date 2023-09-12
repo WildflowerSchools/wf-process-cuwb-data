@@ -170,21 +170,25 @@ class TrayCarryClassifier(UWBRandomForestClassifier):
         return result
 
     def filter_and_smooth_predictions(self, device_id, df_device_features, window=10):
-        logger.info(f"Filter tray carry classification anomalies (hmm model) for device ID {device_id}")
+        start = df_device_features.index.min()
+        end = df_device_features.index.max()
+
+        logger.info(
+            f"Filter tray carry classification anomalies (hmm model) for device ID {device_id} from {start} to {end}"
+        )
+
         df_device_features = TrayCarryHmmFilter().filter(df_device_features, self.prediction_field_name)
 
-        logger.info(f"Smooth tray carry classification for device ID {device_id}")
+        logger.info(f"Smooth tray carry classification for device ID {device_id} from {start} to {end}")
         df_device_features = SmoothLabelsFilter(window=window).filter(
             df_predictions=df_device_features, prediction_column_name=self.prediction_field_name
         )
 
         logger.info(
-            "Carry Prediction (post filter and smoothing) for device ID {}:\n{}".format(
-                device_id, df_device_features.groupby(self.prediction_field_name).size()
-            )
+            f"Carry Prediction (post filter and smoothing) for device ID {device_id} from {start} to {end}:\n{df_device_features.groupby(self.prediction_field_name).size()}"
         )
 
-        return (device_id, df_device_features)
+        return df_device_features
 
     def predict(self, df_features, *args, **kwargs):
         df_features = df_features.copy()
@@ -206,24 +210,43 @@ class TrayCarryClassifier(UWBRandomForestClassifier):
             lambda x: carry_category_mapping_dictionary[x]
         )
 
-        # HMM Model and smoothing can take awhile, use multiprocessing to help speed things up
+        # HMM Model and smoothing can take a while, use multiprocessing to help speed things up
         p = multiprocessing.Pool()
 
-        # df_dict = {}
         results = []
-        for device_id in pd.unique(df_features["device_id"]):
-            df_device_features = df_features.loc[df_features["device_id"] == device_id].copy().sort_index()
-            results.append(
-                p.apply_async(
-                    self.filter_and_smooth_predictions,
-                    kwds=dict(device_id=device_id, df_device_features=df_device_features),
-                )
-            )
+        for device_id, df_device_features in df_features.groupby(by="device_id"):
+            df_device_features = df_device_features.sort_index()
+            df_device_features["active_session_id"] = (
+                df_device_features.index.to_series().diff() >= pd.to_timedelta("10 seconds")
+            ).cumsum()
 
-        df_dict = dict(p.get() for p in results)
+            # if device_id == 'ac516167-8100-4194-ae8a-c621c5c51797':
+            #     pass
+            #
+            # from datetime import datetime
+            # debug_time = datetime.fromisoformat("2023-07-20T19:40:40.100000+00:00")
+
+            for _, df_device_active_session_features in df_device_features.groupby(by="active_session_id"):
+                # start = df_device_active_session_features.index.min()
+                # end = df_device_active_session_features.index.max()
+                #
+                # if start < debug_time and debug_time < end:
+                #     pass
+                # else:
+                #     continue
+
+                results.append(
+                    p.apply_async(
+                        self.filter_and_smooth_predictions,
+                        kwds=dict(device_id=device_id, df_device_features=df_device_active_session_features),
+                    )
+                    # self.filter_and_smooth_predictions(device_id=device_id, df_device_features=df_device_active_session_features)
+                )
+
+        all_smoothed_classifications = list(p.get() for p in results)  # results
         p.close()
 
-        df_features = pd.concat(df_dict.values())
+        df_features = pd.concat(all_smoothed_classifications)
 
         # Convert carry state from int to string
         df_features[self.prediction_field_name] = df_features[self.prediction_field_name].map(

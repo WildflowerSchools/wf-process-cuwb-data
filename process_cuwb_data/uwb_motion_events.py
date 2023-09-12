@@ -79,14 +79,13 @@ def extract_carry_events_by_device(
         return None
 
     logger.info("Extracting carry events")
-    df_dict = {}
-    for device_id in pd.unique(df_carry_predictions[device_id_column_name]):
+    all_carry_events = []
+    for device_id, df_carry_predictions_for_device in df_carry_predictions.groupby(by=device_id_column_name):
         logger.info(f"Extracting carry events for device ID {device_id}")
-        df_device_carry_predictions = (
-            df_carry_predictions.loc[df_carry_predictions[device_id_column_name] == device_id].copy().sort_index()
-        )
+        df_carry_predictions_for_device = df_carry_predictions_for_device.copy().sort_index()
+
         df_carry_events = extract_carry_events_for_device(
-            df_device_carry_predictions, prediction_column_name, device_id_column_name
+            df_carry_predictions_for_device, prediction_column_name, device_id_column_name
         )
         logger.info(f"Extracted {len(df_carry_events)} carry events for device ID {device_id}")
 
@@ -98,6 +97,6 @@ def extract_carry_events_by_device(
                 )
             )
 
-        df_dict[device_id] = df_carry_events
+        all_carry_events.append(df_carry_events)
 
-    return pd.concat(df_dict.values())
+    return pd.concat(all_carry_events)
