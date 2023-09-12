@@ -22,7 +22,6 @@ from . import parse_events
 from .utils import io
 from .utils import const
 from .utils.log import logger
-from .utils.util import filter_by_data_type
 from .uwb_extract_data import extract_by_data_type_and_format, extract_by_entity_type
 from .uwb_motion_classifier_human_activity import HumanActivityClassifier
 from .uwb_motion_classifier_tray_carry import TrayCarryClassifier
@@ -215,26 +214,15 @@ def fetch_motion_features(
     if df_uwb_data is None:
         df_uwb_data = fetch_cuwb_data(environment_name, start, end, data_type="all", entity_type="all")
 
-    df_position = filter_by_data_type(df_uwb_data, "position")
-    df_accelerometer = filter_by_data_type(df_uwb_data, "accelerometer")
-    # df_gyroscope = filter_by_data_type(df_uwb_data, "gyroscope")
-    df_gyroscope = pd.DataFrame()
-    # df_magnetometer = filter_by_data_type(df_uwb_data, "magnetometer")
-    df_magnetometer = pd.DataFrame()
     df_motion_features = extract_motion_features(
-        df_position=df_position,
-        df_acceleration=df_accelerometer,
-        df_gyroscope=None,
-        df_magnetometer=None,
+        df_uwb_data=df_uwb_data,
         entity_type=entity_type,
         fillna=fillna,
     )
 
     # Add metadata fields if requested
-    if include_meta_fields and (
-        len(df_position) > 0 or len(df_accelerometer) > 0 or len(df_gyroscope) > 0 or len(df_magnetometer) > 0
-    ):
-        df_all_datatypes = pd.concat((df_position, df_accelerometer, df_gyroscope, df_magnetometer))
+    if include_meta_fields and (len(df_uwb_data) > 0):
+        df_all_datatypes = df_uwb_data.copy()
         df_meta_fields = (
             df_all_datatypes.loc[
                 :,
@@ -277,8 +265,7 @@ def extract_motion_features_from_raw_datapoints(
     df_cuwb_features, entity_type="all", include_meta_fields=False, fillna="forward_backward"
 ):
     df_motion_features = extract_motion_features(
-        df_position=extract_by_data_type_and_format(df_cuwb_features, data_type="position"),
-        df_acceleration=extract_by_data_type_and_format(df_cuwb_features, data_type="accelerometer"),
+        df_uwb_data=df_cuwb_features,
         entity_type=entity_type,
         fillna=fillna,
     )
@@ -329,15 +316,11 @@ def extract_motion_features_from_raw_datapoints(
         return df_motion_features
 
 
-def extract_motion_features(
-    df_position, df_acceleration, df_gyroscope=None, df_magnetometer=None, entity_type="all", fillna="forward_backward"
-):
+def extract_motion_features(df_uwb_data, entity_type="all", fillna="forward_backward"):
     f = FeatureExtraction()
+
     return f.extract_motion_features_for_multiple_devices(
-        df_position=df_position,
-        df_acceleration=df_acceleration,
-        df_gyroscope=df_gyroscope,
-        df_magnetometer=df_magnetometer,
+        df_uwb_data=df_uwb_data,
         entity_type=entity_type,
         fillna=fillna,
     )

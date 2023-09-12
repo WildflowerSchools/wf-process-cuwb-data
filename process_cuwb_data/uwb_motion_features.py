@@ -1,9 +1,13 @@
+import functools
+from operator import or_
+
 import pandas as pd
 import numpy as np
 from scipy.signal import find_peaks, peak_prominences, peak_widths
 
 from .uwb_motion_filters import TrayMotionButterFiltFiltFilter, TrayMotionSavGolFilter
 from .utils.log import logger
+from .utils.util import filter_by_data_type
 
 
 class FeatureExtraction:
@@ -138,121 +142,42 @@ class FeatureExtraction:
 
     def extract_motion_features_for_multiple_devices(
         self,
-        df_position=None,
-        df_acceleration=None,
-        df_gyroscope=None,
-        df_magnetometer=None,
+        df_uwb_data: pd.DataFrame,
         entity_type="all",
         fillna=None,
         join="outer",
     ):
         if (
-            (df_position is None and df_acceleration is None)
-            or (
-                (df_position is not None and len(df_position) == 0)
-                and (df_acceleration is not None and len(df_acceleration) == 0)
-                and (df_gyroscope is not None and len(df_gyroscope) == 0)
-                and (df_magnetometer is not None and len(df_magnetometer) == 0)
-            )
-            or (
-                (df_position is not None and "entity_type" not in df_position.columns)
-                or (df_acceleration is not None and "entity_type" not in df_acceleration.columns)
-                or (df_gyroscope is not None and "entity_type" not in df_gyroscope.columns)
-                or (df_magnetometer is not None and "entity_type" not in df_magnetometer.columns)
-            )
+            (df_uwb_data is None)
+            or ((df_uwb_data is not None and len(df_uwb_data) == 0))
+            or ((df_uwb_data is not None and "entity_type" not in df_uwb_data.columns))
         ):
             return None
+
+        df_uwb_data = df_uwb_data.copy()
 
         if entity_type is None:
             entity_type = "all"
 
-        pos_indx, acc_indx, gyr_indx, mag_indx = slice(None), slice(None), slice(None), slice(None)
-        if entity_type != "all":
-            if df_position is not None:
-                pos_indx = df_position["entity_type"].str.lower() == entity_type.lower()
-            if df_acceleration is not None:
-                acc_indx = df_acceleration["entity_type"].str.lower() == entity_type.lower()
-            if df_gyroscope is not None:
-                gyr_indx = df_gyroscope["entity_type"].str.lower() == entity_type.lower()
-            if df_magnetometer is not None:
-                mag_indx = df_magnetometer["entity_type"].str.lower() == entity_type.lower()
+        if entity_type.lower() != "all":
+            df_uwb_data = df_uwb_data[df_uwb_data["entity_type"].str.lower() == entity_type.lower()]
 
-        position_device_ids = []
-        if df_position is not None:
-            position_device_ids = df_position.loc[pos_indx, "device_id"].unique().tolist()
-            logger.info(
-                f'Position data contains {len(position_device_ids)} "{entity_type}" device IDs: {position_device_ids}'
-            )
-
-        acceleration_device_ids = []
-        if df_acceleration is not None:
-            acceleration_device_ids = df_acceleration.loc[acc_indx, "device_id"].unique().tolist()
-            logger.info(
-                'Acceleration data contains {} "{}" device IDs: {}'.format(
-                    len(acceleration_device_ids),
-                    entity_type,
-                    acceleration_device_ids,
-                )
-            )
-
-        gyroscope_device_ids = []
-        if df_gyroscope is not None:
-            gyroscope_device_ids = df_gyroscope.loc[gyr_indx, "device_id"].unique().tolist()
-            logger.info(
-                'Gyroscope data contains {} "{}" device IDs: {}'.format(
-                    len(gyroscope_device_ids),
-                    entity_type,
-                    gyroscope_device_ids,
-                )
-            )
-
-        magnetometer_device_ids = []
-        if df_magnetometer is not None:
-            magnetometer_device_ids = df_magnetometer.loc[mag_indx, "device_id"].unique().tolist()
-            logger.info(
-                'Magnetometer data contains {} "{}" device IDs: {}'.format(
-                    len(magnetometer_device_ids),
-                    entity_type,
-                    magnetometer_device_ids,
-                )
-            )
-
-        all_device_ids = list(
-            set(position_device_ids)
-            | set(acceleration_device_ids)
-            | set(gyroscope_device_ids)
-            | set(magnetometer_device_ids)
-        )
+        df_uwb_data = self.filter_uwb_data_by_acceleration_activity(df_uwb_data=df_uwb_data)
 
         df_dict = {}
-        for device_id in all_device_ids:
+        for device_id, df_device_uwb_data in df_uwb_data.groupby(by="device_id"):
             logger.info(f"Calculating motion features for device ID {device_id}")
 
-            df_position_for_device = None
-            if df_position is not None:
-                df_position_for_device = df_position.loc[df_position["device_id"] == device_id].copy().sort_index()
-
-            df_acceleration_for_device = None
-            if df_acceleration is not None:
-                df_acceleration_for_device = (
-                    df_acceleration.loc[df_acceleration["device_id"] == device_id].copy().sort_index()
-                )
-
-            df_gyroscope_for_device = None
-            if df_gyroscope is not None:
-                df_gyroscope_for_device = df_gyroscope.loc[df_gyroscope["device_id"] == device_id].copy().sort_index()
-
-            df_magnetometer_for_device = None
-            if df_magnetometer is not None:
-                df_magnetometer_for_device = (
-                    df_magnetometer.loc[df_magnetometer["device_id"] == device_id].copy().sort_index()
-                )
+            df_device_position = filter_by_data_type(df_device_uwb_data, "position")
+            df_device_acceleration = filter_by_data_type(df_device_uwb_data, "accelerometer")
+            df_device_gyroscope = filter_by_data_type(df_device_uwb_data, "gyroscope")  # pd.DataFrame()
+            df_device_magnetometer = filter_by_data_type(df_device_uwb_data, "magnetometer")  # pd.DataFrame()
 
             df_features = self.extract_motion_features(
-                df_position=df_position_for_device,
-                df_acceleration=df_acceleration_for_device,
-                df_gyroscope=df_gyroscope_for_device,
-                df_magnetometer=df_magnetometer_for_device,
+                df_position=df_device_position,
+                df_acceleration=df_device_acceleration,
+                df_gyroscope=df_device_gyroscope,
+                df_magnetometer=df_device_magnetometer,
                 fillna=fillna,
                 join=join,
             )
@@ -263,14 +188,9 @@ class FeatureExtraction:
         df_all = pd.concat(df_dict.values())
         return df_all
 
-    def extract_tray_motion_features_for_multiple_devices(
-        self, df_position, df_acceleration, df_gyroscope, df_magnetometer
-    ):
+    def extract_tray_motion_features_for_multiple_devices(self, df_uwb_data):
         return self.extract_motion_features_for_multiple_devices(
-            df_position=df_position,
-            df_acceleration=df_acceleration,
-            df_gyroscope=df_gyroscope,
-            df_magnetometer=df_magnetometer,
+            df_uwb_data=df_uwb_data,
             entity_type="tray",
         )
 
@@ -345,7 +265,7 @@ class FeatureExtraction:
         df = self.average_xyz_duplicates(df, x_col="x_mps", y_col="y_mps", z_col="z_mps")
 
         df = df.reindex(columns=["x_mps", "y_mps", "z_mps", "quality", "anchor_count"])
-        df = self.regularize_index_and_smooth(df)
+        df = self.regularize_index_and_smooth(df, fillna="interpolate")
         df = self.calculate_velocity_features(df=df)
         df = df.sort_index()
         return df
@@ -365,7 +285,7 @@ class FeatureExtraction:
         #     z_col="z_acceleration_normalized",
         #     require_peak_across_all_axes=False)
 
-        df = self.remove_initial_acceleration_reading_by_time_gaps(df)
+        df = self.remove_wos_initial_acceleration_reading_by_time_gaps(df)
 
         df = df.reindex(columns=["x_gs", "y_gs", "z_gs"])
         df = self.regularize_index_and_smooth(df)
@@ -399,7 +319,7 @@ class FeatureExtraction:
         df = self.regularize_index_and_smooth(df)
         return df
 
-    def regularize_index_and_smooth(self, df):
+    def regularize_index_and_smooth(self, df, fillna=0):
         df = df.copy()
 
         if len(df) == 0:
@@ -417,6 +337,13 @@ class FeatureExtraction:
 
         # Drop all rows that have an NA value (excluding the anchor_count column)
         df = df.reindex(regularized_index).dropna(subset=df.columns.difference(["anchor_count"]))
+        # if fillna == 'interpolate':
+        #     df = df.interpolate(method="linear", limit_area="inside")
+        # else:
+        #     df = df.fillna(value=0.0)  # .dropna(subset=df.columns.difference(["anchor_count"]))
+
+        # df = df.reindex(regularized_index)
+        df = df.bfill().ffill()
         return df
 
     def detect_peaks(self, np_array, width=None, min_height_as_percentage_of_max=0.8):
@@ -493,8 +420,8 @@ class FeatureExtraction:
         df["y_position_smoothed"] = self.position_filter.filter(series=df["y_mps"])
         df["z_position_smoothed"] = self.position_filter.filter(series=df["z_mps"])
         # Old method of computing velocity, switched to savgol with deriv=1
-        # df['x_velocity_smoothed']=df['x_position_smoothed'].diff().divide(df.index.to_series().diff().apply(lambda dt: dt.total_seconds()))
-        # df['y_velocity_smoothed']=df['y_position_smoothed'].diff().divide(df.index.to_series().diff().apply(lambda dt: dt.total_seconds()))
+        # df['x_velocity_smoothed']=df['x_acceleration_smoothed'].diff().divide(df.index.to_series().diff().apply(lambda dt: dt.total_seconds()))
+        # df['y_velocity_smoothed']=df['y_acceleration_smoothed'].diff().divide(df.index.to_series().diff().apply(lambda dt: dt.total_seconds()))
 
         df["x_velocity_smoothed"] = self.velocity_filter.filter(df["x_position_smoothed"], deriv=1)
         df["y_velocity_smoothed"] = self.velocity_filter.filter(df["y_position_smoothed"], deriv=1)
@@ -597,6 +524,56 @@ class FeatureExtraction:
         if not inplace:
             return df
 
+    def remove_wos_position_signature(self, df, x_col="x", y_col="y", z_col="z", inplace=False):
+        if not inplace:
+            df = df.copy()
+
+    def filter_uwb_data_by_acceleration_activity(self, df_uwb_data: pd.DataFrame, inplace: bool = False):
+        """
+        Filters UWB data by determining the "active periods" of each sensor.
+        Active periods are periods when acceleration data is being captured. Acceleration data
+        is not captured when a device is sleeping due to Wake on Shake. Note, while sleeping
+        position data is reported/captured once a minute. This makes position data a
+        little more difficult to work with, so we filter by the acceleration data behavior.
+
+        :param df_uwb_data: UWB data for all devices
+        :param inplace: Whether to modify the provided df_uwb_data dataframe directly
+
+        :return: A filtered df_uwb_data dataframe
+        """
+        if not inplace:
+            df_uwb_data = df_uwb_data.copy()
+
+        filtered_uwb_data = []
+        for device_id, df_device_uwb_data in df_uwb_data.groupby(by="device_id"):
+            logger.info(f"Filtering UWB data by active sessions based on acceleration data for device ID: {device_id}")
+
+            df_device_accelerometer_data = df_device_uwb_data[df_device_uwb_data["type"] == "accelerometer"].copy()
+            df_device_accelerometer_data["active_session_id"] = (
+                df_device_accelerometer_data.index.to_series().diff() >= pd.to_timedelta("60 seconds")
+            ).cumsum()
+
+            active_session_start_end_times = []
+            for _, df_device_accelerometer_session in df_device_accelerometer_data.groupby(by=["active_session_id"]):
+                active_session_start_end_times.append(
+                    {
+                        "start": df_device_accelerometer_session.index.min(),
+                        "end": df_device_accelerometer_session.index.max(),
+                    }
+                )
+            df_active_session_start_end_times = pd.DataFrame(active_session_start_end_times)
+
+            def _filter_by_start_end_times(start_end_times):
+                return (df_device_uwb_data.index >= start_end_times["start"]) & (
+                    df_device_uwb_data.index <= start_end_times["end"]
+                )
+
+            start_end_times_mask_list = df_active_session_start_end_times.apply(_filter_by_start_end_times, axis=1)
+            start_end_times_or_mask = functools.reduce(or_, start_end_times_mask_list)
+            filtered_uwb_data.append(df_device_uwb_data[start_end_times_or_mask])
+
+        return pd.concat(filtered_uwb_data)
+
     def remove_wos_acceleration_peaks(
         self, df, x_col="x", y_col="y", z_col="z", require_peak_across_all_axes=False, inplace=False
     ):
@@ -639,7 +616,7 @@ class FeatureExtraction:
         if not inplace:
             return df
 
-    def remove_initial_acceleration_reading_by_time_gaps(self, df, inplace=False):
+    def remove_wos_initial_acceleration_reading_by_time_gaps(self, df_acceleration, inplace=False):
         """
         Method was created to correct for erroneous acceleration values introduced by WoS.
 
@@ -648,23 +625,23 @@ class FeatureExtraction:
         :return:
         """
         if not inplace:
-            df = df.copy()
+            df_acceleration = df_acceleration.copy()
 
-        df["gap"] = df.sort_index().index.to_series().diff() > pd.to_timedelta("0.5 seconds")
-        drop_index = df.loc[df["gap"] == True].index
+        df_acceleration["gap"] = df_acceleration.sort_index().index.to_series().diff() > pd.to_timedelta("0.5 seconds")
+        drop_index = df_acceleration.loc[df_acceleration["gap"] == True].index
 
         logger.info(
             f"Correcting for WoS, dropping {len(drop_index) + 1} indices by searching for time gaps and removing first data instance"
         )
 
         # Drop the first item that follows each "gap" in time, also drop the very first row which won't be identified with the diff() method
-        df = df.drop(drop_index)
+        df_acceleration = df_acceleration.drop(drop_index)
 
-        if len(df) > 0:
-            df = df.drop(df.index[0])
+        if len(df_acceleration) > 0:
+            df_acceleration = df_acceleration.drop(df_acceleration.index[0])
 
         if not inplace:
-            return df
+            return df_acceleration
 
     def normalize_acceleration(self, df, x_col="x", y_col="y", z_col="z", inplace=False):
         if not inplace:
