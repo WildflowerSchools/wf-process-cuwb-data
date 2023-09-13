@@ -250,6 +250,10 @@ def fetch_motion_features(
             .drop_duplicates()
             .copy()
         )
+
+        if "device_part_number" in df_motion_features.columns:
+            df_meta_fields = df_meta_fields.drop("device_part_number", axis=1)
+
         # We don't need to check for duplicate device IDs because our functions
         # for fetching device assignments, device entity assignments, and tray
         # material assignments all enforce uniqueness by default
@@ -358,8 +362,8 @@ def generate_groundtruth(groundtruth_csv, groundtruth_type):
     for (environment, start_datetime), group_df in df_groundtruth.groupby(
         by=["environment", pd.Grouper(key="start_datetime", freq="D")]
     ):
-        start = group_df.agg({"start_datetime": [np.min]}).iloc[0]["start_datetime"]
-        end = group_df.agg({"end_datetime": [np.max]}).iloc[0]["end_datetime"]
+        start = group_df['start_datetime'].min()
+        end = group_df['end_datetime'].max()
 
         # Ground truth may be stored in the old datapoints table + s3 buckets
         # Check 'data_source' type and fetch accordingly
@@ -369,7 +373,6 @@ def generate_groundtruth(groundtruth_csv, groundtruth_type):
             "data_source" in group_df.columns
             and GroundtruthDataSource(group_df.iloc[0]["data_source"]) == GroundtruthDataSource.DATAPOINTS
         ):
-
             # When a groundtruth example is stored in the old datapoints format, add 60 minutes offsets to start and end
             df_environment_features = fetch_motion_features_from_datapoints(
                 environment_name=environment,
@@ -379,7 +382,7 @@ def generate_groundtruth(groundtruth_csv, groundtruth_type):
             )
         else:
             df_environment_features = fetch_motion_features(
-                environment_name=environment, start=start, end=end, entity_type=entity_type
+                environment_name=environment, start=start, end=end, entity_type=entity_type, overwrite_cache=True
             )
 
         if df_features is None:

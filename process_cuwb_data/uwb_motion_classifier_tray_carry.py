@@ -8,6 +8,7 @@ from .uwb_motion_filters import SmoothLabelsFilter, TrayCarryHmmFilter
 
 DEFAULT_FEATURE_FIELD_NAMES = (
     "quality",
+    "device_part_number_label_id",
     "velocity_vector_magnitude",
     "velocity_vector_magnitude_mean",
     "velocity_vector_magnitude_stddev",
@@ -142,7 +143,8 @@ class TrayCarryClassifier(UWBRandomForestClassifier):
         rfc = UWBRandomForestClassifier(verbose=1)
         cv_rfc = rfc.tune(
             df_groundtruth,
-            ground_truth_label_field_name=self.prediction_field_name,
+            feature_field_names=self.feature_field_names,
+            ground_truth_label_field_name=self.ground_truth_label_field_name,
             test_size=test_size,
             scale_features=scale_features,
             param_grid=param_grid,

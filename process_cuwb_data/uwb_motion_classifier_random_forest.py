@@ -12,7 +12,7 @@ class UWBRandomForestClassifier:
     def __init__(
         self,
         n_estimators=100,
-        max_depth=30,
+        max_depth=80,
         max_features="sqrt",
         min_samples_leaf=1,
         min_samples_split=2,
@@ -78,6 +78,7 @@ class UWBRandomForestClassifier:
     def tune(
         self,
         df_groundtruth,
+        feature_field_names=None,
         ground_truth_label_field_name="ground_truth_state",
         test_size=0.3,
         scale_features=False,
@@ -87,14 +88,18 @@ class UWBRandomForestClassifier:
             param_grid = {
                 "n_estimators": [75, 100, 200],
                 "max_features": ["sqrt"],
-                "max_depth": [None, 30, 50, 60],
+                "max_depth": [None, 30, 50, 60, 70, 80],
                 "criterion": ["gini", "entropy"],
                 "min_samples_split": [2, 5],
             }
 
         df_groundtruth[ground_truth_label_field_name] = df_groundtruth[ground_truth_label_field_name].str.lower()
 
-        X_all_train, X_all_test, y_all_train, y_all_test = self.train_test_split(df_groundtruth, test_size)
+        X_all_train, X_all_test, y_all_train, y_all_test = self.train_test_split(
+            df_groundtruth,
+            feature_field_names=feature_field_names,
+            ground_truth_label_field_name=ground_truth_label_field_name,
+            test_size=test_size)
 
         if scale_features:
             sc = StandardScaler()
