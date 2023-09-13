@@ -630,7 +630,9 @@ def pose_data_with_body_centroid(
     )
 
 
-def infer_tray_events(environment_name, time_zone, df_tray_interactions, default_camera_name=None, df_cuwb_position_data=None):
+def infer_tray_events(
+    environment_name, time_zone, df_tray_interactions, default_camera_name=None, df_cuwb_position_data=None
+):
     return parse_events.parse_tray_events(
         df_tray_interactions=df_tray_interactions,
         environment_name=environment_name,

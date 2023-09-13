@@ -176,12 +176,8 @@ class FeatureExtraction:
             # for _, df_device_active_session_uwb_data in df_device_uwb_data.groupby(by="active_session_id"):
             df_device_position = filter_by_data_type(df_device_uwb_data, "position")
             df_device_acceleration = filter_by_data_type(df_device_uwb_data, "accelerometer")
-            df_device_gyroscope = filter_by_data_type(
-                df_device_uwb_data, "gyroscope"
-            )
-            df_device_magnetometer = filter_by_data_type(
-                df_device_uwb_data, "magnetometer"
-            )
+            df_device_gyroscope = filter_by_data_type(df_device_uwb_data, "gyroscope")
+            df_device_magnetometer = filter_by_data_type(df_device_uwb_data, "magnetometer")
 
             df_features = self.extract_motion_features(
                 df_position=df_device_position,
@@ -270,7 +266,9 @@ class FeatureExtraction:
             df.rename(columns={"x": "x_position", "y": "y_position", "z": "z_position"}, inplace=True)
 
         if "x_meters" in df.columns:
-            df.rename(columns={"x_meters": "x_position", "y_meters": "y_position", "z_meters": "z_position"}, inplace=True)
+            df.rename(
+                columns={"x_meters": "x_position", "y_meters": "y_position", "z_meters": "z_position"}, inplace=True
+            )
 
         df = self.average_xyz_duplicates(df, x_col="x_position", y_col="y_position", z_col="z_position")
 
@@ -452,7 +450,9 @@ class FeatureExtraction:
             df[["x_velocity_smoothed_magnitude", "y_velocity_smoothed_magnitude"]].pow(2).sum(axis=1).pow(0.5)
         )
 
-        window = pd.tseries.frequencies.to_offset("2s")  # int(1 / (pd.tseries.frequencies.to_offset(self.frequency).nanos / 1000000000))
+        window = pd.tseries.frequencies.to_offset(
+            "2s"
+        )  # int(1 / (pd.tseries.frequencies.to_offset(self.frequency).nanos / 1000000000))
 
         df["x_velocity_mean"] = df["x_velocity_smoothed_magnitude"].rolling(window=window, center=True).mean()
         df["y_velocity_mean"] = df["y_velocity_smoothed_magnitude"].rolling(window=window, center=True).mean()
@@ -677,7 +677,9 @@ class FeatureExtraction:
             .pow(0.5)
         )
 
-        window = pd.tseries.frequencies.to_offset("2s")  # int(1 / (pd.tseries.frequencies.to_offset(self.frequency).nanos / 1000000000))
+        window = pd.tseries.frequencies.to_offset(
+            "2s"
+        )  # int(1 / (pd.tseries.frequencies.to_offset(self.frequency).nanos / 1000000000))
 
         df["x_acceleration_mean"] = df["x_acceleration_normalized"].rolling(window=window, center=True).mean()
         df["y_acceleration_mean"] = df["y_acceleration_normalized"].rolling(window=window, center=True).mean()
@@ -767,15 +769,9 @@ class FeatureExtraction:
             df["acceleration_vector_magnitude"].rolling(window=window, center=True).kurt()
         )
 
-        df["x_acceleration_energy"] = (
-            df["x_acceleration_normalized"].pow(2).rolling(window=window, center=True).mean()
-        )
-        df["y_acceleration_energy"] = (
-            df["y_acceleration_normalized"].pow(2).rolling(window=window, center=True).mean()
-        )
-        df["z_acceleration_energy"] = (
-            df["z_acceleration_normalized"].pow(2).rolling(window=window, center=True).mean()
-        )
+        df["x_acceleration_energy"] = df["x_acceleration_normalized"].pow(2).rolling(window=window, center=True).mean()
+        df["y_acceleration_energy"] = df["y_acceleration_normalized"].pow(2).rolling(window=window, center=True).mean()
+        df["z_acceleration_energy"] = df["z_acceleration_normalized"].pow(2).rolling(window=window, center=True).mean()
         df["acceleration_average_energy"] = df[
             ["x_acceleration_energy", "y_acceleration_energy", "z_acceleration_energy"]
         ].mean(axis=1)

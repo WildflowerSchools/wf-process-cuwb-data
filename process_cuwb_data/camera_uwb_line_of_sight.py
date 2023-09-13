@@ -46,14 +46,14 @@ class CameraUWBLineOfSight:
                 environment_id=environment_id,
                 environment_name=environment_name,
                 start=timestamp.replace(minute=0, second=0, microsecond=0),
-                end=timestamp.replace(minute=59, second=59, microsecond=0)
+                end=timestamp.replace(minute=59, second=59, microsecond=0),
             )
             camera_device_ids = camera_info.index.unique().tolist()
         if camera_calibrations is None:
             camera_calibrations = honeycomb_caching_client.fetch_camera_calibrations(
                 camera_ids=tuple(camera_device_ids),
                 start=timestamp.replace(minute=0, second=0, microsecond=0),
-                end=timestamp.replace(minute=59, second=59, microsecond=0)
+                end=timestamp.replace(minute=59, second=59, microsecond=0),
             )
         position_window_start = timestamp
         position_window_end = timestamp + datetime.timedelta(seconds=position_window_seconds)
@@ -61,7 +61,7 @@ class CameraUWBLineOfSight:
             df_position_data = df_cuwb_position_data.loc[
                 (df_cuwb_position_data.index >= position_window_start)
                 & (df_cuwb_position_data.index <= position_window_end)
-                & (df_cuwb_position_data['type'] == 'position')
+                & (df_cuwb_position_data["type"] == "position")
             ]
         else:
             df_position_data = fetch_imu_data(
@@ -90,7 +90,9 @@ class CameraUWBLineOfSight:
         try:
             np.nanmedian(df_position_data.loc[:, ["x", "y", "z"]].values, axis=0)
         except:
-            logger.info(f"Bad df_position_data: {len(df_position_data)} Start - {position_window_start} End - {position_window_end}")
+            logger.info(
+                f"Bad df_position_data: {len(df_position_data)} Start - {position_window_start} End - {position_window_end}"
+            )
             logger.info(f"df_cuwb_position_data: {len(df_cuwb_position_data)}")
 
         median_position = np.nanmedian(df_position_data.loc[:, ["x", "y", "z"]].values, axis=0)

@@ -46,7 +46,6 @@ def parse_tray_events(
     if time_zone not in pytz.all_timezones_set:
         raise ValueError(f"Timezone '{time_zone}' is invalid")
 
-
     honeycomb_caching_client = HoneycombCachingClient()
 
     client_params = {
@@ -107,7 +106,7 @@ def parse_tray_events(
         camera_calibrations=camera_calibrations,
         position_window_seconds=position_window_seconds,
         z_axis_override=z_axis_override,
-        df_cuwb_position_data=df_cuwb_position_data
+        df_cuwb_position_data=df_cuwb_position_data,
     )
 
     df_tray_events["duration_seconds"] = (df_tray_events["end"] - df_tray_events["start"]).dt.total_seconds()
@@ -190,7 +189,7 @@ def determine_best_cameras_for_trays(
     camera_calibrations=None,
     position_window_seconds=4,
     z_axis_override=1.0,
-    df_cuwb_position_data=None
+    df_cuwb_position_data=None,
 ):
     if time_fields is None:
         time_fields = []
@@ -215,7 +214,7 @@ def determine_best_cameras_for_trays(
         camera_calibrations=camera_calibrations,
         position_window_seconds=position_window_seconds,
         z_axis_override=z_axis_override,
-        df_cuwb_position_data=df_cuwb_position_data
+        df_cuwb_position_data=df_cuwb_position_data,
     )
 
     def generate_camera_recommendations(event, event_time_field):
@@ -383,7 +382,7 @@ def generate_material_events(
         camera_calibrations=camera_calibrations,
         position_window_seconds=position_window_seconds,
         z_axis_override=z_axis_override,
-        df_cuwb_position_data=df_cuwb_position_data
+        df_cuwb_position_data=df_cuwb_position_data,
     )
 
     material_events["description"] = material_events.apply(

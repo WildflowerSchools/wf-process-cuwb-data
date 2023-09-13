@@ -134,6 +134,8 @@ class HoneycombCachingClient:
 
     @lru_cache(maxsize=200)
     def fetch_persons(self, person_ids: tuple = None):
-        return honeycomb_io.fetch_persons(person_ids=list(person_ids) if person_ids else None,
-                                          output_format="dataframe",
-                                          **self.client_params,)
+        return honeycomb_io.fetch_persons(
+            person_ids=list(person_ids) if person_ids else None,
+            output_format="dataframe",
+            **self.client_params,
+        )
