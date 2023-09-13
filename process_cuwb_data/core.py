@@ -214,6 +214,9 @@ def fetch_motion_features(
     if df_uwb_data is None:
         df_uwb_data = fetch_cuwb_data(environment_name, start, end, data_type="all", entity_type="all")
 
+    if df_uwb_data is None:
+        raise ValueError(f"Unable to find UWB data for {environment_name} between {start} and {end}")
+
     df_motion_features = extract_motion_features(
         df_uwb_data=df_uwb_data,
         entity_type=entity_type,
@@ -627,12 +630,13 @@ def pose_data_with_body_centroid(
     )
 
 
-def infer_tray_events(environment_name, time_zone, df_tray_interactions, default_camera_name=None):
+def infer_tray_events(environment_name, time_zone, df_tray_interactions, default_camera_name=None, df_cuwb_position_data=None):
     return parse_events.parse_tray_events(
         df_tray_interactions=df_tray_interactions,
         environment_name=environment_name,
         time_zone=time_zone,
         default_camera_name=default_camera_name,
+        df_cuwb_position_data=df_cuwb_position_data,
     )
 
 

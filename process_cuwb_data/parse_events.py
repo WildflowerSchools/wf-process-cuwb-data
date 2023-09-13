@@ -25,6 +25,7 @@ def parse_tray_events(
     camera_calibrations=None,
     position_window_seconds=4,
     z_axis_override=1.0,
+    df_cuwb_position_data=None,
     chunk_size=100,
     client=None,
     uri=None,
@@ -44,6 +45,9 @@ def parse_tray_events(
 
     if time_zone not in pytz.all_timezones_set:
         raise ValueError(f"Timezone '{time_zone}' is invalid")
+
+
+    honeycomb_caching_client = HoneycombCachingClient()
 
     client_params = {
         "chunk_size": chunk_size,
@@ -76,7 +80,7 @@ def parse_tray_events(
             raise ValueError(f"Default camera name {default_camera_name} not found")
 
     person_ids = df_tray_interactions["person_id"].dropna().unique().tolist()
-    person_info = honeycomb_io.fetch_persons(person_ids=person_ids, output_format="dataframe", **client_params)
+    person_info = honeycomb_caching_client.fetch_persons(person_ids=tuple(person_ids))
     person_info = person_info.rename(
         columns={
             column_name: (("person_" + column_name) if not column_name.startswith("person_") else column_name)
@@ -103,7 +107,7 @@ def parse_tray_events(
         camera_calibrations=camera_calibrations,
         position_window_seconds=position_window_seconds,
         z_axis_override=z_axis_override,
-        **client_params,
+        df_cuwb_position_data=df_cuwb_position_data
     )
 
     df_tray_events["duration_seconds"] = (df_tray_events["end"] - df_tray_events["start"]).dt.total_seconds()
@@ -186,13 +190,7 @@ def determine_best_cameras_for_trays(
     camera_calibrations=None,
     position_window_seconds=4,
     z_axis_override=1.0,
-    chunk_size=100,
-    client=None,
-    uri=None,
-    token_uri=None,
-    audience=None,
-    client_id=None,
-    client_secret=None,
+    df_cuwb_position_data=None
 ):
     if time_fields is None:
         time_fields = []
@@ -217,6 +215,7 @@ def determine_best_cameras_for_trays(
         camera_calibrations=camera_calibrations,
         position_window_seconds=position_window_seconds,
         z_axis_override=z_axis_override,
+        df_cuwb_position_data=df_cuwb_position_data
     )
 
     def generate_camera_recommendations(event, event_time_field):
@@ -297,6 +296,7 @@ def generate_material_events(
     camera_calibrations=None,
     position_window_seconds=4,
     z_axis_override=1.0,
+    df_cuwb_position_data=None,
     chunk_size=100,
     client=None,
     uri=None,
@@ -383,7 +383,7 @@ def generate_material_events(
         camera_calibrations=camera_calibrations,
         position_window_seconds=position_window_seconds,
         z_axis_override=z_axis_override,
-        **client_params,
+        df_cuwb_position_data=df_cuwb_position_data
     )
 
     material_events["description"] = material_events.apply(
@@ -639,17 +639,11 @@ def all_cameras_tray_view_data(
                 chunk_size=chunk_size,
             )
             camera_device_ids = camera_info.index.unique().tolist()
-        camera_calibrations = honeycomb_io.fetch_camera_calibrations(
-            camera_ids=camera_device_ids,
+        camera_calibrations = honeycomb_caching_client.fetch_camera_calibrations(
+            camera_ids=tuple(camera_device_ids),
             start=timestamp,
             end=timestamp,
             chunk_size=chunk_size,
-            client=client,
-            uri=uri,
-            token_uri=token_uri,
-            audience=audience,
-            client_id=client_id,
-            client_secret=client_secret,
         )
     position_window_start = timestamp - datetime.timedelta(seconds=position_window_seconds / 2)
     position_window_end = timestamp + datetime.timedelta(seconds=position_window_seconds / 2)

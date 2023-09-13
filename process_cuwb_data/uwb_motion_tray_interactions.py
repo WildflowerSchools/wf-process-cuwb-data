@@ -575,6 +575,9 @@ def infer_tray_device_interactions(df_features, df_carry_events, df_tray_centroi
     if len(df_carry_events) == 0:
         return None
 
+    if df_tray_centroids is None or len(df_tray_centroids) == 0:
+        raise ValueError("Cannot determine tray interactions, the tray centroids dataframe is empty")
+
     # Assign 'track_ids' to each of the carry events (track_ids will be simple integers)
     df_carry_events_with_track_ids = modify_carry_events_with_track_ids(df_carry_events)
     df_filtered_people, df_filtered_trays_with_track_ids = filter_features_by_carry_events_and_split_by_device_type(

@@ -67,7 +67,7 @@ class HoneycombCachingClient:
             "client_secret": auth_client_secret,
         }
 
-    @lru_cache(maxsize=10)
+    @lru_cache(maxsize=50)
     def fetch_camera_devices(self, environment_id=None, environment_name=None, start=None, end=None, chunk_size=200):
         return honeycomb_io.fetch_devices(
             device_types=honeycomb_io.DEFAULT_CAMERA_DEVICE_TYPES,
@@ -80,7 +80,7 @@ class HoneycombCachingClient:
             **self.client_params,
         )
 
-    @lru_cache(maxsize=50)
+    @lru_cache(maxsize=100)
     def fetch_camera_calibrations(self, camera_ids: tuple, start=None, end=None, chunk_size=100):
         return honeycomb_io.fetch_camera_calibrations(
             camera_ids=list(camera_ids), start=start, end=end, chunk_size=chunk_size, **self.client_params
@@ -131,3 +131,9 @@ class HoneycombCachingClient:
             chunk_size=chunk_size,
             **self.client_params,
         )
+
+    @lru_cache(maxsize=200)
+    def fetch_persons(self, person_ids: tuple = None):
+        return honeycomb_io.fetch_persons(person_ids=list(person_ids) if person_ids else None,
+                                          output_format="dataframe",
+                                          **self.client_params,)

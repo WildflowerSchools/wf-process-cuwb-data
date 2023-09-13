@@ -43,12 +43,17 @@ class CameraUWBLineOfSight:
 
         if camera_device_ids is None:
             camera_info = honeycomb_caching_client.fetch_camera_devices(
-                environment_id=environment_id, environment_name=environment_name, start=timestamp, end=timestamp
+                environment_id=environment_id,
+                environment_name=environment_name,
+                start=timestamp.replace(minute=0, second=0, microsecond=0),
+                end=timestamp.replace(minute=59, second=59, microsecond=0)
             )
             camera_device_ids = camera_info.index.unique().tolist()
         if camera_calibrations is None:
             camera_calibrations = honeycomb_caching_client.fetch_camera_calibrations(
-                camera_ids=tuple(camera_device_ids), start=timestamp, end=timestamp
+                camera_ids=tuple(camera_device_ids),
+                start=timestamp.replace(minute=0, second=0, microsecond=0),
+                end=timestamp.replace(minute=59, second=59, microsecond=0)
             )
         position_window_start = timestamp
         position_window_end = timestamp + datetime.timedelta(seconds=position_window_seconds)
@@ -56,6 +61,7 @@ class CameraUWBLineOfSight:
             df_position_data = df_cuwb_position_data.loc[
                 (df_cuwb_position_data.index >= position_window_start)
                 & (df_cuwb_position_data.index <= position_window_end)
+                & (df_cuwb_position_data['type'] == 'position')
             ]
         else:
             df_position_data = fetch_imu_data(
@@ -74,7 +80,18 @@ class CameraUWBLineOfSight:
         if tag_device_id is not None:
             df_position_data = df_position_data[df_position_data["device_id"] == tag_device_id]
 
+        if df_position_data is None or len(df_position_data) == 0:
+            err = f"Unable to find position data between {position_window_start} and {position_window_end} for device {tag_device_id}, cannot determine best camera views"
+            logger.warning(err)
+            raise ValueError(err)
+
         df_position_data = smooth_imu_position_data(df_position=df_position_data)
+
+        try:
+            np.nanmedian(df_position_data.loc[:, ["x", "y", "z"]].values, axis=0)
+        except:
+            logger.info(f"Bad df_position_data: {len(df_position_data)} Start - {position_window_start} End - {position_window_end}")
+            logger.info(f"df_cuwb_position_data: {len(df_cuwb_position_data)}")
 
         median_position = np.nanmedian(df_position_data.loc[:, ["x", "y", "z"]].values, axis=0)
         if z_axis_override is not None:

@@ -575,8 +575,9 @@ class FeatureExtraction:
                 )
 
             start_end_times_mask_list = df_active_session_start_end_times.apply(_filter_by_start_end_times, axis=1)
-            start_end_times_or_mask = functools.reduce(or_, start_end_times_mask_list)
-            filtered_uwb_data.append(df_device_uwb_data[start_end_times_or_mask])
+            if len(start_end_times_mask_list) > 0:
+                start_end_times_or_mask = functools.reduce(or_, start_end_times_mask_list)
+                filtered_uwb_data.append(df_device_uwb_data[start_end_times_or_mask])
 
         return pd.concat(filtered_uwb_data)
 
