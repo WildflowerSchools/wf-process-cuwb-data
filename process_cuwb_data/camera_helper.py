@@ -52,10 +52,12 @@ class CameraHelper:
                 raise ValueError(f"Couldn't find environment_name by id: {self.environment_id}")
             self.environment_name = df_e.loc[df_e["environment_id"] == self.environment_id][0]
 
-        self.start = start
-        self.end = end
+        # Reset the start and end minutes and seconds to help with caching
+        self.start = start.replace(minute=0, second=0, microsecond=0)
+        self.end = end.replace(minute=59, second=59, microsecond=0)
+
         self.df_camera_info = honeycomb_caching_client.fetch_camera_info(
-            environment_name=self.environment_name, start=start, end=end
+            environment_name=self.environment_name, start=self.start, end=self.end
         )
         self.camera_calibrations = None
 
