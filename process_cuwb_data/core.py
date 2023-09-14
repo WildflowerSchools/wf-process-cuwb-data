@@ -365,8 +365,8 @@ def generate_groundtruth(groundtruth_csv, groundtruth_type):
     for (environment, start_datetime), group_df in df_groundtruth.groupby(
         by=["environment", pd.Grouper(key="start_datetime", freq="D")]
     ):
-        start = group_df['start_datetime'].min()
-        end = group_df['end_datetime'].max()
+        start = group_df["start_datetime"].min()
+        end = group_df["end_datetime"].max()
 
         # Ground truth may be stored in the old datapoints table + s3 buckets
         # Check 'data_source' type and fetch accordingly
@@ -454,9 +454,7 @@ def estimate_tray_centroids(
     environment_name,
     start,
     end,
-    model,
-    df_tray_features,
-    scaler=None,
+    df_tray_features_not_carried,
     cache=True,
     overwrite_cache=False,
     cache_dir=user_cache_dir(appname=const.APP_NAME, appauthor=const.APP_AUTHOR),
@@ -497,21 +495,23 @@ def estimate_tray_centroids(
         except Exception as e:
             logger.warning(f"Error attempting to read tray_centroids data: {e}")
 
-    df_tray_features = df_tray_features.copy()
-    df_tray_features = df_tray_features[df_tray_features["entity_type"].str.lower() == "tray"]
-
-    df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = (
-        df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate().fillna(method="bfill")
-    )
-
-    df_tray_features_no_movement = classifier_filter_no_movement_from_tray_features(
-        model=model, scaler=scaler, df_tray_features=df_tray_features
-    )
-    # df_tray_features_no_movement = heuristic_filter_no_movement_from_tray_features(df_tray_features)
-    df_tray_centroids = predict_tray_centroids(df_tray_features_no_movement=df_tray_features_no_movement)
+    # df_tray_features = df_tray_features.copy()
+    # df_tray_features = df_tray_features[df_tray_features["entity_type"].str.lower() == "tray"]
+    #
+    # df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = (
+    #     df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate().fillna(method="bfill")
+    # )
+    #
+    # df_tray_features_not_carried = classifier_filter_no_movement_from_tray_features(
+    #     model=model, scaler=scaler, df_tray_features=df_tray_features
+    # )
+    # df_tray_features_not_carried = heuristic_filter_no_movement_from_tray_features(df_tray_features)
+    df_tray_centroids = predict_tray_centroids(df_tray_features_not_carried=df_tray_features_not_carried)
 
     if cache:
         io.write_cuwb_data_pkl(df=df_tray_centroids, **cache_options)
+
+    return df_tray_centroids
 
 
 def infer_tray_carry(model, df_tray_features, scaler=None):

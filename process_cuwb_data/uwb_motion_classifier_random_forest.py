@@ -99,7 +99,8 @@ class UWBRandomForestClassifier:
             df_groundtruth,
             feature_field_names=feature_field_names,
             ground_truth_label_field_name=ground_truth_label_field_name,
-            test_size=test_size)
+            test_size=test_size,
+        )
 
         if scale_features:
             sc = StandardScaler()

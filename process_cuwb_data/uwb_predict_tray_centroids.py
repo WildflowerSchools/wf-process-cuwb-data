@@ -101,7 +101,7 @@ def heuristic_filter_no_movement_from_tray_features(df_tray_features):
     return df_tray_features_no_movement
 
 
-def predict_tray_centroids(df_tray_features_no_movement):
+def predict_tray_centroids(df_tray_features_not_carried):
     """
     Predict all tray's predominant resting position (shelf position)
 
@@ -119,9 +119,9 @@ def predict_tray_centroids(df_tray_features_no_movement):
     ###################
     logger.info("Estimating # of clusters for each device")
     tray_clusters = []
-    for device_id in pd.unique(df_tray_features_no_movement["device_id"]):
-        df_tray_no_movement_for_device = df_tray_features_no_movement[
-            df_tray_features_no_movement["device_id"] == device_id
+    for device_id in pd.unique(df_tray_features_not_carried["device_id"]):
+        df_tray_no_movement_for_device = df_tray_features_not_carried[
+            df_tray_features_not_carried["device_id"] == device_id
         ].copy()
 
         X = df_tray_no_movement_for_device[position_cols].copy().round(2)
@@ -180,8 +180,8 @@ def predict_tray_centroids(df_tray_features_no_movement):
     tray_centroids = []
     for device_id in pd.unique(df_tray_clusters["device_id"]):
         logger.info(f"Estimating tray centroids for device: {device_id}")
-        df_tray_no_movement_for_device = df_tray_features_no_movement[
-            df_tray_features_no_movement["device_id"] == device_id
+        df_tray_no_movement_for_device = df_tray_features_not_carried[
+            df_tray_features_not_carried["device_id"] == device_id
         ]
         df_tray_clusters_for_device = df_tray_clusters[df_tray_clusters["device_id"] == device_id]
 
@@ -218,11 +218,11 @@ def predict_tray_centroids(df_tray_features_no_movement):
 
         df_tray_centroid = df_tray_centroid.assign(
             device_id=[device_id],
-            start_datetime=df_tray_features_no_movement[
-                df_tray_features_no_movement["device_id"] == device_id
+            start_datetime=df_tray_features_not_carried[
+                df_tray_features_not_carried["device_id"] == device_id
             ].index.min(),
-            end_datetime=df_tray_features_no_movement[
-                df_tray_features_no_movement["device_id"] == device_id
+            end_datetime=df_tray_features_not_carried[
+                df_tray_features_not_carried["device_id"] == device_id
             ].index.max(),
         )
 

@@ -142,7 +142,13 @@ class FeatureExtraction:
 
     MAGNETOMETER_COLUMNS = ["x_μT", "y_μT", "z_μT"]
 
-    ALL_FEATURE_COLUMNS = ["device_part_number_label_id", *VELOCITY_COLUMNS, *ACCELERATION_COLUMNS, *GYROSCOPE_COLUMNS, *MAGNETOMETER_COLUMNS]
+    ALL_FEATURE_COLUMNS = [
+        "device_part_number_label_id",
+        *VELOCITY_COLUMNS,
+        *ACCELERATION_COLUMNS,
+        *GYROSCOPE_COLUMNS,
+        *MAGNETOMETER_COLUMNS,
+    ]
 
     def extract_motion_features_for_multiple_devices(
         self,
@@ -189,7 +195,7 @@ class FeatureExtraction:
             )
             df_features["device_id"] = device_id
 
-            device_part_number = df_device_uwb_data['device_part_number'].unique()[0].lower()
+            device_part_number = df_device_uwb_data["device_part_number"].unique()[0].lower()
             df_features["device_part_number_label_id"] = self.le.transform([device_part_number])[0]
 
             all_features.append(df_features)
