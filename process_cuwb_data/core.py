@@ -333,18 +333,20 @@ def extract_motion_features(df_uwb_data, entity_type="all", fillna="forward_back
     )
 
 
-def generate_tray_carry_groundtruth(groundtruth_csv):
-    return generate_groundtruth(groundtruth_csv, groundtruth_type=ground_truth.GROUNDTRUTH_TYPE_TRAY_CARRY)
+def generate_tray_carry_groundtruth(df_groundtruth):
+    return generate_groundtruth(
+        df_groundtruth=df_groundtruth, groundtruth_type=ground_truth.GROUNDTRUTH_TYPE_TRAY_CARRY
+    )
 
 
-def generate_human_activity_groundtruth(groundtruth_csv):
-    return generate_groundtruth(groundtruth_csv, groundtruth_type=ground_truth.GROUNDTRUTH_TYPE_HUMAN_ACTIVITY)
+def generate_human_activity_groundtruth(df_groundtruth):
+    return generate_groundtruth(
+        df_groundtruth=df_groundtruth, groundtruth_type=ground_truth.GROUNDTRUTH_TYPE_HUMAN_ACTIVITY
+    )
 
 
-def generate_groundtruth(groundtruth_csv, groundtruth_type):
+def generate_groundtruth(df_groundtruth, groundtruth_type):
     try:
-        df_groundtruth = io.load_csv(groundtruth_csv)
-
         if groundtruth_type == ground_truth.GROUNDTRUTH_TYPE_TRAY_CARRY:
             entity_type = "tray"
         elif groundtruth_type == ground_truth.GROUNDTRUTH_TYPE_HUMAN_ACTIVITY:

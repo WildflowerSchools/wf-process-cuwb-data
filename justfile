@@ -15,6 +15,7 @@ test:
 
 format:
     black process_cuwb_data
+    black scripts
 
 version:
     poetry version
