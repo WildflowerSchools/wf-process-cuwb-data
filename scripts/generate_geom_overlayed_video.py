@@ -1,14 +1,11 @@
 import functools
 import tempfile
-from collections import OrderedDict
 from datetime import datetime, timedelta
 from functools import partial
 import logging
-import math
 import multiprocessing
 import os
 import sys
-import time
 from pathlib import Path
 
 import cv_utils
@@ -27,6 +24,12 @@ import video_io
 from geom_render import GeomCollection2D
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+
+
+OUTPUT_OVERLAYED_DIR = "../output/overlayed_video"
+OUTPUT_FINAL_OVERLAYED_DIR = "../output/final_overlayed_video"
+OUTPUT_CONCATENATED_VIDEOS_DIR = "../output/concatenated_videos"
+OUTPUT_RAW_VIDEO_SNIPPED_DIR = "../output/raw_videos"
 
 
 def overlay_geoms_on_video(df_video_snippets_chunk, geoms, material_event_start, material_event_end):
@@ -59,13 +62,11 @@ def overlay_geoms_on_video(df_video_snippets_chunk, geoms, material_event_start,
 
 
 def overlay_all_geoms_on_all_video_for_given_time(c, s, e, cameras=None, video_start_end_seconds_offset=0):
-    output_overlayed_dir = "./output/overlayed_video"
-    output_concatenated_videos_dir = "./output/concatenated_videos"
-    output_raw_video_snippet_dir = "../output/raw_videos"
-
     environment_id = honeycomb_io.fetch_environment_id(
         environment_name=c,
     )
+
+    df_cameras = honeycomb_io.fetch_camera_info(environment_id=environment_id, start=s, end=e)
 
     geoms = fetch_geoms_2d(
         environment_name=c,
@@ -82,8 +83,8 @@ def overlay_all_geoms_on_all_video_for_given_time(c, s, e, cameras=None, video_s
         start=s - timedelta(seconds=video_start_end_seconds_offset),
         end=e + timedelta(seconds=video_start_end_seconds_offset),
         camera_names=cameras,
-        output_directory=output_concatenated_videos_dir,
-        video_snippet_directory=output_raw_video_snippet_dir,
+        output_directory=OUTPUT_CONCATENATED_VIDEOS_DIR,
+        video_snippet_directory=OUTPUT_RAW_VIDEO_SNIPPED_DIR,
     )
     if df_video_snippets is None:
         logging.error(f"Missing video for {c} - from {s} - {e}")
@@ -92,7 +93,7 @@ def overlay_all_geoms_on_all_video_for_given_time(c, s, e, cameras=None, video_s
     df_video_outputs = df_video_snippets.copy()
 
     def generate_output_file_names(x):
-        return f"{output_overlayed_dir}/{c}_{s.strftime('%m%d%YT%H%M%S')}_{e.strftime('%m%d%YT%H%M%S')}_{x['camera_device_id']}.mp4"
+        return f"{OUTPUT_OVERLAYED_DIR}/{c}_{s.strftime('%m%d%YT%H%M%S')}_{e.strftime('%m%d%YT%H%M%S')}_{x['camera_device_id']}.mp4"
 
     df_video_outputs["overlayed_file_path"] = df_video_outputs.apply(generate_output_file_names, axis=1)
 
@@ -116,9 +117,6 @@ def overlay_all_geoms_on_all_video_for_given_time(c, s, e, cameras=None, video_s
     pool.map(overlay_geoms_partial, chunks)
     pool.close()
     pool.join()
-    #
-    # for video_output in df_video_outputs:
-    #     logging.info(f"Video create: {video_output['overlayed_file_path']}")
 
 
 def generate_video_snippets_for_person(
@@ -127,12 +125,6 @@ def generate_video_snippets_for_person(
     start: datetime,
     end: datetime,
 ):
-
-    output_overlayed_dir = "./output/overlayed_video"
-    output_final_overlayed_dir = "./output/final_overlayed_video"
-    output_concatenated_videos_dir = "./output/concatenated_videos"
-    output_raw_video_snippet_dir = "../output/raw_videos"
-
     honeycomb_caching_client = HoneycombCachingClient()
     camera_info = honeycomb_caching_client.fetch_camera_devices(environment_name=classroom_name, start=start, end=end)
     default_camera_device_id = camera_info.index.unique().tolist()[0]
@@ -177,8 +169,8 @@ def generate_video_snippets_for_person(
             start=row["time"].to_pydatetime(),
             end=row["time"].to_pydatetime() + timedelta(seconds=seconds_frequency),
             camera_names=camera_info.loc[row["best_camera"]]["device_name"],
-            output_directory=output_concatenated_videos_dir,
-            video_snippet_directory=output_raw_video_snippet_dir,
+            output_directory=OUTPUT_CONCATENATED_VIDEOS_DIR,
+            video_snippet_directory=OUTPUT_RAW_VIDEO_SNIPPED_DIR,
         )
 
         if df_video_snippets is None:
@@ -233,7 +225,7 @@ def generate_video_snippets_for_person(
     final_video_files = []
     for idx, video_snippet_row in df_all_video_snippets.iterrows():
         file_path_obj = Path(video_snippet_row["file_path"])
-        output_path = f"{output_overlayed_dir}/{file_path_obj.stem}_overlayed{file_path_obj.suffix}"
+        output_path = f"{OUTPUT_OVERLAYED_DIR}/{file_path_obj.stem}_overlayed{file_path_obj.suffix}"
 
         # final_video_files.append(output_path)
         final_video_files.append(video_snippet_row["file_path"])
@@ -250,7 +242,7 @@ def generate_video_snippets_for_person(
         )
 
     logging.info("Generating final concatenated video file WITHOUT overlayed snippets")
-    video_concatenated_output_path = f"{output_concatenated_videos_dir}/{classroom_name}_{person_device_id}_{start.strftime('%m%d%YT%H%M%S%z')}_{end.strftime('%m%d%YT%H%M%S%z')}.mp4"
+    video_concatenated_output_path = f"{OUTPUT_CONCATENATED_VIDEOS_DIR}/{classroom_name}_{person_device_id}_{start.strftime('%m%d%YT%H%M%S%z')}_{end.strftime('%m%d%YT%H%M%S%z')}.mp4"
 
     with tempfile.NamedTemporaryFile() as tmp_concat_demuxer_file:
         for file_path in final_video_files:
@@ -267,7 +259,7 @@ def generate_video_snippets_for_person(
 
     logging.info("Generating final video file WITH overlayed snippets")
 
-    final_overlayed_video_output_path = f"{output_final_overlayed_dir}/{classroom_name}_{person_device_id}_{start.strftime('%m%d%YT%H%M%S%z')}_{end.strftime('%m%d%YT%H%M%S%z')}.mp4"
+    final_overlayed_video_output_path = f"{OUTPUT_FINAL_OVERLAYED_DIR}/{classroom_name}_{person_device_id}_{start.strftime('%m%d%YT%H%M%S%z')}_{end.strftime('%m%d%YT%H%M%S%z')}.mp4"
     geoms_for_concatenated_video.overlay_video(
         input_path=video_concatenated_output_path,
         output_path=final_overlayed_video_output_path,
@@ -282,689 +274,107 @@ if __name__ == "__main__":
     multiprocessing.freeze_support()
 
     events_list = [
-        [
-            "dahlia",
-            "2023-08-29T15:36:22.000000+00:00",
-            "2023-08-29T15:36:30.800000+00:00",
-            "dc4168df-7d67-4589-82cb-b4fc2d212977",
-            "wftech-camera-00105",
-            "wftech-camera-00105",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T15:38:04.200000+00:00",
-            "2023-08-29T15:38:05.600000+00:00",
-            "9de414fd-f1e4-495f-8410-f4f9bab2b401",
-            "wftech-camera-00111",
-            "wftech-camera-00111",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T16:01:45.600000+00:00",
-            "2023-08-29T16:02:00.400000+00:00",
-            "e0b6754a-9171-4546-b19d-8cd2db65cb97",
-            "wftech-camera-00100",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T16:03:08.500000+00:00",
-            "2023-08-29T16:03:18.400000+00:00",
-            "e0b6754a-9171-4546-b19d-8cd2db65cb97",
-            "wftech-camera-00100",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T16:04:31.600000+00:00",
-            "2023-08-29T16:04:44.500000+00:00",
-            "e0b6754a-9171-4546-b19d-8cd2db65cb97",
-            "wftech-camera-00112",
-            "wftech-camera-00109",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T16:06:09.600000+00:00",
-            "2023-08-29T16:06:11.100000+00:00",
-            "5c94cc5a-11d9-4636-81be-467a6f0357e5",
-            "wftech-camera-00111",
-            "wftech-camera-00111",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T16:09:28.600000+00:00",
-            "2023-08-29T16:09:32.800000+00:00",
-            "57caaf6b-54d3-4cb6-8626-7612fa3ae57b",
-            "wftech-camera-00101",
-            "wftech-camera-00101",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T16:09:34.900000+00:00",
-            "2023-08-29T16:09:38.600000+00:00",
-            "57caaf6b-54d3-4cb6-8626-7612fa3ae57b",
-            "wftech-camera-00101",
-            "wftech-camera-00101",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T16:10:20.300000+00:00",
-            "2023-08-29T16:10:21.700000+00:00",
-            "e0b6754a-9171-4546-b19d-8cd2db65cb97",
-            "wftech-camera-00109",
-            "wftech-camera-00109",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T16:10:25.700000+00:00",
-            "2023-08-29T16:10:27.700000+00:00",
-            "e0b6754a-9171-4546-b19d-8cd2db65cb97",
-            "wftech-camera-00109",
-            "wftech-camera-00109",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T16:16:10.000000+00:00",
-            "2023-08-29T16:16:21.200000+00:00",
-            "e0b6754a-9171-4546-b19d-8cd2db65cb97",
-            "wftech-camera-00102",
-            "wftech-camera-00110",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T16:27:49.000000+00:00",
-            "2023-08-29T16:27:55.900000+00:00",
-            "5c94cc5a-11d9-4636-81be-467a6f0357e5",
-            "wftech-camera-00100",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T16:34:55.700000+00:00",
-            "2023-08-29T16:35:05.500000+00:00",
-            "e6827e56-1c72-41c9-8fd5-dfcd9b650d78",
-            "wftech-camera-00112",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T16:37:30.100000+00:00",
-            "2023-08-29T16:37:31.200000+00:00",
-            "e6827e56-1c72-41c9-8fd5-dfcd9b650d78",
-            "wftech-camera-00100",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T16:40:17.400000+00:00",
-            "2023-08-29T16:40:19.200000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00102",
-            "wftech-camera-00102",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T16:41:05.300000+00:00",
-            "2023-08-29T16:41:06.900000+00:00",
-            "e6827e56-1c72-41c9-8fd5-dfcd9b650d78",
-            "wftech-camera-00100",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T16:47:10.500000+00:00",
-            "2023-08-29T16:47:24.700000+00:00",
-            "0ce5935a-1d67-4729-b5e4-88ea56d545c8",
-            "wftech-camera-00111",
-            "wftech-camera-00111",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T16:53:29.700000+00:00",
-            "2023-08-29T16:53:36.200000+00:00",
-            "5c94cc5a-11d9-4636-81be-467a6f0357e5",
-            "wftech-camera-00101",
-            "wftech-camera-00111",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T16:55:49.100000+00:00",
-            "2023-08-29T16:55:50.600000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00102",
-            "wftech-camera-00102",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T16:56:16.300000+00:00",
-            "2023-08-29T16:56:17.600000+00:00",
-            "dc4168df-7d67-4589-82cb-b4fc2d212977",
-            "wftech-camera-00105",
-            "wftech-camera-00105",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T16:59:42.100000+00:00",
-            "2023-08-29T16:59:52.400000+00:00",
-            "e0b6754a-9171-4546-b19d-8cd2db65cb97",
-            "wftech-camera-00105",
-            "wftech-camera-00110",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T17:15:06.100000+00:00",
-            "2023-08-29T17:15:08.600000+00:00",
-            "e6827e56-1c72-41c9-8fd5-dfcd9b650d78",
-            "wftech-camera-00100",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T17:15:09.900000+00:00",
-            "2023-08-29T17:15:11.500000+00:00",
-            "e6827e56-1c72-41c9-8fd5-dfcd9b650d78",
-            "wftech-camera-00100",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T17:15:13.600000+00:00",
-            "2023-08-29T17:15:15.400000+00:00",
-            "e6827e56-1c72-41c9-8fd5-dfcd9b650d78",
-            "wftech-camera-00100",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T17:15:23.700000+00:00",
-            "2023-08-29T17:15:25.300000+00:00",
-            "e6827e56-1c72-41c9-8fd5-dfcd9b650d78",
-            "wftech-camera-00100",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T17:15:30.000000+00:00",
-            "2023-08-29T17:15:30.900000+00:00",
-            "e6827e56-1c72-41c9-8fd5-dfcd9b650d78",
-            "wftech-camera-00100",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T17:15:33.900000+00:00",
-            "2023-08-29T17:15:39.100000+00:00",
-            "e6827e56-1c72-41c9-8fd5-dfcd9b650d78",
-            "wftech-camera-00100",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T17:16:03.600000+00:00",
-            "2023-08-29T17:16:05.800000+00:00",
-            "e6827e56-1c72-41c9-8fd5-dfcd9b650d78",
-            "wftech-camera-00100",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T17:18:40.400000+00:00",
-            "2023-08-29T17:18:43.000000+00:00",
-            "e6827e56-1c72-41c9-8fd5-dfcd9b650d78",
-            "wftech-camera-00100",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T17:33:18.200000+00:00",
-            "2023-08-29T17:33:21.300000+00:00",
-            "e6827e56-1c72-41c9-8fd5-dfcd9b650d78",
-            "wftech-camera-00112",
-            "wftech-camera-00112",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T17:55:42.500000+00:00",
-            "2023-08-29T17:55:47.300000+00:00",
-            "5c94cc5a-11d9-4636-81be-467a6f0357e5",
-            "wftech-camera-00100",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T17:55:49.500000+00:00",
-            "2023-08-29T17:55:51.100000+00:00",
-            "5c94cc5a-11d9-4636-81be-467a6f0357e5",
-            "wftech-camera-00100",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T17:57:02.700000+00:00",
-            "2023-08-29T18:12:35.400000+00:00",
-            "40ae8262-9777-4650-aeed-b7e6b435dff0",
-            "wftech-camera-00101",
-            "wftech-camera-00112",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:06:04.500000+00:00",
-            "2023-08-29T18:06:24.900000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00100",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:06:28.100000+00:00",
-            "2023-08-29T18:06:30.600000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:09:58.400000+00:00",
-            "2023-08-29T18:10:14.900000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:10:16.700000+00:00",
-            "2023-08-29T18:10:19.100000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:10:21.100000+00:00",
-            "2023-08-29T18:10:22.400000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:10:26.400000+00:00",
-            "2023-08-29T18:10:58.900000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00112",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:11:50.800000+00:00",
-            "2023-08-29T18:11:52.100000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00102",
-            "wftech-camera-00102",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:12:36.500000+00:00",
-            "2023-08-29T18:12:53.300000+00:00",
-            "40ae8262-9777-4650-aeed-b7e6b435dff0",
-            "wftech-camera-00102",
-            "wftech-camera-00112",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:12:42.200000+00:00",
-            "2023-08-29T18:12:53.800000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00100",
-            "wftech-camera-00112",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:12:55.900000+00:00",
-            "2023-08-29T18:13:13.300000+00:00",
-            "40ae8262-9777-4650-aeed-b7e6b435dff0",
-            "wftech-camera-00112",
-            "wftech-camera-00101",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:18:12.900000+00:00",
-            "2023-08-29T18:18:38.500000+00:00",
-            "9de414fd-f1e4-495f-8410-f4f9bab2b401",
-            "wftech-camera-00111",
-            "wftech-camera-00109",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:18:36.500000+00:00",
-            "2023-08-29T18:18:39.300000+00:00",
-            "5c94cc5a-11d9-4636-81be-467a6f0357e5",
-            "wftech-camera-00111",
-            "wftech-camera-00111",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:19:58.200000+00:00",
-            "2023-08-29T18:19:59.500000+00:00",
-            "9de414fd-f1e4-495f-8410-f4f9bab2b401",
-            "wftech-camera-00109",
-            "wftech-camera-00109",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:20:38.300000+00:00",
-            "2023-08-29T18:21:03.300000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00112",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:24:56.700000+00:00",
-            "2023-08-29T18:24:58.200000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:25:16.200000+00:00",
-            "2023-08-29T18:25:17.400000+00:00",
-            "9de414fd-f1e4-495f-8410-f4f9bab2b401",
-            "wftech-camera-00109",
-            "wftech-camera-00109",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:25:22.800000+00:00",
-            "2023-08-29T18:25:24.200000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:31:24.900000+00:00",
-            "2023-08-29T18:31:27.300000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:35:43.000000+00:00",
-            "2023-08-29T18:35:45.100000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:36:05.900000+00:00",
-            "2023-08-29T18:36:08.700000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00107",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:36:22.600000+00:00",
-            "2023-08-29T18:36:28.000000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:36:45.600000+00:00",
-            "2023-08-29T18:36:47.100000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00107",
-            "wftech-camera-00107",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:37:20.500000+00:00",
-            "2023-08-29T18:37:22.000000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:38:51.000000+00:00",
-            "2023-08-29T18:38:52.000000+00:00",
-            "9de414fd-f1e4-495f-8410-f4f9bab2b401",
-            "wftech-camera-00109",
-            "wftech-camera-00109",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:41:57.500000+00:00",
-            "2023-08-29T18:42:04.700000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:42:06.900000+00:00",
-            "2023-08-29T18:42:08.600000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:42:16.900000+00:00",
-            "2023-08-29T18:42:18.300000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:42:34.800000+00:00",
-            "2023-08-29T18:42:36.300000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:42:38.100000+00:00",
-            "2023-08-29T18:42:40.400000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:43:47.100000+00:00",
-            "2023-08-29T18:43:51.100000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:45:12.800000+00:00",
-            "2023-08-29T18:45:25.400000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:45:26.700000+00:00",
-            "2023-08-29T18:45:28.800000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:45:30.800000+00:00",
-            "2023-08-29T18:45:32.200000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00106",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:45:35.100000+00:00",
-            "2023-08-29T18:45:39.500000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00108",
-            "wftech-camera-00108",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:45:43.200000+00:00",
-            "2023-08-29T18:45:44.600000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00108",
-            "wftech-camera-00108",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:54:25.000000+00:00",
-            "2023-08-29T18:54:48.500000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00106",
-            "wftech-camera-00102",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T18:59:48.000000+00:00",
-            "2023-08-29T18:59:53.600000+00:00",
-            "9de414fd-f1e4-495f-8410-f4f9bab2b401",
-            "wftech-camera-00100",
-            "wftech-camera-00110",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T21:01:33.300000+00:00",
-            "2023-08-29T21:01:39.500000+00:00",
-            "4bcc90a5-d4de-4d66-bb14-ad45b9dafe77",
-            "wftech-camera-00102",
-            "wftech-camera-00109",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T21:02:01.500000+00:00",
-            "2023-08-29T21:02:05.900000+00:00",
-            "4bcc90a5-d4de-4d66-bb14-ad45b9dafe77",
-            "wftech-camera-00112",
-            "wftech-camera-00112",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T21:09:48.100000+00:00",
-            "2023-08-29T21:09:49.600000+00:00",
-            "dc4168df-7d67-4589-82cb-b4fc2d212977",
-            "wftech-camera-00105",
-            "wftech-camera-00105",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T21:10:09.900000+00:00",
-            "2023-08-29T21:10:13.800000+00:00",
-            "dc4168df-7d67-4589-82cb-b4fc2d212977",
-            "wftech-camera-00105",
-            "wftech-camera-00105",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T21:25:51.300000+00:00",
-            "2023-08-29T21:25:59.200000+00:00",
-            "4bcc90a5-d4de-4d66-bb14-ad45b9dafe77",
-            "wftech-camera-00112",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T21:28:26.000000+00:00",
-            "2023-08-29T21:28:28.100000+00:00",
-            "4bcc90a5-d4de-4d66-bb14-ad45b9dafe77",
-            "wftech-camera-00100",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T21:28:37.100000+00:00",
-            "2023-08-29T21:28:38.200000+00:00",
-            "4bcc90a5-d4de-4d66-bb14-ad45b9dafe77",
-            "wftech-camera-00100",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T21:30:13.900000+00:00",
-            "2023-08-29T21:30:21.000000+00:00",
-            "4bcc90a5-d4de-4d66-bb14-ad45b9dafe77",
-            "wftech-camera-00100",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T21:30:31.700000+00:00",
-            "2023-08-29T21:30:35.400000+00:00",
-            "4bcc90a5-d4de-4d66-bb14-ad45b9dafe77",
-            "wftech-camera-00100",
-            "wftech-camera-00100",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T22:09:48.600000+00:00",
-            "2023-08-29T22:09:50.600000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00102",
-            "wftech-camera-00102",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T22:52:09.700000+00:00",
-            "2023-08-29T22:52:24.800000+00:00",
-            "3dd42df9-34ac-47d3-80ef-011f787655ec",
-            "wftech-camera-00101",
-            "wftech-camera-00101",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T22:53:52.700000+00:00",
-            "2023-08-29T22:53:54.100000+00:00",
-            "b08d7e80-f6b1-4cfa-974a-74447677d57f",
-            "wftech-camera-00102",
-            "wftech-camera-00102",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T23:00:09.800000+00:00",
-            "2023-08-29T23:00:18.500000+00:00",
-            "5c94cc5a-11d9-4636-81be-467a6f0357e5",
-            "wftech-camera-00100",
-            "wftech-camera-00111",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T23:03:27.400000+00:00",
-            "2023-08-29T23:03:34.000000+00:00",
-            "e0b6754a-9171-4546-b19d-8cd2db65cb97",
-            "wftech-camera-00105",
-            "wftech-camera-00105",
-        ],
-        [
-            "dahlia",
-            "2023-08-29T23:53:18.100000+00:00",
-            "2023-08-29T23:53:22.700000+00:00",
-            "e0b6754a-9171-4546-b19d-8cd2db65cb97",
-            "wftech-camera-00110",
-            "wftech-camera-00110",
-        ],
+        ["dahlia","2023-09-07 15:45:04.500000+00:00","2023-09-07 15:45:06.600000+00:00","wftech-camera-00101","wftech-camera-00101"],
+        ["dahlia","2023-09-07 15:45:08.800000+00:00","2023-09-07 15:45:32.300000+00:00","wftech-camera-00114","wftech-camera-00109"],
+        ["dahlia","2023-09-07 15:49:26.300000+00:00","2023-09-07 15:50:00.900000+00:00","wftech-camera-00103","wftech-camera-00103"],
+        ["dahlia","2023-09-07 15:49:49+00:00","2023-09-07 15:49:51.200000+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 15:50:02.500000+00:00","2023-09-07 15:50:06.900000+00:00","wftech-camera-00103","wftech-camera-00109"],
+        ["dahlia","2023-09-07 15:50:26.900000+00:00","2023-09-07 15:50:44.600000+00:00","wftech-camera-00103","wftech-camera-00101"],
+        ["dahlia","2023-09-07 15:51:52.600000+00:00","2023-09-07 15:51:54.600000+00:00","wftech-camera-00110","wftech-camera-00100"],
+        ["dahlia","2023-09-07 15:58:10.100000+00:00","2023-09-07 15:58:14.100000+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 16:09:12.200000+00:00","2023-09-07 16:09:15.200000+00:00","wftech-camera-00111","wftech-camera-00110"],
+        ["dahlia","2023-09-07 16:09:22.900000+00:00","2023-09-07 16:09:45.100000+00:00","wftech-camera-00111","wftech-camera-00107"],
+        ["dahlia","2023-09-07 16:14:30.200000+00:00","2023-09-07 16:14:35.700000+00:00","wftech-camera-00112","wftech-camera-00112"],
+        ["dahlia","2023-09-07 16:19:15.100000+00:00","2023-09-07 16:19:19+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 16:19:41.100000+00:00","2023-09-07 16:19:44.500000+00:00","wftech-camera-00111","wftech-camera-00111"],
+        ["dahlia","2023-09-07 16:32:14.200000+00:00","2023-09-07 16:32:17.500000+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 16:44:14+00:00","2023-09-07 16:44:27.900000+00:00","wftech-camera-00102","wftech-camera-00112"],
+        ["dahlia","2023-09-07 16:44:39.400000+00:00","2023-09-07 16:44:44.200000+00:00","wftech-camera-00112","wftech-camera-00112"],
+        ["dahlia","2023-09-07 17:08:50.200000+00:00","2023-09-07 17:08:56.800000+00:00","wftech-camera-00101","wftech-camera-00100"],
+        ["dahlia","2023-09-07 17:11:11.100000+00:00","2023-09-07 17:11:28.400000+00:00","wftech-camera-00100","wftech-camera-00102"],
+        ["dahlia","2023-09-07 17:11:33+00:00","2023-09-07 17:11:48.100000+00:00","wftech-camera-00108","wftech-camera-00107"],
+        ["dahlia","2023-09-07 17:12:28.800000+00:00","2023-09-07 17:12:34.700000+00:00","wftech-camera-00100","wftech-camera-00101"],
+        ["dahlia","2023-09-07 17:30:54.100000+00:00","2023-09-07 17:31:03.100000+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 17:31:08.500000+00:00","2023-09-07 17:31:30.700000+00:00","wftech-camera-00100","wftech-camera-00106"],
+        ["dahlia","2023-09-07 17:31:32.900000+00:00","2023-09-07 17:31:36.700000+00:00","wftech-camera-00106","wftech-camera-00106"],
+        ["dahlia","2023-09-07 17:31:39.500000+00:00","2023-09-07 17:31:41.600000+00:00","wftech-camera-00107","wftech-camera-00107"],
+        ["dahlia","2023-09-07 17:34:20.800000+00:00","2023-09-07 17:34:40+00:00","wftech-camera-00106","wftech-camera-00111"],
+        ["dahlia","2023-09-07 17:37:50.700000+00:00","2023-09-07 17:37:52.600000+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 17:43:12.300000+00:00","2023-09-07 17:43:18.700000+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 17:44:09+00:00","2023-09-07 17:44:15.100000+00:00","wftech-camera-00100","wftech-camera-00102"],
+        ["dahlia","2023-09-07 17:47:51.400000+00:00","2023-09-07 17:48:05.400000+00:00","wftech-camera-00107","wftech-camera-00111"],
+        ["dahlia","2023-09-07 17:56:35.300000+00:00","2023-09-07 17:56:51+00:00","wftech-camera-00100","wftech-camera-00102"],
+        ["dahlia","2023-09-07 17:56:39.300000+00:00","2023-09-07 17:56:45.400000+00:00","wftech-camera-00112","wftech-camera-00101"],
+        ["dahlia","2023-09-07 17:56:47.100000+00:00","2023-09-07 17:56:48.300000+00:00","wftech-camera-00101","wftech-camera-00101"],
+        ["dahlia","2023-09-07 17:56:50.700000+00:00","2023-09-07 17:56:55.800000+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 17:56:59+00:00","2023-09-07 17:57:04.900000+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 17:57:11.400000+00:00","2023-09-07 17:57:14.800000+00:00","wftech-camera-00101","wftech-camera-00100"],
+        ["dahlia","2023-09-07 17:57:24+00:00","2023-09-07 17:57:31+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 17:57:35.500000+00:00","2023-09-07 17:58:02.800000+00:00","wftech-camera-00100","wftech-camera-00102"],
+        ["dahlia","2023-09-07 17:58:04.400000+00:00","2023-09-07 17:58:35+00:00","wftech-camera-00102","wftech-camera-00100"],
+        ["dahlia","2023-09-07 17:59:09.200000+00:00","2023-09-07 17:59:10.600000+00:00","wftech-camera-00102","wftech-camera-00102"],
+        ["dahlia","2023-09-07 17:59:18.900000+00:00","2023-09-07 17:59:21.500000+00:00","wftech-camera-00111","wftech-camera-00111"],
+        ["dahlia","2023-09-07 17:59:23.300000+00:00","2023-09-07 17:59:26.900000+00:00","wftech-camera-00111","wftech-camera-00111"],
+        ["dahlia","2023-09-07 18:03:38.300000+00:00","2023-09-07 18:03:41.700000+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 18:05:29.600000+00:00","2023-09-07 18:05:38+00:00","wftech-camera-00112","wftech-camera-00112"],
+        ["dahlia","2023-09-07 18:05:41.500000+00:00","2023-09-07 18:05:49.900000+00:00","wftech-camera-00112","wftech-camera-00100"],
+        ["dahlia","2023-09-07 18:05:57.100000+00:00","2023-09-07 18:06:03.600000+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 18:06:05.200000+00:00","2023-09-07 18:06:16.800000+00:00","wftech-camera-00100","wftech-camera-00112"],
+        ["dahlia","2023-09-07 18:07:57.800000+00:00","2023-09-07 18:08:04.800000+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 18:11:36.100000+00:00","2023-09-07 18:11:43.600000+00:00","wftech-camera-00101","wftech-camera-00101"],
+        ["dahlia","2023-09-07 18:12:30.400000+00:00","2023-09-07 18:12:38.700000+00:00","wftech-camera-00112","wftech-camera-00100"],
+        ["dahlia","2023-09-07 18:12:41+00:00","2023-09-07 18:12:42.100000+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 18:12:43.800000+00:00","2023-09-07 18:12:53.700000+00:00","wftech-camera-00100","wftech-camera-00101"],
+        ["dahlia","2023-09-07 18:13:59+00:00","2023-09-07 18:14:00.500000+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 18:15:10.500000+00:00","2023-09-07 18:15:12+00:00","wftech-camera-00101","wftech-camera-00101"],
+        ["dahlia","2023-09-07 18:18:02.200000+00:00","2023-09-07 18:18:08+00:00","wftech-camera-00112","wftech-camera-00110"],
+        ["dahlia","2023-09-07 18:30:43.400000+00:00","2023-09-07 18:30:49.400000+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 18:31:03.800000+00:00","2023-09-07 18:31:13.400000+00:00","wftech-camera-00101","wftech-camera-00109"],
+        ["dahlia","2023-09-07 18:49:41.300000+00:00","2023-09-07 18:49:55+00:00","wftech-camera-00105","wftech-camera-00110"],
+        ["dahlia","2023-09-07 19:10:03.300000+00:00","2023-09-07 19:10:11.100000+00:00","wftech-camera-00100","wftech-camera-00102"],
+        ["dahlia","2023-09-07 20:06:52.400000+00:00","2023-09-07 20:07:07.400000+00:00","wftech-camera-00111","wftech-camera-00105"],
+        ["dahlia","2023-09-07 20:19:46.900000+00:00","2023-09-07 20:19:52+00:00","wftech-camera-00105","wftech-camera-00105"],
+        ["dahlia","2023-09-07 20:19:56.100000+00:00","2023-09-07 20:19:57.100000+00:00","wftech-camera-00105","wftech-camera-00105"],
+        ["dahlia","2023-09-07 20:20:12.600000+00:00","2023-09-07 20:20:22.200000+00:00","wftech-camera-00100","wftech-camera-00102"],
+        ["dahlia","2023-09-07 20:29:32.100000+00:00","2023-09-07 20:29:35.600000+00:00","wftech-camera-00111","wftech-camera-00111"],
+        ["dahlia","2023-09-07 20:29:37.700000+00:00","2023-09-07 20:29:51.100000+00:00","wftech-camera-00111","wftech-camera-00111"],
+        ["dahlia","2023-09-07 20:32:51.500000+00:00","2023-09-07 20:33:24.100000+00:00","wftech-camera-00100","wftech-camera-00109"],
+        ["dahlia","2023-09-07 20:47:07.800000+00:00","2023-09-07 20:47:08.800000+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 20:48:13.100000+00:00","2023-09-07 20:48:19+00:00","wftech-camera-00101","wftech-camera-00101"],
+        ["dahlia","2023-09-07 20:48:22.100000+00:00","2023-09-07 20:48:28.600000+00:00","wftech-camera-00101","wftech-camera-00101"],
+        ["dahlia","2023-09-07 20:50:28.800000+00:00","2023-09-07 20:50:30.100000+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 20:50:31.300000+00:00","2023-09-07 20:50:40.900000+00:00","wftech-camera-00100","wftech-camera-00105"],
+        ["dahlia","2023-09-07 20:52:30.800000+00:00","2023-09-07 20:52:32.300000+00:00","wftech-camera-00111","wftech-camera-00111"],
+        ["dahlia","2023-09-07 20:53:39.600000+00:00","2023-09-07 20:53:46.400000+00:00","wftech-camera-00100","wftech-camera-00112"],
+        ["dahlia","2023-09-07 20:54:01.900000+00:00","2023-09-07 20:54:05.600000+00:00","wftech-camera-00105","wftech-camera-00105"],
+        ["dahlia","2023-09-07 20:57:10+00:00","2023-09-07 20:57:13.900000+00:00","wftech-camera-00110","wftech-camera-00100"],
+        ["dahlia","2023-09-07 21:05:38.900000+00:00","2023-09-07 21:05:48.800000+00:00","wftech-camera-00102","wftech-camera-00111"],
+        ["dahlia","2023-09-07 21:14:01.900000+00:00","2023-09-07 21:14:08.200000+00:00","wftech-camera-00100","wftech-camera-00111"],
+        ["dahlia","2023-09-07 21:21:00.100000+00:00","2023-09-07 21:21:09.200000+00:00","wftech-camera-00101","wftech-camera-00102"],
+        ["dahlia","2023-09-07 21:22:50+00:00","2023-09-07 21:24:28.900000+00:00","wftech-camera-00101","wftech-camera-00106"],
+        ["dahlia","2023-09-07 21:26:22.600000+00:00","2023-09-07 21:26:26.500000+00:00","wftech-camera-00102","wftech-camera-00102"],
+        ["dahlia","2023-09-07 21:27:54.500000+00:00","2023-09-07 21:27:55.900000+00:00","wftech-camera-00108","wftech-camera-00108"],
+        ["dahlia","2023-09-07 21:27:57.800000+00:00","2023-09-07 21:28:07.100000+00:00","wftech-camera-00108","wftech-camera-00109"],
+        ["dahlia","2023-09-07 21:28:09.700000+00:00","2023-09-07 21:28:19.500000+00:00","wftech-camera-00109","wftech-camera-00101"],
+        ["dahlia","2023-09-07 21:34:18.400000+00:00","2023-09-07 21:34:19.700000+00:00","wftech-camera-00102","wftech-camera-00102"],
+        ["dahlia","2023-09-07 21:45:32.800000+00:00","2023-09-07 21:45:42.400000+00:00","wftech-camera-00110","wftech-camera-00111"],
+        ["dahlia","2023-09-07 21:45:52.600000+00:00","2023-09-07 21:46:04.100000+00:00","wftech-camera-00110","wftech-camera-00111"],
+        ["dahlia","2023-09-07 21:47:20+00:00","2023-09-07 21:47:40+00:00","wftech-camera-00100","wftech-camera-00101"],
+        ["dahlia","2023-09-07 21:51:44.500000+00:00","2023-09-07 21:52:03.300000+00:00","wftech-camera-00105","wftech-camera-00111"],
+        ["dahlia","2023-09-07 22:20:41.700000+00:00","2023-09-07 22:20:43.900000+00:00","wftech-camera-00111","wftech-camera-00111"],
+        ["dahlia","2023-09-07 22:23:39+00:00","2023-09-07 22:23:50.500000+00:00","wftech-camera-00100","wftech-camera-00105"],
+        ["dahlia","2023-09-07 22:24:04.500000+00:00","2023-09-07 22:24:10.700000+00:00","wftech-camera-00100","wftech-camera-00112"],
+        ["dahlia","2023-09-07 22:56:31.500000+00:00","2023-09-07 22:56:39.900000+00:00","wftech-camera-00111","wftech-camera-00100"],
+        ["dahlia","2023-09-07 22:56:42.800000+00:00","2023-09-07 22:56:50.100000+00:00","wftech-camera-00111","wftech-camera-00100"],
+        ["dahlia","2023-09-07 22:56:51.500000+00:00","2023-09-07 22:56:54.600000+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 22:56:57.600000+00:00","2023-09-07 22:57:05.400000+00:00","wftech-camera-00111","wftech-camera-00100"],
+        ["dahlia","2023-09-07 22:57:10.400000+00:00","2023-09-07 22:57:13.200000+00:00","wftech-camera-00111","wftech-camera-00111"],
+        ["dahlia","2023-09-07 22:57:15.200000+00:00","2023-09-07 22:57:18.600000+00:00","wftech-camera-00111","wftech-camera-00111"],
+        ["dahlia","2023-09-07 22:57:21.500000+00:00","2023-09-07 22:57:36+00:00","wftech-camera-00100","wftech-camera-00100"],
+        ["dahlia","2023-09-07 22:57:49.300000+00:00","2023-09-07 22:57:52.600000+00:00","wftech-camera-00111","wftech-camera-00111"]
     ]
-    events_start_and_end_separated = list(np.array(events_list)[:, [0, 1, 4]]) + list(
-        np.array(events_list)[:, [0, 2, 5]]
+    events_start_and_end_separated = list(np.array(events_list)[:, [0, 1, 3]]) + list(
+        np.array(events_list)[:, [0, 2, 4]]
     )
 
     events = list(

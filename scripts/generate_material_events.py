@@ -108,10 +108,6 @@ def run(environment_name, start, end, models):
 
 
 if __name__ == "__main__":
-    environment_name = "dahlia"
-    start = datetime.strptime("2023-07-20T07:30:00-0800", "%Y-%m-%dT%H:%M:%S%z")
-    end = datetime.strptime("2023-07-20T17:30:00-0800", "%Y-%m-%dT%H:%M:%S%z")
-
     tray_detection_model_v2_path = "../output/models/tray_carry_model_v2.pkl"
     tray_detection_model_dwtag100_path = "../output/models/dwtag100_tray_carry_model.pkl"
     tray_detection_model_pt202_path = "../output/models/pt202_tray_carry_model.pkl"
@@ -121,31 +117,32 @@ if __name__ == "__main__":
         #     "model": io.read_generic_pkl(tray_detection_model_v2_path),
         #     "device_part_number": None
         # }
-        {"model": io.read_generic_pkl(tray_detection_model_dwtag100_path), "device_part_number": "dwtag100"},
+        {
+            "model": io.read_generic_pkl(tray_detection_model_dwtag100_path),
+            "device_part_number": "dwtag100"},
         {
             "model": io.read_generic_pkl(tray_detection_model_pt202_path),
             "device_part_number": "pt202",
         },
     ]
 
+    environment_name = "dahlia"
+    # start = datetime.strptime("2023-07-20T07:30:00-0800", "%Y-%m-%dT%H:%M:%S%z")
+    # end = datetime.strptime("2023-07-20T17:30:00-0800", "%Y-%m-%dT%H:%M:%S%z")
+    # run(environment_name, start, end, models)
+
+    start = datetime.strptime("2023-08-28T08:30:00-0700", "%Y-%m-%dT%H:%M:%S%z")
+    end = datetime.strptime("2023-08-28T18:30:00-0700", "%Y-%m-%dT%H:%M:%S%z")
     run(environment_name, start, end, models)
 
-    # start = datetime.strptime("2023-08-28T08:30:00-0700", "%Y-%m-%dT%H:%M:%S%z")
-    # end = datetime.strptime("2023-08-28T18:30:00-0700", "%Y-%m-%dT%H:%M:%S%z")
-    #
-    # run(environment_name, start, end)
-    #
     # start = datetime.strptime("2023-08-29T08:30:00-0700", "%Y-%m-%dT%H:%M:%S%z")
     # end = datetime.strptime("2023-08-29T18:30:00-0700", "%Y-%m-%dT%H:%M:%S%z")
-    #
-    # run(environment_name, start, end)
+    # run(environment_name, start, end, models)
 
     # start = datetime.strptime("2023-08-31T08:30:00-0700", "%Y-%m-%dT%H:%M:%S%z")
     # end = datetime.strptime("2023-08-31T18:30:00-0700", "%Y-%m-%dT%H:%M:%S%z")
-    #
-    # run(environment_name, start, end)
-    #
+    # run(environment_name, start, end, models)
+
     # start = datetime.strptime("2023-09-07T08:30:00-0700", "%Y-%m-%dT%H:%M:%S%z")
     # end = datetime.strptime("2023-09-07T18:30:00-0700", "%Y-%m-%dT%H:%M:%S%z")
-    #
-    # run(environment_name, start, end)
+    # run(environment_name, start, end, models)

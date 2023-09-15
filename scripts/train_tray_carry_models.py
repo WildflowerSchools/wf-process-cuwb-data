@@ -4,9 +4,6 @@ from process_cuwb_data import generate_tray_carry_groundtruth, generate_tray_car
 from process_cuwb_data.utils import io
 from process_cuwb_data.utils.io import write_generic_pkl
 
-# def prepare_groundtruth_features(df_groundtruth_tray_carry_events):
-#     df_groundtruth_features = generate_tray_carry_groundtruth(groundtruth_csv)
-
 
 if __name__ == "__main__":
     uwb_types = ["pt202", "dwtag100"]
