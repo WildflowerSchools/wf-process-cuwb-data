@@ -61,14 +61,14 @@ def combine_features_with_ground_truth_data(
     #         "Invalid baseline_state '{}', valid options include {}".format(
     #             baseline_state, CarryCategory.as_name_list()))
 
-    df_features_filtered = pd.DataFrame(columns=df_features.columns)
+    valid, msg = validate_ground_truth(df_groundtruth, groundtruth_type=groundtruth_type)
+    if not valid:
+        raise Exception(msg)
 
+    # df_features_filtered = pd.DataFrame(columns=df_features.columns)
+    all_filtered_features = []
     # df_features['ground_truth_state'] = baseline_state
     for index, row in df_groundtruth.iterrows():
-        valid, msg = validate_ground_truth(df_groundtruth, groundtruth_type=groundtruth_type)
-        if not valid:
-            raise Exception(msg)
-
         mask = (
             (df_features["device_id"] == row["device_id"])
             & (df_features.index >= row["start_datetime"])
@@ -77,7 +77,8 @@ def combine_features_with_ground_truth_data(
 
         df_features_masked = df_features.loc[mask].copy()
         df_features_masked["ground_truth_state"] = row["ground_truth_state"]
-        df_features_filtered = pd.concat([df_features_filtered, df_features_masked])
+        all_filtered_features.append(df_features_masked)
+        # df_features_filtered = pd.concat([df_features_filtered, df_features_masked])
 
         # if CarryCategory(row['ground_truth_state']) != CarryCategory(baseline_state):
         #     df_features.loc[
@@ -89,6 +90,7 @@ def combine_features_with_ground_truth_data(
         #         'ground_truth_state'
         #     ] = row['ground_truth_state']
 
+    df_features_filtered = pd.concat(all_filtered_features)
     return df_features_filtered
 
 

@@ -154,7 +154,7 @@ def load_csv(path):
     if "end_datetime" in df.columns:
         df["end_datetime"] = pd.to_datetime(df["end_datetime"], format="ISO8601")
 
-    if len(df["start_datetime"]) == 0:
+    if len(df) == 0:
         return df
 
     # Recognize a supplied timezone but if missing assume UTC time was implied

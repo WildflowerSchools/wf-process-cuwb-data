@@ -253,6 +253,10 @@ def fetch_motion_features(
             .drop_duplicates()
             .copy()
         )
+
+        if "device_part_number" in df_motion_features.columns:
+            df_meta_fields = df_meta_fields.drop("device_part_number", axis=1)
+
         # We don't need to check for duplicate device IDs because our functions
         # for fetching device assignments, device entity assignments, and tray
         # material assignments all enforce uniqueness by default
@@ -329,18 +333,20 @@ def extract_motion_features(df_uwb_data, entity_type="all", fillna="forward_back
     )
 
 
-def generate_tray_carry_groundtruth(groundtruth_csv):
-    return generate_groundtruth(groundtruth_csv, groundtruth_type=ground_truth.GROUNDTRUTH_TYPE_TRAY_CARRY)
+def generate_tray_carry_groundtruth(df_groundtruth):
+    return generate_groundtruth(
+        df_groundtruth=df_groundtruth, groundtruth_type=ground_truth.GROUNDTRUTH_TYPE_TRAY_CARRY
+    )
 
 
-def generate_human_activity_groundtruth(groundtruth_csv):
-    return generate_groundtruth(groundtruth_csv, groundtruth_type=ground_truth.GROUNDTRUTH_TYPE_HUMAN_ACTIVITY)
+def generate_human_activity_groundtruth(df_groundtruth):
+    return generate_groundtruth(
+        df_groundtruth=df_groundtruth, groundtruth_type=ground_truth.GROUNDTRUTH_TYPE_HUMAN_ACTIVITY
+    )
 
 
-def generate_groundtruth(groundtruth_csv, groundtruth_type):
+def generate_groundtruth(df_groundtruth, groundtruth_type):
     try:
-        df_groundtruth = io.load_csv(groundtruth_csv)
-
         if groundtruth_type == ground_truth.GROUNDTRUTH_TYPE_TRAY_CARRY:
             entity_type = "tray"
         elif groundtruth_type == ground_truth.GROUNDTRUTH_TYPE_HUMAN_ACTIVITY:
@@ -361,8 +367,8 @@ def generate_groundtruth(groundtruth_csv, groundtruth_type):
     for (environment, start_datetime), group_df in df_groundtruth.groupby(
         by=["environment", pd.Grouper(key="start_datetime", freq="D")]
     ):
-        start = group_df.agg({"start_datetime": [np.min]}).iloc[0]["start_datetime"]
-        end = group_df.agg({"end_datetime": [np.max]}).iloc[0]["end_datetime"]
+        start = group_df["start_datetime"].min()
+        end = group_df["end_datetime"].max()
 
         # Ground truth may be stored in the old datapoints table + s3 buckets
         # Check 'data_source' type and fetch accordingly
@@ -372,7 +378,6 @@ def generate_groundtruth(groundtruth_csv, groundtruth_type):
             "data_source" in group_df.columns
             and GroundtruthDataSource(group_df.iloc[0]["data_source"]) == GroundtruthDataSource.DATAPOINTS
         ):
-
             # When a groundtruth example is stored in the old datapoints format, add 60 minutes offsets to start and end
             df_environment_features = fetch_motion_features_from_datapoints(
                 environment_name=environment,
@@ -382,7 +387,7 @@ def generate_groundtruth(groundtruth_csv, groundtruth_type):
             )
         else:
             df_environment_features = fetch_motion_features(
-                environment_name=environment, start=start, end=end, entity_type=entity_type
+                environment_name=environment, start=start, end=end, entity_type=entity_type, overwrite_cache=True
             )
 
         if df_features is None:
@@ -451,9 +456,7 @@ def estimate_tray_centroids(
     environment_name,
     start,
     end,
-    model,
-    df_tray_features,
-    scaler=None,
+    df_tray_features_not_carried,
     cache=True,
     overwrite_cache=False,
     cache_dir=user_cache_dir(appname=const.APP_NAME, appauthor=const.APP_AUTHOR),
@@ -494,21 +497,23 @@ def estimate_tray_centroids(
         except Exception as e:
             logger.warning(f"Error attempting to read tray_centroids data: {e}")
 
-    df_tray_features = df_tray_features.copy()
-    df_tray_features = df_tray_features[df_tray_features["entity_type"].str.lower() == "tray"]
-
-    df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = (
-        df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate().fillna(method="bfill")
-    )
-
-    df_tray_features_no_movement = classifier_filter_no_movement_from_tray_features(
-        model=model, scaler=scaler, df_tray_features=df_tray_features
-    )
-    # df_tray_features_no_movement = heuristic_filter_no_movement_from_tray_features(df_tray_features)
-    df_tray_centroids = predict_tray_centroids(df_tray_features_no_movement=df_tray_features_no_movement)
+    # df_tray_features = df_tray_features.copy()
+    # df_tray_features = df_tray_features[df_tray_features["entity_type"].str.lower() == "tray"]
+    #
+    # df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = (
+    #     df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate().fillna(method="bfill")
+    # )
+    #
+    # df_tray_features_not_carried = classifier_filter_no_movement_from_tray_features(
+    #     model=model, scaler=scaler, df_tray_features=df_tray_features
+    # )
+    # df_tray_features_not_carried = heuristic_filter_no_movement_from_tray_features(df_tray_features)
+    df_tray_centroids = predict_tray_centroids(df_tray_features_not_carried=df_tray_features_not_carried)
 
     if cache:
         io.write_cuwb_data_pkl(df=df_tray_centroids, **cache_options)
+
+    return df_tray_centroids
 
 
 def infer_tray_carry(model, df_tray_features, scaler=None):

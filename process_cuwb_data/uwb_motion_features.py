@@ -1,9 +1,10 @@
 import functools
 from operator import or_
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from scipy.signal import find_peaks, peak_prominences, peak_widths
+from sklearn import preprocessing
 
 from .uwb_motion_filters import TrayMotionButterFiltFiltFilter, TrayMotionSavGolFilter
 from .utils.log import logger
@@ -20,6 +21,9 @@ class FeatureExtraction:
         self.frequency = frequency
         self.position_filter = position_filter
         self.velocity_filter = velocity_filter
+
+        self.le = preprocessing.LabelEncoder()
+        self.le.fit(["dwtag100", "pt202"])
 
     VELOCITY_COLUMNS = [
         "quality",
@@ -138,7 +142,13 @@ class FeatureExtraction:
 
     MAGNETOMETER_COLUMNS = ["x_μT", "y_μT", "z_μT"]
 
-    ALL_FEATURE_COLUMNS = [*VELOCITY_COLUMNS, *ACCELERATION_COLUMNS, *GYROSCOPE_COLUMNS, *MAGNETOMETER_COLUMNS]
+    ALL_FEATURE_COLUMNS = [
+        "device_part_number_label_id",
+        *VELOCITY_COLUMNS,
+        *ACCELERATION_COLUMNS,
+        *GYROSCOPE_COLUMNS,
+        *MAGNETOMETER_COLUMNS,
+    ]
 
     def extract_motion_features_for_multiple_devices(
         self,
@@ -169,11 +179,7 @@ class FeatureExtraction:
             logger.info(f"Calculating motion features for device ID {device_id}")
 
             df_device_uwb_data = df_device_uwb_data.sort_index()
-            # df_device_uwb_data["active_session_id"] = (
-            #     df_device_uwb_data.index.to_series().diff() >= pd.to_timedelta("60 seconds")
-            # ).cumsum()
 
-            # for _, df_device_active_session_uwb_data in df_device_uwb_data.groupby(by="active_session_id"):
             df_device_position = filter_by_data_type(df_device_uwb_data, "position")
             df_device_acceleration = filter_by_data_type(df_device_uwb_data, "accelerometer")
             df_device_gyroscope = filter_by_data_type(df_device_uwb_data, "gyroscope")
@@ -188,6 +194,9 @@ class FeatureExtraction:
                 join=join,
             )
             df_features["device_id"] = device_id
+
+            device_part_number = df_device_uwb_data["device_part_number"].unique()[0].lower()
+            df_features["device_part_number_label_id"] = self.le.transform([device_part_number])[0]
 
             all_features.append(df_features)
 
@@ -233,7 +242,6 @@ class FeatureExtraction:
 
         df_features = df_features.reindex(
             columns=[
-                "device_id",
                 *FeatureExtraction.VELOCITY_COLUMNS,
                 *FeatureExtraction.ACCELERATION_COLUMNS,
                 *FeatureExtraction.GYROSCOPE_COLUMNS,
@@ -538,9 +546,9 @@ class FeatureExtraction:
         """
         Filters UWB data by determining the "active periods" of each sensor.
         Active periods are periods when acceleration data is being captured. Acceleration data
-        is not captured when a device is sleeping due to Wake on Shake. Note, while sleeping
+        is not captured when a device is sleeping due to Wake on Shake. Note, while sleeping,
         position data is reported/captured once a minute. This makes position data a
-        little more difficult to work with, so we filter by the acceleration data behavior.
+        little more difficult to work with, so we filter by the acceleration data's behavior.
 
         :param df_uwb_data: UWB data for all devices
         :param inplace: Whether to modify the provided df_uwb_data dataframe directly

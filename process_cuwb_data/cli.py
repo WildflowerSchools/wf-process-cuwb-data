@@ -27,6 +27,7 @@ from .core import (
     infer_tray_carry,
     pose_data_with_body_centroid,
 )
+from .utils import io
 from .utils.io import load_csv, read_generic_pkl, write_cuwb_data_pkl, write_datafile_to_csv, write_generic_pkl
 from .utils.log import logger
 from .uwb_predict_tray_centroids import validate_tray_centroids_dataframe
@@ -245,7 +246,8 @@ def cli_generate_tray_carry_groundtruth(groundtruth_csv, output):
     groundtruth_features_output = f"{output}/groundtruth"
     Path(groundtruth_features_output).mkdir(parents=True, exist_ok=True)
 
-    df_groundtruth_features = generate_tray_carry_groundtruth(groundtruth_csv)
+    df_groundtruth = io.load_csv(groundtruth_csv)
+    df_groundtruth_features = generate_tray_carry_groundtruth(df_groundtruth)
 
     if df_groundtruth_features is None:
         logger.warning("Unexpected result, unable to store groundtruth features")
@@ -269,7 +271,8 @@ def cli_generate_human_activity_groundtruth(groundtruth_csv, output):
     groundtruth_features_output = f"{output}/groundtruth"
     Path(groundtruth_features_output).mkdir(parents=True, exist_ok=True)
 
-    df_groundtruth_features = generate_human_activity_groundtruth(groundtruth_csv)
+    df_groundtruth = io.load_csv(groundtruth_csv)
+    df_groundtruth_features = generate_human_activity_groundtruth(df_groundtruth)
 
     if df_groundtruth_features is None:
         logger.warning("Unexpected result, unable to store groundtruth features")
