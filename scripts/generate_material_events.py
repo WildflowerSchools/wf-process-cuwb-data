@@ -18,7 +18,9 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 
 def run(environment_name, start, end, models):
-    df_uwb_data = process_cuwb_data.fetch_cuwb_data(environment_name=environment_name, start=start, end=end)
+    df_uwb_data = process_cuwb_data.fetch_cuwb_data(
+        environment_name=environment_name, start=start, end=end, overwrite_cache=True
+    )
 
     df_uwb_motion_features = process_cuwb_data.fetch_motion_features(
         environment_name=environment_name,
@@ -117,9 +119,7 @@ if __name__ == "__main__":
         #     "model": io.read_generic_pkl(tray_detection_model_v2_path),
         #     "device_part_number": None
         # }
-        {
-            "model": io.read_generic_pkl(tray_detection_model_dwtag100_path),
-            "device_part_number": "dwtag100"},
+        {"model": io.read_generic_pkl(tray_detection_model_dwtag100_path), "device_part_number": "dwtag100"},
         {
             "model": io.read_generic_pkl(tray_detection_model_pt202_path),
             "device_part_number": "pt202",

@@ -227,11 +227,11 @@ class FeatureExtraction:
             df_acceleration_features = self.extract_acceleration_features(df=df_acceleration)
 
         df_gyroscope_features = pd.DataFrame(columns=FeatureExtraction.GYROSCOPE_COLUMNS)
-        if df_gyroscope is not None:
+        if df_gyroscope is not None and len(df_gyroscope) > 0:
             df_gyroscope_features = self.extract_gyroscope_features(df=df_gyroscope)
 
         df_magnetometer_features = pd.DataFrame(columns=FeatureExtraction.MAGNETOMETER_COLUMNS)
-        if df_magnetometer is not None:
+        if df_magnetometer is not None and len(df_magnetometer) > 0:
             df_magnetometer_features = self.extract_magnetometer_features(df=df_magnetometer)
 
         df_features = (
@@ -288,6 +288,7 @@ class FeatureExtraction:
 
     def extract_acceleration_features(self, df):
         df = df.copy()
+
         if "x" in df.columns:
             df.rename(columns={"x": "x_gs", "y": "y_gs", "z": "z_gs"}, inplace=True)
 

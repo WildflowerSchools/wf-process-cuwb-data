@@ -336,10 +336,14 @@ def generate_material_events(
 
     material_events = pd.DataFrame(material_events_list)
 
+    earliest_material_event_start_time = material_events["start"].min()
+    if earliest_material_event_start_time is None or pd.isnull(earliest_material_event_start_time):
+        earliest_material_event_start_time = df_parsed_tray_events["start"].min()
+
     camera_helper = CameraHelper(
         environment_id=environment_id,
         environment_name=environment_name,
-        start=material_events["start"].min(),
+        start=earliest_material_event_start_time,
         end=material_events["end"].max(),
         **client_params,
     )

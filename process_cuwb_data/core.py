@@ -110,6 +110,7 @@ def fetch_cuwb_data(
                     entity_type=entity_type,
                     cache_directory="/".join([cache_dir, cache_sub_dir]),
                     use_cache=cache,
+                    overwrite_cache=overwrite_cache,
                 ),
             )
         )
@@ -233,7 +234,7 @@ def fetch_motion_features(
                     "device_id",
                     "device_name",
                     "device_tag_id",
-                    "device_mac_address",
+                    # "device_mac_address",
                     "device_part_number",
                     "device_serial_number",
                     "entity_type",
@@ -287,7 +288,7 @@ def extract_motion_features_from_raw_datapoints(
                     "device_id",
                     "device_name",
                     "device_tag_id",
-                    "device_mac_address",
+                    # "device_mac_address",
                     "device_part_number",
                     "device_serial_number",
                     "entity_type",

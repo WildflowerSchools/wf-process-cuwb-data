@@ -1,8 +1,10 @@
 import datetime
 import hashlib
 import json
+import os
 import pathlib
 
+import numpy as np
 import pandas as pd
 from platformdirs import user_cache_dir
 
@@ -17,6 +19,7 @@ from honeycomb_io import (
 )
 
 from .honeycomb_service import HoneycombCachingClient
+from .rds_imu_data import fetch_position_data, fetch_accelerometer_data
 from .utils.log import logger
 from .uwb_motion_filters import TrayMotionButterFiltFiltFilter
 from .utils import const
@@ -32,9 +35,10 @@ def fetch_imu_data(
     entity_type="all",
     use_cache: bool = True,
     cache_directory="/".join([user_cache_dir(appname=const.APP_NAME, appauthor=const.APP_AUTHOR), "uwb_data"]),
+    overwrite_cache=False,
 ):
     file_path = None
-    if use_cache:
+    if use_cache or overwrite_cache:
         file_path = generate_imu_file_path(
             filename_prefix=f"{imu_type}_data",
             start=start,
@@ -45,14 +49,39 @@ def fetch_imu_data(
             cache_directory=cache_directory,
         )
         if file_path.is_file():
-            imu_data = pd.read_pickle(file_path)
-            logger.info(f"File {file_path} exists locally. Fetching from local")
-            return imu_data
+            if overwrite_cache:
+                os.remove(file_path)
+            else:
+                imu_data = pd.read_pickle(file_path)
+                logger.info(f"File {file_path} exists locally. Fetching from local")
+                return imu_data
+
+    use_db = os.getenv("HONEYCOMB_RDS_DATABASE", None) is not None
+    if use_db and imu_type in ["position", "accelerometer"]:
+        additional_fetch_args = {
+            "cache_directory": cache_directory,
+            "include_device_info": True,
+            "include_entity_info": True,
+            "include_material_info": True,
+        }
+    else:
+        additional_fetch_args = {
+            "device_types": ["UWBTAG"],
+            "output_format": "dataframe",
+            "sort_arguments": {"field": "timestamp"},
+            "chunk_size": 20000,
+        }
 
     if imu_type == "position":
-        fetch = fetch_cuwb_position_data
+        if use_db:
+            fetch = fetch_position_data
+        else:
+            fetch = fetch_cuwb_position_data
     elif imu_type == "accelerometer":
-        fetch = fetch_cuwb_accelerometer_data
+        if use_db:
+            fetch = fetch_accelerometer_data
+        else:
+            fetch = fetch_cuwb_accelerometer_data
     elif imu_type == "gyroscope":
         fetch = fetch_cuwb_gyroscope_data
     elif imu_type == "magnetometer":
@@ -66,19 +95,29 @@ def fetch_imu_data(
         device_ids=device_ids,
         environment_id=None,
         environment_name=environment_name,
-        device_types=["UWBTAG"],
-        output_format="dataframe",
-        sort_arguments={"field": "timestamp"},
-        chunk_size=20000,
+        **additional_fetch_args,
     )
     if len(df) == 0:
         logger.warning(f"No IMU {imu_type} data found for {environment_name} between {start} and {end}")
         return None
 
-    # Add metadata
-    df = add_device_assignment_info(df)
-    df = add_device_entity_assignment_info(df)
-    df = add_tray_material_assignment_info(df)
+    if not use_db:
+        # Add metadata
+        df = add_device_assignment_info(df)
+        df = add_device_entity_assignment_info(df)
+        df = add_tray_material_assignment_info(df)
+
+    if use_db and imu_type == "position":
+        np_positions = np.array(df["position"].values.tolist())
+        df["x"] = np_positions[:, 0]
+        df["y"] = np_positions[:, 1]
+        df["z"] = np_positions[:, 2]
+
+    if use_db and imu_type == "accelerometer":
+        np_acceleration = np.array(df["acceleration"].values.tolist())
+        df["x"] = np_acceleration[:, 0]
+        df["y"] = np_acceleration[:, 1]
+        df["z"] = np_acceleration[:, 2]
 
     # Filter on entity type
     df = filter_by_entity_type(df, entity_type=entity_type)
