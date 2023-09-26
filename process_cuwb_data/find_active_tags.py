@@ -7,7 +7,7 @@ import datetime
 import dateutil
 import pathlib
 
-from process_cuwb_data.utils.log import logger
+from .utils.log import logger
 
 
 def find_active_tags(

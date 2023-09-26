@@ -6,8 +6,8 @@ import hashlib
 import datetime
 import pathlib
 
-from process_cuwb_data.honeycomb_service import HoneycombCachingClient
-from process_cuwb_data.utils.log import logger
+from .honeycomb_service import HoneycombCachingClient
+from .utils.log import logger
 
 
 def fetch_position_data(

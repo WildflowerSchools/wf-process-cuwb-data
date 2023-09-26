@@ -6,8 +6,8 @@ from functools import partial
 import pandas as pd
 import torch
 
-from process_cuwb_data import logger
-from process_cuwb_data.utils.util import map_column_name_to_dimension_space
+from .utils.log import logger
+from .utils.util import map_column_name_to_dimension_space
 
 DIMENSIONS_WHEN_COMPUTING_DEVICE_TO_DEVICE_DISTANCES = 2
 

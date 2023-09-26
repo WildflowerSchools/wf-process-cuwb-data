@@ -1,4 +1,4 @@
-from process_cuwb_data.utils.log import logger
+from .utils.log import logger
 
 
 # CUWB Data Protocol: Byte size for accelerometer values

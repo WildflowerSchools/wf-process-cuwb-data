@@ -1,7 +1,7 @@
 import multiprocessing
 import pandas as pd
 
-from process_cuwb_data.uwb_motion_classifier_random_forest import UWBRandomForestClassifier
+from .uwb_motion_classifier_random_forest import UWBRandomForestClassifier
 from .utils.log import logger
 from .uwb_motion_enum_carry_categories import CarryCategory
 from .uwb_motion_filters import SmoothLabelsFilter, TrayCarryHmmFilter

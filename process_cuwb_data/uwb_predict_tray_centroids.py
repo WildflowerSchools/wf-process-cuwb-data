@@ -3,8 +3,8 @@ import pandas as pd
 from sklearn import cluster
 from sklearn.mixture import GaussianMixture
 
-from process_cuwb_data.utils.log import logger
-from process_cuwb_data.uwb_motion_enum_carry_categories import CarryCategory
+from .utils.log import logger
+from .uwb_motion_enum_carry_categories import CarryCategory
 from .uwb_motion_classifier_tray_carry import TrayCarryClassifier
 
 DIMENSIONS_WHEN_COMPUTING_CHILD_TRAY_DISTANCE = 2

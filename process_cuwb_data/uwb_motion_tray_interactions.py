@@ -1,12 +1,10 @@
 import numpy as np
 import pandas as pd
 
-# from scipy.spatial.distance import cdist
-
-from process_cuwb_data.utils.log import logger
-from process_cuwb_data.utils.util import dataframe_tuple_columns_to_underscores, map_column_name_to_dimension_space
-from process_cuwb_data.uwb_motion_distance import generate_device_to_device_distances
-from process_cuwb_data.uwb_motion_enum_interaction_types import InteractionType
+from .utils.log import logger
+from .utils.util import dataframe_tuple_columns_to_underscores, map_column_name_to_dimension_space
+from .uwb_motion_distance import generate_device_to_device_distances
+from .uwb_motion_enum_interaction_types import InteractionType
 
 
 # TODO: Ignoring z-axis when computing distance for now, reconsider after further testing CUWB anchors

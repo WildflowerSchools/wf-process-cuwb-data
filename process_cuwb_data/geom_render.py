@@ -7,8 +7,8 @@ import numpy as np
 import geom_render
 from honeycomb_io import fetch_camera_info, fetch_camera_calibrations
 
-from process_cuwb_data.honeycomb_imu_data import fetch_imu_data, smooth_imu_position_data
-from process_cuwb_data.utils.log import logger
+from .honeycomb_imu_data import fetch_imu_data, smooth_imu_position_data
+from .utils.log import logger
 
 
 def fetch_geoms_2d(

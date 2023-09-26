@@ -1,8 +1,8 @@
 import pandas as pd
 
-from process_cuwb_data.uwb_motion_enum_carry_categories import CarryCategory
-from process_cuwb_data.uwb_motion_enum_groundtruth_data_source import GroundtruthDataSource
-from process_cuwb_data.uwb_motion_enum_human_activities import HumanActivity
+from .uwb_motion_enum_carry_categories import CarryCategory
+from .uwb_motion_enum_groundtruth_data_source import GroundtruthDataSource
+from .uwb_motion_enum_human_activities import HumanActivity
 
 
 GROUNDTRUTH_TYPE_TRAY_CARRY = "tray_carry"

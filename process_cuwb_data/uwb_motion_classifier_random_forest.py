@@ -5,7 +5,7 @@ from sklearn.metrics import ConfusionMatrixDisplay
 import sklearn.model_selection
 from sklearn.preprocessing import StandardScaler
 
-from process_cuwb_data.utils.log import logger
+from .utils.log import logger
 
 
 class UWBRandomForestClassifier:

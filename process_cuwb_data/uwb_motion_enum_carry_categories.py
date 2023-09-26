@@ -1,4 +1,4 @@
-from process_cuwb_data.utils.case_insensitive_enum import CaseInsensitiveEnum
+from .utils.case_insensitive_enum import CaseInsensitiveEnum
 
 
 class CarryCategory(CaseInsensitiveEnum):

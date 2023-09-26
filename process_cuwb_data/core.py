@@ -3,7 +3,6 @@ import os.path
 import platform
 
 from deprecated import deprecated
-import numpy as np
 import pandas as pd
 from platformdirs import user_cache_dir
 
