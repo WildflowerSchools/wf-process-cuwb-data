@@ -35,3 +35,8 @@ def filter_by_data_type(df, data_type="all"):
         raise ValueError(error)
 
     return df.loc[df["type"] == data_type].copy()
+
+
+def map_column_name_to_dimension_space(column_name, num_dimensions):
+    dims = ["x", "y", "z"]
+    return list(map(lambda d: f"{d}_{column_name}", dims[0:num_dimensions]))

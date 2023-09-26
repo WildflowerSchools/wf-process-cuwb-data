@@ -184,6 +184,7 @@ def fetch_motion_features(
     entity_type="all",
     include_meta_fields=True,
     fillna="forward_backward",
+    resample_frequency="100ms",
     cache=True,
     overwrite_cache=False,
     cache_dir=user_cache_dir(appname=const.APP_NAME, appauthor=const.APP_AUTHOR),
@@ -219,9 +220,7 @@ def fetch_motion_features(
         raise ValueError(f"Unable to find UWB data for {environment_name} between {start} and {end}")
 
     df_motion_features = extract_motion_features(
-        df_uwb_data=df_uwb_data,
-        entity_type=entity_type,
-        fillna=fillna,
+        df_uwb_data=df_uwb_data, entity_type=entity_type, fillna=fillna, resample_frequency=resample_frequency
     )
 
     # Add metadata fields if requested
@@ -324,8 +323,8 @@ def extract_motion_features_from_raw_datapoints(
         return df_motion_features
 
 
-def extract_motion_features(df_uwb_data, entity_type="all", fillna="forward_backward"):
-    f = FeatureExtraction()
+def extract_motion_features(df_uwb_data, entity_type="all", fillna="forward_backward", resample_frequency="100ms"):
+    f = FeatureExtraction(resample_frequency=resample_frequency)
 
     return f.extract_motion_features_for_multiple_devices(
         df_uwb_data=df_uwb_data,
@@ -471,7 +470,7 @@ def estimate_tray_centroids(
     :param end:
     :param model: Tray carry classifier (RandomForest Model)
     :param scaler: Tray carry scaling model used to standardize features
-    :param df_tray_features: Dataframe with uwb data containing uwb_motion_classifiers.DEFAULT_FEATURE_FIELD_NAMES
+    :param df_device_features_b: Dataframe with uwb data containing uwb_motion_classifiers.DEFAULT_FEATURE_FIELD_NAMES
     :param cache:
     :param overwrite_cache:
     :param cache_dir:
@@ -498,17 +497,17 @@ def estimate_tray_centroids(
         except Exception as e:
             logger.warning(f"Error attempting to read tray_centroids data: {e}")
 
-    # df_tray_features = df_tray_features.copy()
-    # df_tray_features = df_tray_features[df_tray_features["entity_type"].str.lower() == "tray"]
+    # df_device_features_b = df_device_features_b.copy()
+    # df_device_features_b = df_device_features_b[df_device_features_b["entity_type"].str.lower() == "tray"]
     #
-    # df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS] = (
-    #     df_tray_features[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate().fillna(method="bfill")
+    # df_device_features_b[FeatureExtraction.ALL_FEATURE_COLUMNS] = (
+    #     df_device_features_b[FeatureExtraction.ALL_FEATURE_COLUMNS].interpolate().fillna(method="bfill")
     # )
     #
     # df_tray_features_not_carried = classifier_filter_no_movement_from_tray_features(
-    #     model=model, scaler=scaler, df_tray_features=df_tray_features
+    #     model=model, scaler=scaler, df_device_features_b=df_device_features_b
     # )
-    # df_tray_features_not_carried = heuristic_filter_no_movement_from_tray_features(df_tray_features)
+    # df_tray_features_not_carried = heuristic_filter_no_movement_from_tray_features(df_device_features_b)
     df_tray_centroids = predict_tray_centroids(df_tray_features_not_carried=df_tray_features_not_carried)
 
     if cache:

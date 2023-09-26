@@ -14,11 +14,11 @@ from .utils.util import filter_by_data_type
 class FeatureExtraction:
     def __init__(
         self,
-        frequency="100ms",
+        resample_frequency="100ms",
         position_filter=TrayMotionButterFiltFiltFilter(useSosFiltFilt=True),
         velocity_filter=TrayMotionSavGolFilter(),
     ):
-        self.frequency = frequency
+        self.resample_frequency = resample_frequency
         self.position_filter = position_filter
         self.velocity_filter = velocity_filter
 
@@ -345,10 +345,10 @@ class FeatureExtraction:
         df = df.astype(float)
         df = df.loc[~df.index.duplicated()].copy()
 
-        start = df.index.min().floor(self.frequency)
-        end = df.index.max().ceil(self.frequency)
+        start = df.index.min().floor(self.resample_frequency)
+        end = df.index.max().ceil(self.resample_frequency)
 
-        regularized_index = pd.date_range(start=start, end=end, freq=self.frequency)
+        regularized_index = pd.date_range(start=start, end=end, freq=self.resample_frequency)
         df = df.reindex(df.index.union(regularized_index))
         df = df.interpolate(method="time", limit=5, limit_area="inside")
 

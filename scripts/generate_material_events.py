@@ -132,7 +132,7 @@ if __name__ == "__main__":
     # run(environment_name, start, end, models)
 
     start = datetime.strptime("2023-08-28T08:30:00-0700", "%Y-%m-%dT%H:%M:%S%z")
-    end = datetime.strptime("2023-08-28T18:30:00-0700", "%Y-%m-%dT%H:%M:%S%z")
+    end = datetime.strptime("2023-08-28T10:30:00-0700", "%Y-%m-%dT%H:%M:%S%z")
     run(environment_name, start, end, models)
 
     # start = datetime.strptime("2023-08-29T08:30:00-0700", "%Y-%m-%dT%H:%M:%S%z")

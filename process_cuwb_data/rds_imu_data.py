@@ -6,6 +6,7 @@ import hashlib
 import datetime
 import pathlib
 
+from process_cuwb_data.honeycomb_service import HoneycombCachingClient
 from process_cuwb_data.utils.log import logger
 
 
@@ -92,6 +93,12 @@ def fetch_position_data(
         honeycomb_client_id=honeycomb_client_id,
         honeycomb_client_secret=honeycomb_client_secret,
     )
+
+    honeycomb_caching_client = HoneycombCachingClient()
+    position_data["environment_id"] = honeycomb_caching_client.get_environment_id(
+        environment_id=environment_id, environment_name=environment_name
+    )
+
     if use_cache:
         logger.info(f"Saving data locally as {file_path}")
         position_data.to_pickle(file_path)
@@ -181,6 +188,12 @@ def fetch_accelerometer_data(
         honeycomb_client_id=honeycomb_client_id,
         honeycomb_client_secret=honeycomb_client_secret,
     )
+
+    honeycomb_caching_client = HoneycombCachingClient()
+    accelerometer_data["environment_id"] = honeycomb_caching_client.get_environment_id(
+        environment_id=environment_id, environment_name=environment_name
+    )
+
     if use_cache:
         logger.info(f"Saving data locally as {file_path}")
         accelerometer_data.to_pickle(file_path)

@@ -1,30 +1,19 @@
-from functools import partial
-import multiprocessing
-import sys
-import time
-
 import numpy as np
 import pandas as pd
-import torch
 
 # from scipy.spatial.distance import cdist
 
 from process_cuwb_data.utils.log import logger
-from process_cuwb_data.utils.util import dataframe_tuple_columns_to_underscores
+from process_cuwb_data.utils.util import dataframe_tuple_columns_to_underscores, map_column_name_to_dimension_space
+from process_cuwb_data.uwb_motion_distance import generate_device_to_device_distances
 from process_cuwb_data.uwb_motion_enum_interaction_types import InteractionType
 
 
 # TODO: Ignoring z-axis when computing distance for now, reconsider after further testing CUWB anchors
-DIMENSIONS_WHEN_COMPUTING_CHILD_TRAY_DISTANCE = 2
 DIMENSIONS_WHEN_COMPUTING_TRAY_SHELF_DISTANCE = 2
 CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_PERSON = 1.25
 CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_SHELF = 0.75
 TRAY_POSITION_SECONDS_TO_AVERAGE_BEFORE_OR_AFTER_CARRY = 2
-
-
-def map_column_name_to_dimension_space(column_name, num_dimensions):
-    dims = ["x", "y", "z"]
-    return list(map(lambda d: f"{d}_{column_name}", dims[0:num_dimensions]))
 
 
 def modify_carry_events_with_track_ids(df_carry_events):
@@ -193,102 +182,6 @@ def filter_features_by_carry_events_and_split_by_device_type(df_features, df_car
     return df_people_features_sliced.reset_index(level=1), df_tray_features_sliced_with_track_id.reset_index(level=1)
 
 
-def people_trays_cdist_iterable(idx, _df_people, _df_trays, v_count, v_start, lock, size):
-    """
-    Background runnable function to compute distances between people and tray.
-
-    :param idx: Dataframe lookup index (time based)
-    :param _df_people: People dataframe
-    :param _df_trays: Trays dataframe
-    :param v_count: Iteration count
-    :param v_start: Timer for logging progress
-    :param lock: Multiprocessing lock for variable manipulation
-    :param size: Total number of records for processing
-    :return: Dataframe of joined people and trays with computed distance
-    """
-    with lock:
-        if v_count.value % 1000 == 0:
-            logger.info(
-                "Computing tray <-> people distances: Processed {}/{} - Time {}s".format(
-                    v_count.value, size, time.time() - v_start.value
-                )
-            )
-            sys.stdout.flush()
-            v_start.value = time.time()
-
-        v_count.value += 1
-
-    if idx not in _df_people.index:
-        # logger.debug(
-        #     f"No people tags at {idx}, cannot/will not try to compute distance coefficients between people and trays for this time instance"
-        # )
-        return None
-    df_people_by_idx = _df_people.loc[[idx]]
-
-    if idx not in _df_trays.index:
-        # logger.debug(
-        #     f"No tray tags at {idx}, cannot/will not try to compute distance coefficients between people and trays for this time instance"
-        # )
-        return None
-    df_trays_by_idx = _df_trays.loc[[idx]]
-
-    position_cols = map_column_name_to_dimension_space("position", DIMENSIONS_WHEN_COMPUTING_CHILD_TRAY_DISTANCE)
-
-    df_people_and_trays = df_people_by_idx.join(df_trays_by_idx, how="inner", lsuffix="_person", rsuffix="_tray")
-    distances = torch.cdist(
-        torch.tensor(df_people_by_idx[position_cols].to_numpy()),
-        torch.tensor(df_trays_by_idx[position_cols].to_numpy()),
-    )
-
-    return df_people_and_trays.assign(person_tray_distance=distances.flatten())
-
-
-def generate_person_tray_distances(df_people_features, df_tray_features):
-    """
-    Use multi-processing to generate distances between candidate people and trays
-    across all recorded features (computationally heavy because distance is generated
-    for every timestamp between every person/tray device)
-
-    :param df_people_features:
-    :param df_tray_features:
-    :return:
-    """
-    p = multiprocessing.Pool()
-    m = multiprocessing.Manager()
-
-    lock = m.Lock()
-    start = time.time()
-    v_count = m.Value("i", 0)  # Keep track of iterations
-    v_start = m.Value("f", start)  # Share timer object
-    time_indexes = df_people_features.index.unique(level=0)
-
-    # This computes distances between all people and all active trays
-    df_person_tray_distances = pd.concat(
-        p.map(
-            partial(
-                people_trays_cdist_iterable,
-                _df_people=df_people_features,
-                _df_trays=df_tray_features,
-                v_count=v_count,
-                v_start=v_start,
-                lock=lock,
-                size=len(time_indexes),
-            ),
-            time_indexes,
-        )
-    )
-    logger.info(
-        "Finished computing tray <-> people distances: {}/{} - Total time: {}s".format(
-            len(time_indexes), len(time_indexes), time.time() - start
-        )
-    )
-
-    p.close()
-    p.join()
-
-    return df_person_tray_distances
-
-
 def aggregate_clean_filter_person_tray_distances(df_person_tray_distances, df_carry_events_with_track_ids):
     """
     Determine the aggregated median distance between each person and tray. Note
@@ -301,7 +194,7 @@ def aggregate_clean_filter_person_tray_distances(df_person_tray_distances, df_ca
     :return: Dataframe (df_carry_events_distances_from_people)
 
     e.g.
-    tray_track_id,device_id_person,person_name_person,device_id_tray,material_name_tray,person_tray_distance_median,person_track_length_seconds,person_tray_distance_min,person_tray_distance_max
+    tray_track_id,device_id_person,person_name_person,device_id_tray,material_name_tray,device_to_device_distance_median,person_track_length_seconds,device_to_device_distance_min,device_to_device_distance_max
     0,34da139d-c6bb-493f-b775-f9a568f6d20b,Bert,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,6.58958,4.00000,6.04818,6.92025
     0,5af061c7-8d6c-4c8d-8f8e-26fc8fe09ae3,Ernie,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,5.20226,4.00000,4.53189,6.20005
     0,9e2799f6-56a8-4878-8df7-401b2759408c,Grover,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,5.01834,4.00000,4.57632,5.15572
@@ -341,7 +234,7 @@ def aggregate_clean_filter_person_tray_distances(df_person_tray_distances, df_ca
                 "material_name_tray",
             ]
         )
-        .agg({"timestamp": ["min", "max"], "person_tray_distance": ["median", "min", "max"]})
+        .agg({"timestamp": ["min", "max"], "device_to_device_distance": ["median", "min", "max"]})
         .reset_index()
     )
     df_person_tray_distances_aggregated.columns = df_person_tray_distances_aggregated.columns.to_flat_index()
@@ -359,7 +252,7 @@ def aggregate_clean_filter_person_tray_distances(df_person_tray_distances, df_ca
     # 4) Also notice there are two tracks for Elmo, one uwb based and one pose based
     # 5) Elmo's UWB track appears closest to the given tray/material (0.33810 meters median). It is just a hair closer than what the pose track came up with (0.36287 meters median)
     #
-    # tray_track_id,device_id_person,person_name_person,track_id_person,track_type_person,device_id_tray,material_name_tray,start,end,person_tray_distance_median,person_tray_distance_min,person_tray_distance_max,person_track_length_seconds
+    # tray_track_id,device_id_person,person_name_person,track_id_person,track_type_person,device_id_tray,material_name_tray,start,end,device_to_device_distance_median,device_to_device_distance_min,device_to_device_distance_max,person_track_length_seconds
     # 0,34da139d-c6bb-493f-b775-f9a568f6d20b,Bert,34da139d-c6bb-493f-b775-f9a568f6d20b,uwb_sensor,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,2021-04-20 14:01:26.300000+00:00,2021-04-20 14:01:30.300000+00:00,6.58958,6.04818,6.92025,4.0
     # 0,5af061c7-8d6c-4c8d-8f8e-26fc8fe09ae3,Ernie,5af061c7-8d6c-4c8d-8f8e-26fc8fe09ae3,uwb_sensor,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,2021-04-20 14:01:26.300000+00:00,2021-04-20 14:01:30.300000+00:00,5.20226,4.53189,6.20005,4.0
     # 0,9e2799f6-56a8-4878-8df7-401b2759408c,Oscar,9e2799f6-56a8-4878-8df7-401b2759408c,uwb_sensor,f37dd610-7335-4355-b706-0a1ea3f35519,Sensory Bin,2021-04-20 14:01:26.300000+00:00,2021-04-20 14:01:30.300000+00:00,5.01834,4.57632,5.15572,4.0
@@ -487,8 +380,8 @@ def aggregate_clean_filter_person_tray_distances(df_person_tray_distances, df_ca
             df_person_tracks["track_length_percentage"] = (
                 df_person_tracks["person_track_length_seconds"] / df_person_tracks["person_track_length_seconds"].sum()
             )
-            df_person_tracks["person_tray_distance_median_weighted"] = (
-                df_person_tracks["person_tray_distance_median"] * df_person_tracks["track_length_percentage"]
+            df_person_tracks["device_to_device_distance_median_weighted"] = (
+                df_person_tracks["device_to_device_distance_median"] * df_person_tracks["track_length_percentage"]
             )
 
             df_person_flattened = (
@@ -509,20 +402,24 @@ def aggregate_clean_filter_person_tray_distances(df_person_tray_distances, df_ca
                 .to_frame()
                 .transpose()
             )
-            df_person_flattened["person_tray_distance_median"] = df_person_tracks[
-                "person_tray_distance_median_weighted"
+            df_person_flattened["device_to_device_distance_median"] = df_person_tracks[
+                "device_to_device_distance_median_weighted"
             ].sum()
             df_person_flattened["person_track_length_seconds"] = df_person_tracks["person_track_length_seconds"].sum()
 
             df_person_grouped = df_person_tracks.groupby(["tray_track_id"]).agg(
-                {"person_tray_distance_min": ["min"], "person_tray_distance_max": ["max"]}
+                {"device_to_device_distance_min": ["min"], "device_to_device_distance_max": ["max"]}
             )
 
             df_person_grouped.columns = df_person_grouped.columns.to_flat_index()
             dataframe_tuple_columns_to_underscores(df_person_grouped, inplace=True)
 
-            df_person_flattened["person_tray_distance_min"] = df_person_grouped["person_tray_distance_min_min"].iloc[0]
-            df_person_flattened["person_tray_distance_max"] = df_person_grouped["person_tray_distance_max_max"].iloc[0]
+            df_person_flattened["device_to_device_distance_min"] = df_person_grouped[
+                "device_to_device_distance_min_min"
+            ].iloc[0]
+            df_person_flattened["device_to_device_distance_max"] = df_person_grouped[
+                "device_to_device_distance_max_max"
+            ].iloc[0]
 
             filtered_tracks.append(df_person_flattened)
 
@@ -591,7 +488,12 @@ def infer_tray_device_interactions(df_features, df_carry_events, df_tray_centroi
 
     # Build a dataframe with distances between all people and trays across all carry events times
     # TODO: Add 3d to 2d track as some form of people so we can compute distances to each of these tracks as well...
-    df_person_tray_distances = generate_person_tray_distances(df_filtered_people, df_filtered_trays_with_track_ids)
+    df_person_tray_distances = generate_device_to_device_distances(
+        df_device_features_a=df_filtered_people,
+        df_device_features_b=df_filtered_trays_with_track_ids,
+        lsuffix="_person",
+        rsuffix="_tray",
+    )
     df_carry_events_distances_from_people = aggregate_clean_filter_person_tray_distances(
         df_person_tray_distances, df_carry_events_with_track_ids
     )
@@ -710,7 +612,7 @@ def infer_tray_device_interactions(df_features, df_carry_events, df_tray_centroi
 
     # Find nearest person and filter out instances where tray and person are too far apart
     df_min_person_tray_track_ids = (
-        df_carry_events_distances_from_people.groupby(["tray_track_id"])["person_tray_distance_median"]
+        df_carry_events_distances_from_people.groupby(["tray_track_id"])["device_to_device_distance_median"]
         .idxmin()
         .rename("person_tray_track_id")
         .to_frame()
@@ -723,7 +625,7 @@ def infer_tray_device_interactions(df_features, df_carry_events, df_tray_centroi
                 )
             )
             & (
-                df_carry_events_distances_from_people["person_tray_distance_median"]
+                df_carry_events_distances_from_people["device_to_device_distance_median"]
                 < CARRY_EVENT_DISTANCE_BETWEEN_TRAY_AND_PERSON
             )
         )
@@ -777,7 +679,7 @@ def infer_tray_device_interactions(df_features, df_carry_events, df_tray_centroi
     #   material_assignment_id (str)
     #   material_id (str)
     #   material_name (str)
-    #   person_tray_distance_median (float)
+    #   device_to_device_distance_median (float)
     #   devices_distance_max (float)
     #   devices_distance_min (float)
     #   tray_start_distance_from_source (float)

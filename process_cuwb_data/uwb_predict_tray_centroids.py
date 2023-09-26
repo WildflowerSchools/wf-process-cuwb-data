@@ -105,7 +105,7 @@ def predict_tray_centroids(df_tray_features_not_carried):
     """
     Predict all tray's predominant resting position (shelf position)
 
-    :param df_tray_features:
+    :param df_tray_features_not_carried:
     :return: Dataframe with tray centroid positions and device_id
     """
 

@@ -100,6 +100,12 @@ class HoneycombCachingClient:
     def fetch_environment_id(self, environment_name):
         return honeycomb_io.fetch_environment_id(environment_name=environment_name)
 
+    def get_environment_id(self, environment_id=None, environment_name=None):
+        if environment_id is not None:
+            return environment_id
+
+        return self.fetch_environment_id(environment_name=environment_name)
+
     @lru_cache()
     def fetch_all_environments(self):
         return honeycomb_io.fetch_all_environments(output_format="dataframe", **self.client_params)

@@ -60,6 +60,7 @@ def fetch_imu_data(
     if use_db and imu_type in ["position", "accelerometer"]:
         additional_fetch_args = {
             "cache_directory": cache_directory,
+            "use_cache": False,
             "include_device_info": True,
             "include_entity_info": True,
             "include_material_info": True,
