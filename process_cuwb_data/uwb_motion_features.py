@@ -155,6 +155,7 @@ class FeatureExtraction:
         df_uwb_data: pd.DataFrame,
         entity_type="all",
         fillna=None,
+        filter_wos=True,
         join="outer",
     ):
         if (
@@ -172,7 +173,8 @@ class FeatureExtraction:
         if entity_type.lower() != "all":
             df_uwb_data = df_uwb_data[df_uwb_data["entity_type"].str.lower() == entity_type.lower()]
 
-        df_uwb_data = self.filter_uwb_data_by_acceleration_activity(df_uwb_data=df_uwb_data)
+        if filter_wos:
+            df_uwb_data = self.filter_uwb_data_by_acceleration_activity(df_uwb_data=df_uwb_data)
 
         all_features = []
         for device_id, df_device_uwb_data in df_uwb_data.groupby(by="device_id"):
@@ -191,6 +193,7 @@ class FeatureExtraction:
                 df_gyroscope=df_device_gyroscope,
                 df_magnetometer=df_device_magnetometer,
                 fillna=fillna,
+                filter_wos=filter_wos,
                 join=join,
             )
             df_features["device_id"] = device_id
@@ -216,6 +219,7 @@ class FeatureExtraction:
         df_gyroscope=None,
         df_magnetometer=None,
         fillna="forward_backward",
+        filter_wos=True,
         join="outer",
     ):
         df_velocity_features = pd.DataFrame(columns=FeatureExtraction.VELOCITY_COLUMNS)
@@ -224,7 +228,7 @@ class FeatureExtraction:
 
         df_acceleration_features = pd.DataFrame(columns=FeatureExtraction.ACCELERATION_COLUMNS)
         if df_acceleration is not None:
-            df_acceleration_features = self.extract_acceleration_features(df=df_acceleration)
+            df_acceleration_features = self.extract_acceleration_features(df=df_acceleration, filter_wos=filter_wos)
 
         df_gyroscope_features = pd.DataFrame(columns=FeatureExtraction.GYROSCOPE_COLUMNS)
         if df_gyroscope is not None and len(df_gyroscope) > 0:
@@ -286,7 +290,7 @@ class FeatureExtraction:
         df = df.sort_index()
         return df
 
-    def extract_acceleration_features(self, df):
+    def extract_acceleration_features(self, df, filter_wos=True):
         df = df.copy()
 
         if "x" in df.columns:
@@ -302,7 +306,8 @@ class FeatureExtraction:
         #     z_col="z_acceleration_normalized",
         #     require_peak_across_all_axes=False)
 
-        df = self.remove_wos_initial_acceleration_reading_by_time_gaps(df)
+        if filter_wos:
+            df = self.remove_wos_initial_acceleration_reading_by_time_gaps(df)
 
         df = df.reindex(columns=["x_gs", "y_gs", "z_gs"])
         df = self.regularize_index_and_smooth(df)

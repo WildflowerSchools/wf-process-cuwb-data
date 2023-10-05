@@ -1,3 +1,4 @@
+import json
 import multiprocessing
 import os.path
 import platform
@@ -20,6 +21,7 @@ from .honeycomb_service import HoneycombCachingClient
 from . import parse_events
 from .utils import io
 from .utils import const
+from .utils import util
 from .utils.log import logger
 from .uwb_extract_data import extract_by_data_type_and_format, extract_by_entity_type
 from .uwb_motion_classifier_human_activity import HumanActivityClassifier
@@ -183,6 +185,7 @@ def fetch_motion_features(
     entity_type="all",
     include_meta_fields=True,
     fillna="forward_backward",
+    filter_wos=True,
     resample_frequency="100ms",
     cache=True,
     overwrite_cache=False,
@@ -197,12 +200,17 @@ def fetch_motion_features(
         "entity_type": entity_type,
         "include_meta_fields": include_meta_fields,
         "fillna": fillna,
-        "directory": "/".join([cache_dir, cache_sub_dir]),
+        "filter_wos": filter_wos,
     }
+    checksum = util.checksum(cache_options)
+    cached_path = io.generic_pkl_path(
+        filename=f"{environment_name}_{cache_options['filename_prefix']}_{checksum}",
+        directory="/".join([cache_dir, cache_sub_dir]),
+    )
+
     if cache or overwrite_cache:
         try:
             if overwrite_cache:
-                cached_path = io.cuwb_data_path(**cache_options)
                 if os.path.exists(cached_path):
                     os.remove(cached_path)
             else:
@@ -219,7 +227,11 @@ def fetch_motion_features(
         raise ValueError(f"Unable to find UWB data for {environment_name} between {start} and {end}")
 
     df_motion_features = extract_motion_features(
-        df_uwb_data=df_uwb_data, entity_type=entity_type, fillna=fillna, resample_frequency=resample_frequency
+        df_uwb_data=df_uwb_data,
+        entity_type=entity_type,
+        fillna=fillna,
+        filter_wos=filter_wos,
+        resample_frequency=resample_frequency,
     )
 
     # Add metadata fields if requested
@@ -262,7 +274,7 @@ def fetch_motion_features(
         df_motion_features = df_motion_features.join(df_meta_fields, on="device_id", how="left")
 
     if cache:
-        io.write_cuwb_data_pkl(df=df_motion_features, **cache_options)
+        io.write_generic_pkl(record=df_motion_features, path=cached_path)
 
     return df_motion_features
 
@@ -322,13 +334,16 @@ def extract_motion_features_from_raw_datapoints(
         return df_motion_features
 
 
-def extract_motion_features(df_uwb_data, entity_type="all", fillna="forward_backward", resample_frequency="100ms"):
+def extract_motion_features(
+    df_uwb_data, entity_type="all", fillna="forward_backward", filter_wos=True, resample_frequency="100ms"
+):
     f = FeatureExtraction(resample_frequency=resample_frequency)
 
     return f.extract_motion_features_for_multiple_devices(
         df_uwb_data=df_uwb_data,
         entity_type=entity_type,
         fillna=fillna,
+        filter_wos=filter_wos,
     )
 
 

@@ -14,20 +14,28 @@ def write_datafile_to_csv(df, filename, directory=".", index=True):
     df.to_csv(path, index=index)
 
 
-def write_generic_pkl(record, filename, directory="."):
-    filename = filename + ".pkl"
-    path = os.path.join(directory, filename)
+def write_generic_pkl(record, path=None, filename=None, directory="."):
+    if path is None:
+        path = generic_pkl_path(filename=filename, directory=directory)
     with open(path, "wb") as fp:
         logger.info(f"Writing pickle '{filename}' record to {path}")
         pickle.dump(record, fp)
 
 
-def read_generic_pkl(path):
+def read_generic_pkl(path=None, filename=None, directory="."):
+    if path is None:
+        path = generic_pkl_path(filename=filename, directory=directory)
     with open(path, "rb") as fp:
         record = pickle.load(fp)
         logger.info(f"Loaded pickle record '{path}', type '{type(record).__name__}'")
 
     return record
+
+
+def generic_pkl_path(filename, directory="."):
+    if not filename.endswith("pkl"):
+        filename = filename + ".pkl"
+    return os.path.join(directory, filename)
 
 
 def write_cuwb_data_pkl(

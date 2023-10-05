@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import sys
 from pathlib import Path
@@ -11,7 +11,8 @@ from process_cuwb_data.utils import io
 import dotenv
 
 from process_cuwb_data.utils.util import filter_by_data_type
-from process_cuwb_data.uwb_motion_enum_carry_categories import CarryCategory
+
+# from process_cuwb_data.uwb_motion_enum_carry_categories import CarryCategory
 
 dotenv.load_dotenv("../.env")
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -59,15 +60,27 @@ def run(environment_name, start, end, models):
     df_carry_events = pd.concat(all_carry_events)
     df_inferred_tray_carry = pd.concat(all_inferred_tray_carries)
 
-    df_tray_features_not_carried = df_inferred_tray_carry[
-        df_inferred_tray_carry["predicted_tray_carry_label"] == CarryCategory.NOT_CARRIED.name
-    ]
+    # df_tray_features_not_carried = df_inferred_tray_carry[
+    #     df_inferred_tray_carry["predicted_tray_carry_label"] == CarryCategory.NOT_CARRIED.name
+    # ]
+
+    # Assume that trays are most likely to be where they should be during the first hour of class
+    df_tray_motion_features_morning = process_cuwb_data.fetch_motion_features(
+        environment_name=environment_name,
+        start=start,
+        end=start + timedelta(hours=1),
+        df_uwb_data=df_uwb_data,
+        entity_type="Tray",
+        fillna="forward_backward",
+        filter_wos=False,
+        overwrite_cache=True,
+    )
 
     df_tray_centroids = process_cuwb_data.estimate_tray_centroids(
         environment_name=environment_name,
         start=start,
         end=end,
-        df_tray_features_not_carried=df_tray_features_not_carried,
+        df_tray_features_not_carried=df_tray_motion_features_morning,
         overwrite_cache=True,
     )
 

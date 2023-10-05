@@ -1,3 +1,9 @@
+import datetime
+import hashlib
+import json
+from typing import Union
+
+
 def dataframe_tuple_columns_to_underscores(df, inplace=False):
     if not inplace:
         df = df.copy()
@@ -40,3 +46,24 @@ def filter_by_data_type(df, data_type="all"):
 def map_column_name_to_dimension_space(column_name, num_dimensions):
     dims = ["x", "y", "z"]
     return list(map(lambda d: f"{d}_{column_name}", dims[0:num_dimensions]))
+
+
+def checksum(item: Union[dict, str, bytes]):
+    byte_string = None
+    if isinstance(item, bytes):
+        byte_string = item
+    elif isinstance(item, dict):
+
+        def json_serial(obj):
+            if isinstance(obj, (datetime.datetime, datetime.date)):
+                return obj.isoformat()
+
+            raise TypeError(f"Type {type(obj)} not serializable")
+
+        byte_string = json.dumps(item, default=json_serial).encode()
+    elif isinstance(item, str):
+        byte_string = bytes(item, "utf-8")
+    if byte_string is None:
+        raise ValueError("Unexpected item passed to checksum(), expected Union[dict, str, bytes]")
+
+    return hashlib.sha256(byte_string).hexdigest()
