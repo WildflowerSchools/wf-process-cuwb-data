@@ -32,6 +32,10 @@ def run(environment_name, start, end, models):
         overwrite_cache=True,
     )
 
+    if df_uwb_motion_features is None or len(df_uwb_motion_features) == 0:
+        logging.warning("No motion features extracted, not generating material events")
+        return
+
     all_carry_events = []
     all_inferred_tray_carries = []
     for model in models:
@@ -144,8 +148,8 @@ if __name__ == "__main__":
     # end = datetime.strptime("2023-07-20T17:30:00-0800", "%Y-%m-%dT%H:%M:%S%z")
     # run(environment_name, start, end, models)
 
-    start = datetime.strptime("2023-08-28T08:30:00-0700", "%Y-%m-%dT%H:%M:%S%z")
-    end = datetime.strptime("2023-08-28T10:30:00-0700", "%Y-%m-%dT%H:%M:%S%z")
+    start = datetime.strptime("2023-10-10T08:30:00-0700", "%Y-%m-%dT%H:%M:%S%z")
+    end = datetime.strptime("2023-10-10T10:30:00-0700", "%Y-%m-%dT%H:%M:%S%z")
     run(environment_name, start, end, models)
 
     # start = datetime.strptime("2023-08-29T08:30:00-0700", "%Y-%m-%dT%H:%M:%S%z")

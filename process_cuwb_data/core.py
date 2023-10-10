@@ -235,7 +235,12 @@ def fetch_motion_features(
     )
 
     # Add metadata fields if requested
-    if include_meta_fields and (len(df_uwb_data) > 0):
+    if (
+        include_meta_fields
+        and (len(df_uwb_data) > 0)
+        and df_motion_features is not None
+        and len(df_motion_features) > 0
+    ):
         df_all_datatypes = df_uwb_data.copy()
         df_meta_fields = (
             df_all_datatypes.loc[

@@ -203,8 +203,11 @@ class FeatureExtraction:
 
             all_features.append(df_features)
 
-        df_all = pd.concat(all_features)
-        return df_all
+        response = None
+        if len(all_features) > 0:
+            response = pd.concat(all_features)
+
+        return response
 
     def extract_tray_motion_features_for_multiple_devices(self, df_uwb_data):
         return self.extract_motion_features_for_multiple_devices(
@@ -593,7 +596,12 @@ class FeatureExtraction:
                 start_end_times_or_mask = functools.reduce(or_, start_end_times_mask_list)
                 filtered_uwb_data.append(df_device_uwb_data[start_end_times_or_mask])
 
-        return pd.concat(filtered_uwb_data)
+        if len(filtered_uwb_data) > 0:
+            response = pd.concat(filtered_uwb_data)
+        else:
+            response = pd.DataFrame(data=None, columns=df_uwb_data.columns, index=df_uwb_data.index)
+
+        return response
 
     def remove_wos_acceleration_peaks(
         self, df, x_col="x", y_col="y", z_col="z", require_peak_across_all_axes=False, inplace=False
