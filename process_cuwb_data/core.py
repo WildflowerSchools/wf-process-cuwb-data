@@ -214,7 +214,7 @@ def fetch_motion_features(
                 if os.path.exists(cached_path):
                     os.remove(cached_path)
             else:
-                df_motion_features = io.read_cuwb_data_pkl(**cache_options)
+                df_motion_features = io.read_generic_pkl(path=cached_path)
                 if df_motion_features is not None:
                     return df_motion_features
         except Exception as e:
@@ -501,16 +501,20 @@ def estimate_tray_centroids(
         "environment_name": environment_name,
         "start_time": start,
         "end_time": end,
-        "directory": "/".join([cache_dir, cache_sub_dir]),
     }
+    checksum = util.checksum(cache_options)
+    cached_path = io.generic_pkl_path(
+        filename=f"{environment_name}_{cache_options['filename_prefix']}_{checksum}",
+        directory="/".join([cache_dir, cache_sub_dir]),
+    )
+
     if cache or overwrite_cache:
         try:
             if overwrite_cache:
-                cached_path = io.cuwb_data_path(**cache_options)
                 if os.path.exists(cached_path):
                     os.remove(cached_path)
             else:
-                df_tray_centroids = io.read_cuwb_data_pkl(**cache_options)
+                df_tray_centroids = io.read_generic_pkl(path=cached_path)
                 if df_tray_centroids is not None:
                     return df_tray_centroids
         except Exception as e:
@@ -530,7 +534,7 @@ def estimate_tray_centroids(
     df_tray_centroids = predict_tray_centroids(df_tray_features_not_carried=df_tray_features_not_carried)
 
     if cache:
-        io.write_cuwb_data_pkl(df=df_tray_centroids, **cache_options)
+        io.write_generic_pkl(record=df_tray_centroids, path=cached_path)
 
     return df_tray_centroids
 
