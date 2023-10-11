@@ -2384,18 +2384,18 @@ wf-minimal-honeycomb-python = ">=0.6.0"
 
 [[package]]
 name = "wf-honeycomb-rds-client"
-version = "0.3.2"
+version = "0.3.3"
 description = "A client for communicating with the RDS database underlying Honeycomb"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "wf_honeycomb_rds_client-0.3.2-py3-none-any.whl", hash = "sha256:cb7877a833f12b0812320d2451b5c0266d94ecbac8a04d6b1530c8f3277ea164"},
-    {file = "wf_honeycomb_rds_client-0.3.2.tar.gz", hash = "sha256:f7bb962c0cdec8bbd92170668ca796491708e5bc56323e17b21b2d17662dd812"},
+    {file = "wf_honeycomb_rds_client-0.3.3-py3-none-any.whl", hash = "sha256:481388d70318049c6e178747179c1a056360d48527f5df3b7b60ab2673101635"},
+    {file = "wf_honeycomb_rds_client-0.3.3.tar.gz", hash = "sha256:bf6866b7d28f65de01a271c7c018f01027f8a5006a4b95e31d4e3444933e8be8"},
 ]
 
 [package.dependencies]
 pandas = ">=1.5"
-pydantic = ">=2.4.2,<3.0.0"
+pydantic = ">=1.8"
 toml = ">=0.10.2,<0.11.0"
 wf-honeycomb-io = ">=2.1"
 wf-postgres-client = ">=0.1.0"
@@ -2597,4 +2597,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.12"
-content-hash = "35d25b487ae7485b09fbbf70ced2ed8bd42269e200924d8ebefcad19a95ecaa5"
+content-hash = "e7afc3656c42bed06340395e6b29b6d9a0c6d2d57e22fd5b7824a7356c56f8cc"
