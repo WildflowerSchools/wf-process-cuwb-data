@@ -52,19 +52,19 @@ def overlay_geoms_on_video(df_video_snippets_chunk, geoms, material_event_start,
         )
 
 
-def overlay_all_geoms_on_all_video_for_given_time(c, s, e, cameras=None, video_start_end_seconds_offset=0):
+def overlay_all_geoms_on_all_video_for_given_time(
+    c, s, e, cameras=None, device_ids=None, video_start_end_seconds_offset=0
+):
     environment_id = honeycomb_io.fetch_environment_id(
         environment_name=c,
     )
-
-    df_cameras = honeycomb_io.fetch_camera_info(environment_id=environment_id, start=s, end=e)
 
     geoms = fetch_geoms_2d(
         environment_name=c,
         start_time=s - timedelta(seconds=video_start_end_seconds_offset),
         end_time=e + timedelta(seconds=video_start_end_seconds_offset),
         smooth=True,
-        device_ids=None,
+        device_ids=device_ids,
     )
     if cameras:
         geoms = dict(filter(lambda e: e[1]["device_name"] in cameras, geoms.items()))

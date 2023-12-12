@@ -39,7 +39,7 @@ valid_date_formats = list(
     )
 )
 
-ANNONYMIZE_COLUMNS = ["person_name", "person_first_name", "person_last_name", "person_nickname", "person_short_name"]
+ANONYMIZE_COLUMNS = ["person_name", "person_first_name", "person_last_name", "person_nickname", "person_short_name"]
 
 
 def timezone_aware(ctx, param, value):
@@ -183,7 +183,7 @@ def cli_fetch_cuwb_data(environment, start, end, entity_type, data_type, data_so
         return
 
     if annonymize:
-        scalar_dict = {c: "" for c in ANNONYMIZE_COLUMNS}
+        scalar_dict = {c: "" for c in ANONYMIZE_COLUMNS}
         df = df.assign(**scalar_dict)
 
     write_cuwb_data_pkl(
@@ -196,14 +196,14 @@ def cli_fetch_cuwb_data(environment, start, end, entity_type, data_type, data_so
 )
 @add_options(_cli_options_env_start_end)
 @add_options(_cli_options_uwb_data)
-@click.option("--annonymize", is_flag=True, default=False, help="Annonymize people names")
+@click.option("--anonymize", is_flag=True, default=False, help="Anonymize people names")
 @click.option(
     "--output",
     type=click.Path(),
     default=f"{os.getcwd()}/output",
     help="output folder for cuwb tray features data, features stored in <<output>>/feature_data/<<file>>.pkl",
 )
-def cli_fetch_motion_features(environment, start, end, cuwb_data, annonymize, output):
+def cli_fetch_motion_features(environment, start, end, cuwb_data, anonymize, output):
     feature_data_output = f"{output}/feature_data"
     Path(feature_data_output).mkdir(parents=True, exist_ok=True)
 
@@ -218,8 +218,8 @@ def cli_fetch_motion_features(environment, start, end, cuwb_data, annonymize, ou
         logger.warning("No CUWB data found")
         return
 
-    if annonymize:
-        scalar_dict = {c: "" for c in ANNONYMIZE_COLUMNS}
+    if anonymize:
+        scalar_dict = {c: "" for c in ANONYMIZE_COLUMNS}
         df_features = df_features.assign(**scalar_dict)
 
     write_cuwb_data_pkl(

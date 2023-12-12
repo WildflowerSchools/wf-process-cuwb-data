@@ -129,6 +129,13 @@ def fetch_cuwb_data(
 
     df_uwb_data = extract_by_entity_type(df_imu_data, entity_type)
 
+    # Remove duplicates before they cause chaos downstream
+    all_dedupped_data = []
+    for _, df_uwb_by_device_and_data_type in df_uwb_data.groupby(by=["device_id", "type"]):
+        df_duplicates = df_uwb_by_device_and_data_type[~df_uwb_by_device_and_data_type.index.duplicated(keep="first")]
+        all_dedupped_data.append(df_duplicates)
+    df_uwb_data = pd.concat(all_dedupped_data)
+
     if cache:
         io.write_cuwb_data_pkl(df=df_uwb_data, **cache_options)
 
