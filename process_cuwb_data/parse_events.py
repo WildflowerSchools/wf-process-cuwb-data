@@ -236,10 +236,11 @@ def determine_best_cameras_for_trays(
         except ValueError:
             return event
 
-        event[f"best_camera_device_id_{event_time_field}"] = uwb_line_of_sight.best_camera_view_device_id()
-        event[f"best_camera_name_{event_time_field}"] = camera_device_dict.get(
-            event[f"best_camera_device_id_{event_time_field}"]
-        )["device_name"]
+        best_camera_device_id = uwb_line_of_sight.best_camera_view_device_id()
+        event[f"best_camera_device_id_{event_time_field}"] = best_camera_device_id
+        if best_camera_device_id is not None:
+            event[f"best_camera_name_{event_time_field}"] = camera_device_dict.get(best_camera_device_id)["device_name"]
+
         event[
             f"all_in_middle_camera_device_ids_{event_time_field}"
         ] = uwb_line_of_sight.all_in_middle_camera_views_device_ids()
