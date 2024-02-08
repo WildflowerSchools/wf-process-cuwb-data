@@ -135,14 +135,15 @@ def fetch_imu_data(
 
 def smooth_imu_position_data(df_position):
     position_filter = TrayMotionButterFiltFiltFilter(useSosFiltFilt=True)
-    df_position_smoothed = pd.DataFrame(data=None, columns=df_position.columns)
+    all_df_position_smoothed = []
     for device_id in df_position["device_id"].unique().tolist():
         df_positions_for_device = df_position.loc[df_position["device_id"] == device_id].copy().sort_index()
 
         df_positions_for_device["x"] = position_filter.filter(series=df_positions_for_device["x"])
         df_positions_for_device["y"] = position_filter.filter(series=df_positions_for_device["y"])
-        df_position_smoothed = pd.concat([df_position_smoothed, df_positions_for_device])
-    return df_position_smoothed
+        all_df_position_smoothed.append(df_positions_for_device)
+        # df_position_smoothed = pd.concat([df_position_smoothed, df_positions_for_device])
+    return pd.concat(all_df_position_smoothed)
 
 
 def generate_imu_file_path(

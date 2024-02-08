@@ -3,7 +3,7 @@ import logging
 import multiprocessing
 import sys
 
-import numpy as np
+import video_io
 
 from scripts.geom_overlay.util import overlay_all_geoms_on_all_video_for_given_time
 
@@ -722,38 +722,202 @@ if __name__ == "__main__":
     #     )
     # )
 
-    events = [
+    # teacher_child_events = [
+    #     {
+    #         "environment": "dahlia",
+    #         "start": datetime.fromisoformat("2023-09-20T16:02:00.000+00:00"),
+    #         "end": datetime.fromisoformat("2023-09-20T16:03:00.000+00:00"),
+    #         "cameras": [
+    #             "wftech-camera-00100",
+    #             "wftech-camera-00101",
+    #             "wftech-camera-00103",
+    #             "wftech-camera-00106"
+    #         ],
+    #     },
+    #     {
+    #         "environment": "dahlia",
+    #         "start": datetime.fromisoformat("2023-09-20T16:31:00.000+00:00"),
+    #         "end": datetime.fromisoformat("2023-09-20T16:32:00.000+00:00"),
+    #         "cameras": [
+    #             "wftech-camera-00100",
+    #             "wftech-camera-00101",
+    #             "wftech-camera-00103",
+    #             "wftech-camera-00106"
+    #         ],
+    #     },
+    #     {
+    #         "environment": "dahlia",
+    #         "start": datetime.fromisoformat("2023-09-20T16:50:00.000+00:00"),
+    #         "end": datetime.fromisoformat("2023-09-20T16:51:00.000+00:00"),
+    #         "cameras": [
+    #             "wftech-camera-00100",
+    #             "wftech-camera-00101",
+    #             "wftech-camera-00103",
+    #             "wftech-camera-00106"
+    #         ],
+    #     },
+    #     {
+    #         "environment": "dahlia",
+    #         "start": datetime.fromisoformat("2023-09-20T17:01:00.000+00:00"),
+    #         "end": datetime.fromisoformat("2023-09-20T17:02:00.000+00:00"),
+    #         "cameras": [
+    #             "wftech-camera-00100",
+    #             "wftech-camera-00101",
+    #             "wftech-camera-00103",
+    #             "wftech-camera-00106"
+    #         ],
+    #     },
+    #     {
+    #         "environment": "dahlia",
+    #         "start": datetime.fromisoformat("2023-09-20T18:50:00.000+00:00"),
+    #         "end": datetime.fromisoformat("2023-09-20T18:51:00.000+00:00"),
+    #         "cameras": [
+    #             "wftech-camera-00100",
+    #             "wftech-camera-00101",
+    #             "wftech-camera-00103",
+    #             "wftech-camera-00106"
+    #         ],
+    #     },
+    #     {
+    #         "environment": "dahlia",
+    #         "start": datetime.fromisoformat("2023-09-20T18:55:00.000+00:00"),
+    #         "end": datetime.fromisoformat("2023-09-20T18:56:00.000+00:00"),
+    #         "cameras": [
+    #             "wftech-camera-00100",
+    #             "wftech-camera-00101",
+    #             "wftech-camera-00103",
+    #             "wftech-camera-00106"
+    #         ],
+    #     },
+    #     {
+    #         "environment": "dahlia",
+    #         "start": datetime.fromisoformat("2023-09-20T19:34:00.000+00:00"),
+    #         "end": datetime.fromisoformat("2023-09-20T19:35:00.000+00:00"),
+    #         "cameras": [
+    #             "wftech-camera-00100",
+    #             "wftech-camera-00101",
+    #             "wftech-camera-00103",
+    #             "wftech-camera-00106"
+    #         ],
+    #     },
+    #     {
+    #         "environment": "dahlia",
+    #         "start": datetime.fromisoformat("2023-09-20T21:55:00.000+00:00"),
+    #         "end": datetime.fromisoformat("2023-09-20T21:56:00.000+00:00"),
+    #         "cameras": [
+    #             "wftech-camera-00100",
+    #             "wftech-camera-00101",
+    #             "wftech-camera-00103",
+    #             "wftech-camera-00106"
+    #         ],
+    #     },
+    #     {
+    #         "environment": "dahlia",
+    #         "start": datetime.fromisoformat("2023-09-20T22:30:00.000+00:00"),
+    #         "end": datetime.fromisoformat("2023-09-20T22:31:00.000+00:00"),
+    #         "cameras": [
+    #             "wftech-camera-00100",
+    #             "wftech-camera-00101",
+    #             "wftech-camera-00103",
+    #             "wftech-camera-00106"
+    #         ],
+    #     },
+    #     {
+    #         "environment": "dahlia",
+    #         "start": datetime.fromisoformat("2023-09-20T18:35:00.000+00:00"),
+    #         "end": datetime.fromisoformat("2023-09-20T18:36:00.000+00:00"),
+    #         "cameras": [
+    #             "wftech-camera-00100",
+    #             "wftech-camera-00101",
+    #             "wftech-camera-00103",
+    #             "wftech-camera-00106"
+    #         ],
+    #     },
+    #     {
+    #         "environment": "dahlia",
+    #         "start": datetime.fromisoformat("2023-09-20T23:37:00.000+00:00"),
+    #         "end": datetime.fromisoformat("2023-09-20T23:38:00.000+00:00"),
+    #         "cameras": [
+    #             "wftech-camera-00100",
+    #             "wftech-camera-00101",
+    #             "wftech-camera-00103",
+    #             "wftech-camera-00106"
+    #         ],
+    #     },
+    # ]
+
+    child_child_event_times = [
         {
-            "environment": "dahlia",
-            # "start": datetime.fromisoformat("2023-09-18T16:12:35.900+00:00"),
-            # "end": datetime.fromisoformat("2023-09-18T16:13:07.900+00:00"),
-            "start": datetime.fromisoformat("2023-09-18T16:44:38.000+00:00"),
-            "end": datetime.fromisoformat("2023-09-18T16:44:48.000+00:00"),
-            "cameras": None,
-            # "device_ids": None
-            "device_ids": [
-                "fda0e35b-9a81-4914-894f-f348fce93e4c",
-                "8e2a6c0d-4785-4793-9bdc-76b1a346778e",
-                "67769ebb-7580-49e7-bf7d-f209d4b5a021",
-            ],
-        }
+            "start": datetime.fromisoformat("2023-10-02 11:19:00-07:00"),
+            "end": datetime.fromisoformat("2023-10-02 11:20:00-07:00"),
+        },
+        {
+            "start": datetime.fromisoformat("2023-10-02 10:34:00-07:00"),
+            "end": datetime.fromisoformat("2023-10-02 10:35:00-07:00"),
+        },
+        {
+            "start": datetime.fromisoformat("2023-10-02 14:26:00-07:00"),
+            "end": datetime.fromisoformat("2023-10-02 14:27:00-07:00"),
+        },
+        {
+            "start": datetime.fromisoformat("2023-10-02 13:11:00-07:00"),
+            "end": datetime.fromisoformat("2023-10-02 13:12:00-07:00"),
+        },
+        {
+            "start": datetime.fromisoformat("2023-10-02 10:10:00-07:00"),
+            "end": datetime.fromisoformat("2023-10-02 10:11:00-07:00"),
+        },
+        {
+            "start": datetime.fromisoformat("2023-10-02 12:35:00-07:00"),
+            "end": datetime.fromisoformat("2023-10-02 12:36:00-07:00"),
+        },
+        {
+            "start": datetime.fromisoformat("2023-10-02 10:11:00-07:00"),
+            "end": datetime.fromisoformat("2023-10-02 10:12:00-07:00"),
+        },
+        {
+            "start": datetime.fromisoformat("2023-10-02 08:26:00-07:00"),
+            "end": datetime.fromisoformat("2023-10-02 08:27:00-07:00"),
+        },
+        {
+            "start": datetime.fromisoformat("2023-10-02 15:42:00-07:00"),
+            "end": datetime.fromisoformat("2023-10-02 15:43:00-07:00"),
+        },
+        {
+            "start": datetime.fromisoformat("2023-10-02 16:11:00-07:00"),
+            "end": datetime.fromisoformat("2023-10-02 16:12:00-07:00"),
+        },
     ]
 
+    cameras = ["wftech-camera-00100", "wftech-camera-00101", "wftech-camera-00103", "wftech-camera-00106"]
+
+    child_child_events = list(
+        map(lambda e: {**e, **{"environment": "dahlia", "cameras": cameras}}, child_child_event_times)
+    )
+
     def _overlay(event):
+        output_overlayed_dir = "./output/overlayed_video"
+
         logging.info(
             f"Generating overlays for, Environment: {event['environment']} Start: {event['start']} End: {event['end']} Cameras: {event['cameras']}"
         )
-        overlay_all_geoms_on_all_video_for_given_time(
+        df_video_outputs = overlay_all_geoms_on_all_video_for_given_time(
             c=event["environment"],
             s=event["start"],
             e=event["end"],
             cameras=event["cameras"],
-            device_ids=event["device_ids"],
-            video_start_end_seconds_offset=3,
+            device_ids=event["device_ids"] if "device_ids" in event else None,
+            video_start_end_seconds_offset=0,
+            display_trays=False,
+            display_people=True,
+            active_tags_only=True,
         )
 
+        output_path = f"{output_overlayed_dir}/mosaic_{event['environment']}_from-{event['start'].isoformat()}_to-{event['end'].isoformat()}.mp4"
+        video_io.combine_videos(video_inputs=df_video_outputs["overlayed_file_path"].to_list(), output_path=output_path)
+
     with multiprocessing.pool.ThreadPool(processes=2) as pool:
-        pool.map(_overlay, events)
+        pool.map(_overlay, child_child_events)
 
         pool.close()
         pool.join()
@@ -764,3 +928,7 @@ if __name__ == "__main__":
     #     start=datetime.strptime("2023-06-30T12:40:18.771697-0700", "%Y-%m-%dT%H:%M:%S.%f%z"),
     #     end=datetime.strptime("2023-06-30T12:43:24.032254-0700", "%Y-%m-%dT%H:%M:%S.%f%z"),
     # )
+
+    # 1) Find all active tag periods
+    # 2) Find all the stage-1 passed active pairs
+    # 3) Loop across all pairs and draw dots for each pair over the arc of time selected. Cross-reference passed stage-1 pairs in order to paint those a separate color.

@@ -15,7 +15,14 @@ import pandas as pd
 import video_io
 from geom_render import GeomCollection2D
 
-from process_cuwb_data import fetch_geoms_2d, HoneycombCachingClient, CameraUWBLineOfSight
+from process_cuwb_data import (
+    fetch_cuwb_data,
+    fetch_geoms_2d,
+    find_active_tags,
+    HoneycombCachingClient,
+    CameraUWBLineOfSight,
+)
+from process_cuwb_data.honeycomb_imu_data import fetch_imu_data
 
 OUTPUT_OVERLAYED_DIR = "../output/overlayed_video"
 OUTPUT_FINAL_OVERLAYED_DIR = "../output/final_overlayed_video"
@@ -48,23 +55,72 @@ def overlay_geoms_on_video(df_video_snippets_chunk, geoms, material_event_start,
             input_path=video["file_path"],
             output_path=df_video_snippets_chunk.iloc[idx]["overlayed_file_path"],
             start_time=material_event_start,
+            include_timestamp=True,
             progress_bar=True,
         )
 
 
 def overlay_all_geoms_on_all_video_for_given_time(
-    c, s, e, cameras=None, device_ids=None, video_start_end_seconds_offset=0
+    c,
+    s,
+    e,
+    cameras=None,
+    device_ids=None,
+    video_start_end_seconds_offset=0,
+    display_trays=True,
+    display_people=True,
+    active_tags_only=False,
 ):
     environment_id = honeycomb_io.fetch_environment_id(
         environment_name=c,
     )
 
+    df_position = None
+    if active_tags_only:
+        df_people_uwb_data = fetch_cuwb_data(
+            environment_name=c,
+            start=s - timedelta(minutes=5),
+            end=e + timedelta(minutes=5),
+            entity_type="person",
+            overwrite_cache=False,
+        )
+
+        df_active_tags = find_active_tags(
+            accelerometer_data=df_people_uwb_data[df_people_uwb_data["type"] == "accelerometer"].reset_index(),
+            position_data=df_people_uwb_data[df_people_uwb_data["type"] == "position"].reset_index(),
+        )
+
+        df_position = fetch_imu_data(
+            imu_type="position",
+            environment_name=c,
+            start=s,
+            end=e,
+            device_ids=device_ids,
+        )
+
+        df_position = df_position[(df_position["socket_read_time"] >= s) & (df_position["socket_read_time"] <= e)]
+
+        all_uwb_data_for_active_tags = []
+        for _, df_active_tag_row in df_active_tags.iterrows():
+            all_uwb_data_for_active_tags.append(
+                df_position[
+                    (df_position["socket_read_time"] >= df_active_tag_row["start"])
+                    & (df_position["socket_read_time"] <= df_active_tag_row["end"])
+                    & (df_position["device_id"] == df_active_tag_row["device_id"])
+                ]
+            )
+
+        df_position = pd.concat(all_uwb_data_for_active_tags)
+
     geoms = fetch_geoms_2d(
         environment_name=c,
+        df_cuwb_position_data=df_position,
         start_time=s - timedelta(seconds=video_start_end_seconds_offset),
         end_time=e + timedelta(seconds=video_start_end_seconds_offset),
         smooth=True,
         device_ids=device_ids,
+        fetch_trays=display_trays,
+        fetch_people=display_people,
     )
     if cameras:
         geoms = dict(filter(lambda e: e[1]["device_name"] in cameras, geoms.items()))
@@ -108,6 +164,8 @@ def overlay_all_geoms_on_all_video_for_given_time(
     pool.map(overlay_geoms_partial, chunks)
     pool.close()
     pool.join()
+
+    return df_video_outputs
 
 
 def generate_video_snippets_for_person(

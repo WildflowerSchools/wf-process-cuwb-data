@@ -22,6 +22,8 @@ def fetch_geoms_2d(
     frames_per_second=10.0,
     progress_bar=False,
     notebook=False,
+    fetch_trays=True,
+    fetch_people=True,
 ):
     # Fetch CUWB position data
     if df_cuwb_position_data is not None:
@@ -49,6 +51,7 @@ def fetch_geoms_2d(
             "device_serial_number",
             "entity_type",
             "person_id",
+            "person_type",
             "person_short_name",
             "person_anonymized_short_name",
             "material_id",
@@ -56,6 +59,12 @@ def fetch_geoms_2d(
             "material_name",
         ]
     ]
+
+    if not fetch_trays:
+        df_position = df_position[df_position["entity_type"] != "Tray"]
+
+    if not fetch_people:
+        df_position = df_position[df_position["entity_type"] != "People"]
 
     if z_axis_override:
         df_position["z"] = z_axis_override
@@ -102,7 +111,7 @@ def create_geom_collection_3d(
 ):
     # Create dictionary of 3D geom collections, one for each object in data
     if colors is None:
-        colors = {"Person": "#ff0000", "Tray": "#00ff00"}
+        colors = {"Person": "#ff0000", "TEACHER": "#0000ff", "STUDENT": "#ff0000", "Tray": "#00ff00"}
 
     logger.info(
         "Creating dictionary of 3D geom collections for each sensor in data: {}".format(
@@ -122,6 +131,7 @@ def create_geom_collection_3d(
             "device_serial_number",
             "entity_type",
             "person_id",
+            "person_type",
             "person_short_name",
             "person_anonymized_short_name",
             "material_id",
@@ -135,6 +145,7 @@ def create_geom_collection_3d(
         device_serial_number,
         entity_type,
         person_id,
+        person_type,
         person_anonymized_short_name,
         material_id,
         material_name,
@@ -144,6 +155,7 @@ def create_geom_collection_3d(
             "device_serial_number",
             "entity_type",
             "person_id",
+            "person_type",
             "person_anonymized_short_name",
             "material_id",
             "material_name",
@@ -155,6 +167,11 @@ def create_geom_collection_3d(
         entity_id = material_id
         if entity_type == "Person":
             entity_id = person_id
+
+        text_color = colors[entity_type] if entity_type in colors else "#0000ff"
+        if entity_type == "Person":
+            text_color = colors[person_type] if person_type in colors else text_color
+
         logger.info(
             "Creating 3D geom collection for {} ({}) [{} to {}]".format(
                 entity_name, device_serial_number, group_df.index.min().isoformat(), group_df.index.max().isoformat()
@@ -171,7 +188,7 @@ def create_geom_collection_3d(
         geom_list = [
             geom_render.Point3D(
                 coordinate_indices=[0],
-                color=colors[entity_type] if entity_type in colors else "#0000ff",
+                color=text_color,
                 object_type=entity_type,
                 object_id=entity_id,
                 object_name=entity_name,
@@ -180,7 +197,7 @@ def create_geom_collection_3d(
             geom_render.Text3D(
                 text=entity_name,
                 coordinate_indices=[0],
-                color=colors[entity_type] if entity_type in colors else "#0000ff",
+                color=text_color,
                 object_type=entity_type,
                 object_id=entity_id,
                 object_name=entity_name,
